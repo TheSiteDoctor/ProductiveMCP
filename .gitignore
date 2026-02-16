@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.env
+productive.config.json
+*.log
+.DS_Store
