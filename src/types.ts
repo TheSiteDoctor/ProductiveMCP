@@ -397,6 +397,20 @@ export interface FormattedPerson {
   active: boolean;
 }
 
+// Productive Document Format (used for Page body content)
+export interface ProductiveDocNode {
+  type: string;
+  content?: ProductiveDocNode[];
+  text?: string;
+  marks?: { type: string; attrs?: Record<string, unknown> }[];
+  attrs?: Record<string, unknown>;
+}
+
+export interface ProductiveDoc {
+  type: "doc";
+  content: ProductiveDocNode[];
+}
+
 // Page types
 export interface PageAttributes {
   title: string;

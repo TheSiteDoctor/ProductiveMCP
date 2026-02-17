@@ -45,6 +45,8 @@ import type {
   ServiceType,
   ServiceTypeAttributes,
   FormattedServiceType,
+  ProductiveDoc,
+  ProductiveDocNode,
 } from "../types.js";
 
 /**
@@ -70,41 +72,37 @@ export function markdownToHtml(markdown: string): string {
   return html.trim();
 }
 
-// Types for Productive Document Format
-interface ProductiveDocNode {
-  type: string;
-  content?: ProductiveDocNode[];
-  text?: string;
-  marks?: { type: string; attrs?: Record<string, unknown> }[];
-  attrs?: Record<string, unknown>;
-}
-
-interface ProductiveDoc {
-  type: "doc";
-  content: ProductiveDocNode[];
-}
+// Productive Document Format types imported from types.ts
 
 /**
  * Convert Markdown to Productive JSON Document Format for Pages.
  * Productive Pages use a JSON document format similar to Atlassian Document Format (ADF).
  * This function parses markdown and converts it to the required structure.
  */
-export function markdownToProductiveDoc(markdown: string): string {
+export function markdownToProductiveDoc(markdown: string): ProductiveDoc {
   if (!markdown || markdown.trim() === "") {
     // Return empty document structure
-    return JSON.stringify({ type: "doc", content: [] });
+    return { type: "doc", content: [] };
   }
 
   // Parse markdown into tokens using marked's lexer
   const tokens = marked.lexer(markdown);
 
   // Convert tokens to Productive document nodes
-  const doc: ProductiveDoc = {
+  return {
     type: "doc",
     content: convertTokensToNodes(tokens),
   };
+}
 
-  return JSON.stringify(doc);
+/**
+ * Convert Markdown to a stringified Productive document JSON.
+ * Productive's Pages API expects the body attribute as a string containing JSON
+ * (not a raw JSON object), matching the format returned in API responses:
+ * e.g. "body": "{\"type\":\"doc\",\"content\":[...]}"
+ */
+export function markdownToProductiveDocString(markdown: string): string {
+  return JSON.stringify(markdownToProductiveDoc(markdown));
 }
 
 /**
