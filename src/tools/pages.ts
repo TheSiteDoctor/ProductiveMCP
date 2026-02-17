@@ -16,7 +16,7 @@ import type {
 import {
   formatResponse,
   truncateResponse,
-  markdownToProductiveDoc,
+  markdownToProductiveDocString,
 } from "../utils/formatting.js";
 import {
   ListPagesSchema,
@@ -316,7 +316,7 @@ export async function createPage(
   // Add optional attributes
   // Convert Markdown to Productive Document Format (Productive expects JSON document structure)
   if (args.body !== undefined) {
-    payload.data.attributes.body = markdownToProductiveDoc(args.body);
+    payload.data.attributes.body = markdownToProductiveDocString(args.body);
   }
   if (args.version_number) {
     payload.data.attributes.version_number = args.version_number;
@@ -387,7 +387,7 @@ export async function updatePage(
   // If body is null, pass it directly (to clear content); if string, convert it
   if (args.body !== undefined) {
     attributes.body =
-      args.body === null ? null : markdownToProductiveDoc(args.body);
+      args.body === null ? null : markdownToProductiveDocString(args.body);
   }
 
   if (Object.keys(attributes).length > 0) {
