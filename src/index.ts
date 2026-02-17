@@ -69,7 +69,13 @@ import {
   ListAttachmentsSchema,
   UploadAttachmentSchema,
 } from "./schemas/attachment.js";
-import { ListCommentsSchema } from "./schemas/comment.js";
+import {
+  ListCommentsSchema,
+  CreateCommentSchema,
+  GetCommentSchema,
+  UpdateCommentSchema,
+  DeleteCommentSchema,
+} from "./schemas/comment.js";
 import { ListSubtasksSchema } from "./schemas/subtask.js";
 import {
   ListBudgetsSchema,
@@ -142,7 +148,13 @@ import {
 } from "./tools/dependencies.js";
 import { markAsBlockedBy, markAsDuplicate } from "./tools/workflows.js";
 import { listAttachments, uploadAttachment } from "./tools/attachments.js";
-import { listComments } from "./tools/comments.js";
+import {
+  listComments,
+  createComment,
+  getComment,
+  updateComment,
+  deleteComment,
+} from "./tools/comments.js";
 import { listSubtasks } from "./tools/subtasks.js";
 import {
   listBudgets,
@@ -1461,6 +1473,94 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ["task_id"],
       },
     },
+    {
+      name: "productive_create_comment",
+      description:
+        'Create a comment on a task. The body accepts Markdown formatting which will be converted to HTML.\n\nExample:\n{\n  "task_id": "12345",\n  "body": "This looks good, ready for review."\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          task_id: {
+            type: "string",
+            description: "Task ID to comment on (required)",
+          },
+          body: {
+            type: "string",
+            description:
+              "Comment body in Markdown format (required, max 10000 characters)",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["task_id", "body"],
+      },
+    },
+    {
+      name: "productive_get_comment",
+      description:
+        'Get a specific comment by ID. Returns the comment with author information.\n\nExample:\n{\n  "comment_id": "12345"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          comment_id: {
+            type: "string",
+            description: "Comment ID to retrieve (required)",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["comment_id"],
+      },
+    },
+    {
+      name: "productive_update_comment",
+      description:
+        'Update the body of an existing comment. The body accepts Markdown formatting which will be converted to HTML.\n\nExample:\n{\n  "comment_id": "12345",\n  "body": "Updated comment text"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          comment_id: {
+            type: "string",
+            description: "Comment ID to update (required)",
+          },
+          body: {
+            type: "string",
+            description:
+              "New comment body in Markdown format (required, max 10000 characters)",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["comment_id", "body"],
+      },
+    },
+    {
+      name: "productive_delete_comment",
+      description:
+        'Delete a comment by ID. This action is permanent and cannot be undone.\n\nExample:\n{\n  "comment_id": "12345"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          comment_id: {
+            type: "string",
+            description: "Comment ID to delete (required)",
+          },
+        },
+        required: ["comment_id"],
+      },
+    },
 
     // Sub-task tools
     {
@@ -2496,6 +2596,34 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "productive_list_comments": {
         const validated = ListCommentsSchema.parse(args);
         const result = await listComments(client, validated);
+        safeLog("[MCP Tool Success]", { tool: name });
+        return { content: [{ type: "text", text: result }] };
+      }
+
+      case "productive_create_comment": {
+        const validated = CreateCommentSchema.parse(args);
+        const result = await createComment(client, validated);
+        safeLog("[MCP Tool Success]", { tool: name });
+        return { content: [{ type: "text", text: result }] };
+      }
+
+      case "productive_get_comment": {
+        const validated = GetCommentSchema.parse(args);
+        const result = await getComment(client, validated);
+        safeLog("[MCP Tool Success]", { tool: name });
+        return { content: [{ type: "text", text: result }] };
+      }
+
+      case "productive_update_comment": {
+        const validated = UpdateCommentSchema.parse(args);
+        const result = await updateComment(client, validated);
+        safeLog("[MCP Tool Success]", { tool: name });
+        return { content: [{ type: "text", text: result }] };
+      }
+
+      case "productive_delete_comment": {
+        const validated = DeleteCommentSchema.parse(args);
+        const result = await deleteComment(client, validated);
         safeLog("[MCP Tool Success]", { tool: name });
         return { content: [{ type: "text", text: result }] };
       }

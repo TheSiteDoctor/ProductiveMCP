@@ -9,9 +9,21 @@ import type {
   Comment,
   CommentAttributes,
   FormattedComment,
+  CreateCommentPayload,
+  UpdateCommentPayload,
 } from "../types.js";
-import { ListCommentsSchema } from "../schemas/comment.js";
-import { formatResponse, truncateResponse } from "../utils/formatting.js";
+import {
+  ListCommentsSchema,
+  CreateCommentSchema,
+  GetCommentSchema,
+  UpdateCommentSchema,
+  DeleteCommentSchema,
+} from "../schemas/comment.js";
+import {
+  formatResponse,
+  truncateResponse,
+  markdownToHtml,
+} from "../utils/formatting.js";
 
 /**
  * Format a comment for display
@@ -152,4 +164,152 @@ export async function listComments(
   );
 
   return truncateResponse(result, args.response_format);
+}
+
+/**
+ * Format a single comment as markdown
+ */
+function formatCommentMarkdown(comment: FormattedComment): string {
+  const pinnedBadge = comment.pinned ? " 📌" : "";
+  const author =
+    comment.author_name || `User ${comment.author_id}` || "Unknown";
+  const date = new Date(comment.created_at).toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const lines = [
+    `# Comment${pinnedBadge}`,
+    "",
+    `**Author**: ${author}`,
+    `**Date**: ${date}`,
+    `**ID**: ${comment.id}`,
+  ];
+
+  if (comment.task_id) {
+    lines.push(`**Task ID**: ${comment.task_id}`);
+  }
+
+  lines.push("", "---", "", comment.body);
+
+  return lines.join("\n");
+}
+
+/**
+ * Create a comment on a task
+ */
+export async function createComment(
+  client: ProductiveClient,
+  args: z.infer<typeof CreateCommentSchema>,
+): Promise<string> {
+  const htmlBody = markdownToHtml(args.body);
+
+  const payload: CreateCommentPayload = {
+    data: {
+      type: "comments",
+      attributes: {
+        body: htmlBody,
+      },
+      relationships: {
+        task: {
+          data: {
+            type: "tasks",
+            id: args.task_id,
+          },
+        },
+      },
+    },
+  };
+
+  const response = await client.post<JSONAPIResponse>("/comments", payload);
+  const commentData = Array.isArray(response.data)
+    ? response.data[0]
+    : response.data;
+  const comment = formatComment(commentData as Comment, response.included);
+
+  const result = formatResponse(
+    comment,
+    args.response_format,
+    () => `Comment created successfully:\n\n${formatCommentMarkdown(comment)}`,
+  );
+
+  return truncateResponse(result, args.response_format);
+}
+
+/**
+ * Get a specific comment by ID
+ */
+export async function getComment(
+  client: ProductiveClient,
+  args: z.infer<typeof GetCommentSchema>,
+): Promise<string> {
+  const response = await client.get<JSONAPIResponse>(
+    `/comments/${args.comment_id}`,
+    {
+      include: "creator,task",
+    },
+  );
+
+  const commentData = Array.isArray(response.data)
+    ? response.data[0]
+    : response.data;
+  const comment = formatComment(commentData as Comment, response.included);
+
+  const result = formatResponse(comment, args.response_format, () =>
+    formatCommentMarkdown(comment),
+  );
+
+  return truncateResponse(result, args.response_format);
+}
+
+/**
+ * Update a comment
+ */
+export async function updateComment(
+  client: ProductiveClient,
+  args: z.infer<typeof UpdateCommentSchema>,
+): Promise<string> {
+  const htmlBody = markdownToHtml(args.body);
+
+  const payload: UpdateCommentPayload = {
+    data: {
+      type: "comments",
+      id: args.comment_id,
+      attributes: {
+        body: htmlBody,
+      },
+    },
+  };
+
+  const response = await client.patch<JSONAPIResponse>(
+    `/comments/${args.comment_id}`,
+    payload,
+  );
+
+  const commentData = Array.isArray(response.data)
+    ? response.data[0]
+    : response.data;
+  const comment = formatComment(commentData as Comment, response.included);
+
+  const result = formatResponse(
+    comment,
+    args.response_format,
+    () => `Comment updated successfully:\n\n${formatCommentMarkdown(comment)}`,
+  );
+
+  return truncateResponse(result, args.response_format);
+}
+
+/**
+ * Delete a comment
+ */
+export async function deleteComment(
+  client: ProductiveClient,
+  args: z.infer<typeof DeleteCommentSchema>,
+): Promise<string> {
+  await client.delete(`/comments/${args.comment_id}`);
+  return `Comment ${args.comment_id} deleted successfully.`;
 }

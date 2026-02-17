@@ -556,6 +556,33 @@ export interface FormattedComment {
   task_id: string | null;
 }
 
+export interface CreateCommentPayload {
+  data: {
+    type: "comments";
+    attributes: {
+      body: string;
+    };
+    relationships: {
+      task: {
+        data: {
+          type: "tasks";
+          id: string;
+        };
+      };
+    };
+  };
+}
+
+export interface UpdateCommentPayload {
+  data: {
+    type: "comments";
+    id: string;
+    attributes?: {
+      body?: string;
+    };
+  };
+}
+
 // Budget types (deals with budget=true)
 export interface BudgetAttributes {
   name: string;
