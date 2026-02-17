@@ -65,6 +65,18 @@ Schemas live in `src/schemas/` (one file per domain, plus `common.ts` for shared
 - `src/utils/errors.ts` — `ProductiveAPIError` class, HTTP status-specific error messages, env var validation
 - `src/types.ts` — JSON:API response types and "Formatted" variants (e.g. `Task` → `FormattedTask` with resolved relationships)
 
+### Body Format Gotchas
+
+Different Productive API endpoints expect different formats for rich text body content:
+
+| Endpoint     | Input accepted   | Sent to API as                                | Function                          |
+| ------------ | ---------------- | --------------------------------------------- | --------------------------------- |
+| **Tasks**    | Markdown or HTML | HTML string                                   | `markdownToHtml()`                |
+| **Comments** | Markdown or HTML | HTML string                                   | `markdownToHtml()`                |
+| **Pages**    | Markdown         | Stringified JSON (`"{\"type\":\"doc\",...}"`) | `markdownToProductiveDocString()` |
+
+Pages use Productive's ProseMirror document format. The body attribute must be a **string** containing JSON — not a raw JSON object. The `ProductiveDoc` type in `src/types.ts` defines the structure.
+
 ### Response Constraints
 
 All tool responses are capped at 25,000 characters (`CHARACTER_LIMIT` in constants.ts) with pagination hints when truncated.
