@@ -30,8 +30,90 @@ import {
   CUSTOM_FIELD_IDS,
   TASK_TYPE_OPTIONS,
   PRIORITY_OPTIONS,
+  LABEL_OPTIONS,
   WORKFLOW_STATUS_IDS,
 } from "../constants.js";
+
+/**
+ * Create a new custom field option for the labels field.
+ * Returns the new option ID, or null on failure.
+ * Also updates the runtime LABEL_OPTIONS cache.
+ */
+async function createLabelOption(
+  client: ProductiveClient,
+  name: string,
+): Promise<string | null> {
+  if (!CUSTOM_FIELD_IDS.LABELS) return null;
+
+  try {
+    const payload = {
+      data: {
+        type: "custom_field_options" as const,
+        attributes: { name },
+        relationships: {
+          custom_field: {
+            data: {
+              type: "custom_fields" as const,
+              id: CUSTOM_FIELD_IDS.LABELS,
+            },
+          },
+        },
+      },
+    };
+
+    const response = await client.post<JSONAPIResponse>(
+      "/custom_field_options",
+      payload,
+    );
+
+    const data = Array.isArray(response.data)
+      ? response.data[0]
+      : response.data;
+    if (data?.id) {
+      // Update runtime cache so subsequent calls don't recreate the option
+      LABEL_OPTIONS[name] = data.id;
+      try {
+        console.error(`Created new label option: "${name}" (ID: ${data.id})`);
+      } catch {
+        // Ignore logging errors
+      }
+      return data.id;
+    }
+
+    return null;
+  } catch (error) {
+    try {
+      console.error(
+        `Warning: Failed to create label option "${name}": ${error instanceof Error ? error.message : error}`,
+      );
+    } catch {
+      // Ignore logging errors
+    }
+    return null;
+  }
+}
+
+/**
+ * Resolve label names to option IDs, creating new options as needed.
+ */
+export async function resolveLabelOptionIds(
+  client: ProductiveClient,
+  labels: string[],
+): Promise<string[]> {
+  const optionIds: string[] = [];
+
+  for (const label of labels) {
+    const existingId = LABEL_OPTIONS[label];
+    if (existingId) {
+      optionIds.push(existingId);
+    } else {
+      const newId = await createLabelOption(client, label);
+      if (newId) optionIds.push(newId);
+    }
+  }
+
+  return optionIds;
+}
 
 /**
  * Create a single task
@@ -123,8 +205,8 @@ export async function createTask(
     }
   }
 
-  // Add custom fields (task_type and priority)
-  const customFields: Record<string, string> = {};
+  // Add custom fields (task_type, priority, labels)
+  const customFields: Record<string, string | string[]> = {};
 
   if (args.task_type) {
     const optionId = TASK_TYPE_OPTIONS[args.task_type];
@@ -153,13 +235,15 @@ export async function createTask(
     }
   }
 
-  if (Object.keys(customFields).length > 0) {
-    payload.data.attributes.custom_fields = customFields;
+  if (args.labels && args.labels.length > 0 && CUSTOM_FIELD_IDS.LABELS) {
+    const optionIds = await resolveLabelOptionIds(client, args.labels);
+    if (optionIds.length > 0) {
+      customFields[CUSTOM_FIELD_IDS.LABELS] = optionIds;
+    }
   }
 
-  // Add labels if provided
-  if (args.labels && args.labels.length > 0) {
-    payload.data.attributes.label_list = args.labels;
+  if (Object.keys(customFields).length > 0) {
+    payload.data.attributes.custom_fields = customFields;
   }
 
   const response = await client.post<JSONAPIResponse>("/tasks", payload, {
@@ -278,9 +362,24 @@ export async function searchTasks(
   if (args.assignee_id) {
     params["filter[assignee_id]"] = args.assignee_id;
   }
+  if (args.task_list_id) {
+    params["filter[task_list_id]"] = args.task_list_id;
+  }
   if (args.closed !== undefined) {
     // Productive API uses filter[status]: 1 = open, 2 = closed
     params["filter[status]"] = args.closed ? 2 : 1;
+  }
+  if (args.created_after) {
+    params["filter[after]"] = args.created_after;
+  }
+  if (args.created_before) {
+    params["filter[before]"] = args.created_before;
+  }
+  if (args.updated_after) {
+    params["filter[updated_at]"] = args.updated_after;
+  }
+  if (args.sort) {
+    params["sort"] = args.sort;
   }
 
   const response = await client.get<JSONAPIResponse>("/tasks", params);
@@ -370,12 +469,16 @@ export async function updateTask(
   }
 
   // Handle custom fields
-  const customFields: Record<string, string | number> = {};
+  // Productive API replaces the entire custom_fields hash on PATCH,
+  // so we must GET existing values first and merge to avoid data loss.
+  const customFieldUpdates: Record<string, string | string[] | number> = {};
+  let hasCustomFieldChanges = false;
 
   if (args.task_type !== undefined) {
     const optionId = TASK_TYPE_OPTIONS[args.task_type];
     if (optionId) {
-      customFields[CUSTOM_FIELD_IDS.TASK_TYPE] = optionId;
+      customFieldUpdates[CUSTOM_FIELD_IDS.TASK_TYPE] = optionId;
+      hasCustomFieldChanges = true;
     } else {
       throw new Error(
         `Task type "${args.task_type}" does not have a configured option ID. Please update TASK_TYPE_OPTIONS in constants.ts`,
@@ -386,7 +489,8 @@ export async function updateTask(
   if (args.priority !== undefined) {
     const optionId = PRIORITY_OPTIONS[args.priority];
     if (optionId) {
-      customFields[CUSTOM_FIELD_IDS.PRIORITY] = optionId;
+      customFieldUpdates[CUSTOM_FIELD_IDS.PRIORITY] = optionId;
+      hasCustomFieldChanges = true;
     } else {
       try {
         console.error(
@@ -399,8 +503,35 @@ export async function updateTask(
     }
   }
 
-  if (Object.keys(customFields).length > 0) {
-    attributes.custom_fields = customFields;
+  if (args.labels !== undefined && CUSTOM_FIELD_IDS.LABELS) {
+    if (args.labels.length === 0) {
+      // Clear labels by setting to empty array
+      customFieldUpdates[CUSTOM_FIELD_IDS.LABELS] = [];
+    } else {
+      const optionIds = await resolveLabelOptionIds(client, args.labels);
+      if (optionIds.length > 0) {
+        customFieldUpdates[CUSTOM_FIELD_IDS.LABELS] = optionIds;
+      }
+    }
+    hasCustomFieldChanges = true;
+  }
+
+  if (hasCustomFieldChanges) {
+    // Fetch existing custom_fields to preserve values not being updated
+    const existingResponse = await client.get<JSONAPIResponse>(
+      `/tasks/${args.task_id}`,
+    );
+    const existingTask = Array.isArray(existingResponse.data)
+      ? existingResponse.data[0]
+      : existingResponse.data;
+    const existingCustomFields =
+      (existingTask as Task).attributes?.custom_fields || {};
+
+    // Merge: existing values as base, then apply our updates
+    attributes.custom_fields = {
+      ...existingCustomFields,
+      ...customFieldUpdates,
+    };
   }
 
   if (Object.keys(attributes).length > 0) {

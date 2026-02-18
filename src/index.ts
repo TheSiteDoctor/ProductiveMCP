@@ -652,7 +652,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_search_tasks",
       description:
-        'Search for existing tasks in Productive.io. Filter by query text, project, assignee, or status.\n\nExample:\n{\n  "query": "bug",\n  "project_id": "1234",\n  "closed": false\n}',
+        'Search for existing tasks in Productive.io. Filter by query text, project, assignee, status, dates, or task list. Supports sorting.\n\nExample:\n{\n  "project_id": "1234",\n  "created_after": "2026-02-18",\n  "sort": "-created_at",\n  "closed": false\n}',
       inputSchema: {
         type: "object",
         properties: {
@@ -668,9 +668,45 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             type: "string",
             description: "Filter by assignee person ID",
           },
+          task_list_id: {
+            type: "string",
+            description: "Filter by task list ID",
+          },
           closed: {
             type: "boolean",
             description: "Filter by status (true for closed, false for open)",
+          },
+          created_after: {
+            type: "string",
+            description:
+              "Filter tasks created after this date (ISO 8601 format: YYYY-MM-DD)",
+          },
+          created_before: {
+            type: "string",
+            description:
+              "Filter tasks created before this date (ISO 8601 format: YYYY-MM-DD)",
+          },
+          updated_after: {
+            type: "string",
+            description:
+              "Filter tasks updated after this date (ISO 8601 format: YYYY-MM-DD)",
+          },
+          sort: {
+            type: "string",
+            enum: [
+              "created_at",
+              "-created_at",
+              "updated_at",
+              "-updated_at",
+              "due_date",
+              "-due_date",
+              "number",
+              "-number",
+              "title",
+              "-title",
+            ],
+            description:
+              "Sort order. Prefix with - for descending. E.g. -created_at for newest first.",
           },
           limit: {
             type: "number",
@@ -880,6 +916,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
                   description:
                     "Task priority level (default: Medium). Set appropriately based on urgency.",
                 },
+                labels: {
+                  type: "array",
+                  items: { type: "string" },
+                  description:
+                    "Optional array of label strings to tag the task",
+                },
               },
               required: ["title"],
             },
@@ -966,6 +1008,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           closed: {
             type: "boolean",
             description: "Mark task as closed (true) or open (false)",
+          },
+          labels: {
+            type: "array",
+            items: { type: "string" },
+            description: "Optional array of label strings to tag the task",
           },
           response_format: {
             type: "string",

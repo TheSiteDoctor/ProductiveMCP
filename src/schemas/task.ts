@@ -54,7 +54,25 @@ export const SearchTasksSchema = z
     query: z.string().optional(),
     project_id: z.string().optional(),
     assignee_id: z.string().optional(),
+    task_list_id: z.string().optional(),
     closed: z.boolean().optional(),
+    created_after: ISO8601DateSchema.optional(),
+    created_before: ISO8601DateSchema.optional(),
+    updated_after: ISO8601DateSchema.optional(),
+    sort: z
+      .enum([
+        "created_at",
+        "-created_at",
+        "updated_at",
+        "-updated_at",
+        "due_date",
+        "-due_date",
+        "number",
+        "-number",
+        "title",
+        "-title",
+      ])
+      .optional(),
     limit: LimitSchema,
     offset: OffsetSchema,
     response_format: ResponseFormatSchema,
@@ -95,6 +113,7 @@ export const UpdateTaskSchema = z
     priority: z.enum(PRIORITIES).optional(),
     task_type: z.enum(TASK_TYPES).optional(),
     workflow_status: z.string().optional(),
+    labels: z.array(z.string()).optional(),
     response_format: ResponseFormatSchema,
   })
   .strict();
@@ -118,6 +137,7 @@ export const BatchTaskItemSchema = z
     assignee_id: z.string().optional(),
     task_type: z.enum(TASK_TYPES).default("Task"),
     priority: z.enum(PRIORITIES).default("Medium"),
+    labels: z.array(z.string()).optional(),
   })
   .strict();
 

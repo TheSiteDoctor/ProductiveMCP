@@ -40,7 +40,7 @@ export interface TaskAttributes {
   created_at: string;
   updated_at: string;
   number?: number;
-  custom_fields?: Record<string, string | number>;
+  custom_fields?: Record<string, string | string[] | number>;
 }
 
 export interface Task extends JSONAPIData<TaskAttributes> {
@@ -271,8 +271,7 @@ export interface CreateTaskPayload {
       due_date?: string;
       start_date?: string;
       initial_estimate?: number;
-      custom_fields?: Record<string, string>;
-      label_list?: string[];
+      custom_fields?: Record<string, string | string[]>;
     };
     relationships?: {
       project?: {
@@ -321,7 +320,7 @@ export interface UpdateTaskPayload {
       start_date?: string | null;
       initial_estimate?: number;
       closed?: boolean;
-      custom_fields?: Record<string, string | number>;
+      custom_fields?: Record<string, string | string[] | number>;
     };
     relationships?: {
       assignee?: {
@@ -366,6 +365,7 @@ export interface FormattedTask {
   closed: boolean;
   due_date: string | null;
   start_date: string | null;
+  labels: string[];
   created_at: string;
   url: string | null;
   attachments: Array<import("./types/attachment.js").FormattedAttachment>;
