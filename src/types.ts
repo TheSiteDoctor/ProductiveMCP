@@ -40,6 +40,7 @@ export interface TaskAttributes {
   created_at: string;
   updated_at: string;
   number?: number;
+  type_id?: number | null;
   custom_fields?: Record<string, string | string[] | number>;
 }
 
@@ -366,6 +367,7 @@ export interface FormattedTask {
   due_date: string | null;
   start_date: string | null;
   labels: string[];
+  is_milestone: boolean;
   created_at: string;
   url: string | null;
   attachments: Array<import("./types/attachment.js").FormattedAttachment>;
