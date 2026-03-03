@@ -22,6 +22,7 @@ import {
 } from "../utils/formatting.js";
 import {
   CreateTaskSchema,
+  CreateMilestoneSchema,
   SearchTasksSchema,
   GetTaskSchema,
   UpdateTaskSchema,
@@ -336,6 +337,78 @@ export async function createTask(
 }
 
 /**
+ * Create a new milestone (task with type_id: 3)
+ */
+export async function createMilestone(
+  client: ProductiveClient,
+  args: z.infer<typeof CreateMilestoneSchema>,
+): Promise<string> {
+  const payload: {
+    data: {
+      type: string;
+      attributes: Record<string, unknown>;
+      relationships: Record<string, unknown>;
+    };
+  } = {
+    data: {
+      type: "tasks",
+      attributes: {
+        title: args.title,
+        type_id: 3,
+      },
+      relationships: {
+        project: {
+          data: { type: "projects", id: args.project_id },
+        },
+        task_list: {
+          data: { type: "task_lists", id: args.task_list_id },
+        },
+      },
+    },
+  };
+
+  if (args.description) {
+    payload.data.attributes.description = markdownToHtml(args.description);
+  }
+  if (args.due_date) {
+    payload.data.attributes.due_date = args.due_date;
+  }
+  if (args.start_date) {
+    payload.data.attributes.start_date = args.start_date;
+  }
+  if (args.assignee_id) {
+    payload.data.relationships.assignee = {
+      data: { type: "people", id: args.assignee_id },
+    };
+  }
+  if (args.workflow_status) {
+    const statusId = WORKFLOW_STATUS_IDS[args.workflow_status];
+    if (statusId) {
+      payload.data.relationships.workflow_status = {
+        data: { type: "workflow_statuses", id: statusId },
+      };
+    }
+  }
+
+  const response = await client.post<JSONAPIResponse>("/tasks", payload, {
+    include: "project,task_list,assignee,workflow_status,attachments",
+  });
+
+  const taskData = Array.isArray(response.data)
+    ? response.data[0]
+    : response.data;
+  const task = formatTask(
+    taskData as Task,
+    client.getOrgId(),
+    response.included,
+  );
+
+  return formatResponse(task, args.response_format, () =>
+    formatTaskMarkdown(task),
+  );
+}
+
+/**
  * Search tasks
  */
 export async function searchTasks(
@@ -380,6 +453,9 @@ export async function searchTasks(
   }
   if (args.sort) {
     params["sort"] = args.sort;
+  }
+  if (args.milestone_only) {
+    params["filter[type_id]"] = 3;
   }
 
   const response = await client.get<JSONAPIResponse>("/tasks", params);
