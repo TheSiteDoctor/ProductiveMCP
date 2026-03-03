@@ -47,6 +47,29 @@ export const CreateTaskSchema = z
   .strict();
 
 /**
+ * Schema for creating a milestone
+ */
+export const CreateMilestoneSchema = z
+  .object({
+    title: z
+      .string()
+      .min(1, "Title is required")
+      .max(200, "Title must be 200 characters or less"),
+    description: z
+      .string()
+      .max(10000, "Description must be 10000 characters or less")
+      .optional(),
+    project_id: z.string().min(1, "Project ID is required"),
+    task_list_id: z.string().min(1, "Task list ID is required"),
+    assignee_id: z.string().optional(),
+    due_date: ISO8601DateSchema.optional(),
+    start_date: ISO8601DateSchema.optional(),
+    workflow_status: z.string().optional(),
+    response_format: ResponseFormatSchema,
+  })
+  .strict();
+
+/**
  * Schema for searching tasks
  */
 export const SearchTasksSchema = z
@@ -59,6 +82,7 @@ export const SearchTasksSchema = z
     created_after: ISO8601DateSchema.optional(),
     created_before: ISO8601DateSchema.optional(),
     updated_after: ISO8601DateSchema.optional(),
+    milestone_only: z.boolean().optional(),
     sort: z
       .enum([
         "created_at",
