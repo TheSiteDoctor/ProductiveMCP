@@ -591,6 +591,7 @@ export function formatTask(
         .map((id) => reverseLookup[id] || `Unknown (${id})`)
         .filter(Boolean);
     })(),
+    is_milestone: attributes.type_id === 3,
     created_at: attributes.created_at,
     url: task.id ? `https://app.productive.io/${orgId}/tasks/${task.id}` : null,
     attachments: attachments,
@@ -602,7 +603,9 @@ export function formatTask(
  */
 export function formatTaskMarkdown(task: FormattedTask): string {
   const lines = [
-    "# Task Created Successfully",
+    task.is_milestone
+      ? "# Milestone Created Successfully"
+      : "# Task Created Successfully",
     "",
     `**ID**: ${task.number ? `#${task.number}` : task.id}`,
     `**Title**: ${task.title}`,
