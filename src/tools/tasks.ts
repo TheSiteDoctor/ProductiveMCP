@@ -387,6 +387,14 @@ export async function createMilestone(
       payload.data.relationships.workflow_status = {
         data: { type: "workflow_statuses", id: statusId },
       };
+    } else {
+      try {
+        console.error(
+          `Warning: Workflow status "${args.workflow_status}" is not configured. Skipping status field.`,
+        );
+      } catch {
+        // Ignore logging errors
+      }
     }
   }
 
@@ -403,8 +411,9 @@ export async function createMilestone(
     response.included,
   );
 
-  return formatResponse(task, args.response_format, () =>
-    formatTaskMarkdown(task),
+  return truncateResponse(
+    formatResponse(task, args.response_format, () => formatTaskMarkdown(task)),
+    args.response_format,
   );
 }
 
