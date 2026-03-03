@@ -34,6 +34,7 @@ import {
 } from "./schemas/project.js";
 import {
   CreateTaskSchema,
+  CreateMilestoneSchema,
   SearchTasksSchema,
   GetTaskSchema,
   UpdateTaskSchema,
@@ -122,7 +123,13 @@ import {
   moveTaskList,
   copyTaskList,
 } from "./tools/projects.js";
-import { createTask, searchTasks, getTask, updateTask } from "./tools/tasks.js";
+import {
+  createTask,
+  createMilestone,
+  searchTasks,
+  getTask,
+  updateTask,
+} from "./tools/tasks.js";
 import { createTasksBatch } from "./tools/batch.js";
 import {
   createTodo,
@@ -321,6 +328,60 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             },
             description:
               "Optional array of todo/checklist items to create under this task",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["title", "project_id", "task_list_id"],
+      },
+    },
+    {
+      name: "productive_create_milestone",
+      description:
+        'Create a milestone in Productive.io. Milestones are a special task type (type_id=3) used to mark key dates or deliverables in a project.\n\nBoth project_id and task_list_id are REQUIRED. Use productive_list_task_lists to find valid task list IDs.\n\nExample:\n{\n  "title": "v2.0 Release",\n  "project_id": "1234",\n  "task_list_id": "5678",\n  "due_date": "2026-04-01"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          title: {
+            type: "string",
+            description: "Milestone title (1-200 characters)",
+          },
+          description: {
+            type: "string",
+            description:
+              "Optional description in Markdown or HTML format (max 10000 characters)",
+          },
+          project_id: {
+            type: "string",
+            description:
+              "Project ID (required). Use productive_list_projects to find project IDs",
+          },
+          task_list_id: {
+            type: "string",
+            description:
+              "Task list ID (required). Use productive_list_task_lists to find task list IDs",
+          },
+          assignee_id: {
+            type: "string",
+            description:
+              "Optional assignee person ID. Use productive_list_people to find person IDs",
+          },
+          due_date: {
+            type: "string",
+            description: "Optional due date in ISO 8601 format (YYYY-MM-DD)",
+          },
+          start_date: {
+            type: "string",
+            description: "Optional start date in ISO 8601 format (YYYY-MM-DD)",
+          },
+          workflow_status: {
+            type: "string",
+            description:
+              "Optional workflow status name (e.g. 'To Do', 'In Progress'). Use productive_list_workflow_statuses to see available statuses.",
           },
           response_format: {
             type: "string",
@@ -690,6 +751,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             type: "string",
             description:
               "Filter tasks updated after this date (ISO 8601 format: YYYY-MM-DD)",
+          },
+          milestone_only: {
+            type: "boolean",
+            description:
+              "When true, return only milestone-type tasks (type_id=3)",
           },
           sort: {
             type: "string",
@@ -2468,6 +2534,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "productive_create_task": {
         const validated = CreateTaskSchema.parse(args);
         const result = await createTask(client, validated);
+        safeLog("[MCP Tool Success]", { tool: name });
+        return { content: [{ type: "text", text: result }] };
+      }
+
+      case "productive_create_milestone": {
+        const validated = CreateMilestoneSchema.parse(args);
+        const result = await createMilestone(client, validated);
         safeLog("[MCP Tool Success]", { tool: name });
         return { content: [{ type: "text", text: result }] };
       }
