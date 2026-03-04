@@ -603,9 +603,7 @@ export function formatTask(
  */
 export function formatTaskMarkdown(task: FormattedTask): string {
   const lines = [
-    task.is_milestone
-      ? "# Milestone Created Successfully"
-      : "# Task Created Successfully",
+    task.is_milestone ? "# Milestone Details" : "# Task Details",
     "",
     `**ID**: ${task.number ? `#${task.number}` : task.id}`,
     `**Title**: ${task.title}`,

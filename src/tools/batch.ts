@@ -24,7 +24,6 @@ import {
   CUSTOM_FIELD_IDS,
   TASK_TYPE_OPTIONS,
   PRIORITY_OPTIONS,
-  LABEL_OPTIONS,
 } from "../constants.js";
 
 /**

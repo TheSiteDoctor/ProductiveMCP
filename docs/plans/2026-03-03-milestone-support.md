@@ -491,8 +491,8 @@ Using the credentials from the conversation, POST to `/tasks` with `type_id: 3` 
 
 ```bash
 curl -s -X POST "https://api.productive.io/api/v2/tasks" \
-  -H "X-Auth-Token: abbf82cf-49e9-4b53-bb5a-909a6538fbbb" \
-  -H "X-Organization-Id: 48844" \
+  -H "X-Auth-Token: YOUR_API_TOKEN" \
+  -H "X-Organization-Id: YOUR_ORG_ID" \
   -H "Content-Type: application/vnd.api+json" \
   -d '{
     "data": {
@@ -512,8 +512,8 @@ Expected: response contains `"type_id": 3`.
 
 ```bash
 curl -s "https://api.productive.io/api/v2/tasks?filter%5Btype_id%5D=3&page%5Bsize%5D=5" \
-  -H "X-Auth-Token: abbf82cf-49e9-4b53-bb5a-909a6538fbbb" \
-  -H "X-Organization-Id: 48844" \
+  -H "X-Auth-Token: YOUR_API_TOKEN" \
+  -H "X-Organization-Id: YOUR_ORG_ID" \
   -H "Accept: application/vnd.api+json" | python3 -c "
 import json,sys
 d=json.load(sys.stdin)
