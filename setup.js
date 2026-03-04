@@ -118,10 +118,12 @@ async function discoverCustomFields(token, orgId) {
     /^estimation$/i,
     /^time.?estimate$/i,
   ];
+  const labelsPatterns = [/^labels?$/i, /^tags?$/i];
 
   let typeField = null;
   let priorityField = null;
   let estimateField = null;
+  let labelsField = null;
 
   for (const field of fields) {
     const name = field.attributes?.name || "";
@@ -152,9 +154,24 @@ async function discoverCustomFields(token, orgId) {
         }
       }
     }
+
+    if (!labelsField) {
+      for (const pattern of labelsPatterns) {
+        if (pattern.test(name)) {
+          labelsField = field;
+          break;
+        }
+      }
+    }
   }
 
-  return { typeField, priorityField, estimateField, allFields: fields };
+  return {
+    typeField,
+    priorityField,
+    estimateField,
+    labelsField,
+    allFields: fields,
+  };
 }
 
 async function discoverFieldOptions(fieldId, token, orgId) {
@@ -239,7 +256,7 @@ async function main() {
   }
 
   // Discover custom fields
-  const { typeField, priorityField, estimateField, allFields } =
+  const { typeField, priorityField, estimateField, labelsField, allFields } =
     await discoverCustomFields(token, orgId);
 
   const config = {
@@ -247,9 +264,11 @@ async function main() {
       task_type: "",
       priority: "",
       estimate: "",
+      labels: "",
     },
     task_type_options: {},
     priority_options: {},
+    label_options: {},
     workflow_status_names: [],
     workflow_status_ids: {},
   };
@@ -301,6 +320,20 @@ async function main() {
     );
   }
 
+  // Labels field
+  if (labelsField) {
+    console.log(
+      `  Labels field: "${labelsField.attributes.name}" (ID: ${labelsField.id})`,
+    );
+    config.custom_field_ids.labels = labelsField.id;
+
+    const options = await discoverFieldOptions(labelsField.id, token, orgId);
+    config.label_options = options;
+    console.log(`    Options: ${Object.keys(options).join(", ") || "(none)"}`);
+  } else {
+    console.log("  Labels field: not found (labels setting will be disabled)");
+  }
+
   // Workflow statuses
   const { mapping: statusMapping, names: statusNames } =
     await discoverWorkflowStatuses(token, orgId);
@@ -317,7 +350,7 @@ async function main() {
   console.log("=".repeat(60));
   console.log(`\nConfiguration written to: productive.config.json`);
   console.log(
-    `  Custom fields found: ${[typeField, priorityField, estimateField].filter(Boolean).length}/3`,
+    `  Custom fields found: ${[typeField, priorityField, estimateField, labelsField].filter(Boolean).length}/4`,
   );
   console.log(`  Workflow statuses found: ${statusNames.length}`);
 

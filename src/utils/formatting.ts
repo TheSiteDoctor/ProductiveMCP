@@ -8,6 +8,7 @@ import {
   CUSTOM_FIELD_IDS,
   TASK_TYPE_OPTIONS,
   PRIORITY_OPTIONS,
+  LABEL_OPTIONS,
 } from "../constants.js";
 import type {
   Board,
@@ -571,6 +572,26 @@ export function formatTask(
     closed: attributes.closed,
     due_date: attributes.due_date || null,
     start_date: attributes.start_date || null,
+    labels: (() => {
+      if (!CUSTOM_FIELD_IDS.LABELS) return [];
+      const labelValue = customFields[CUSTOM_FIELD_IDS.LABELS];
+      if (!labelValue) return [];
+      const labelIds = Array.isArray(labelValue)
+        ? labelValue.map(String)
+        : [String(labelValue)];
+      // Reverse lookup: option ID → label name
+      const reverseLookup = Object.entries(LABEL_OPTIONS).reduce(
+        (acc, [name, id]) => {
+          acc[id] = name;
+          return acc;
+        },
+        {} as Record<string, string>,
+      );
+      return labelIds
+        .map((id) => reverseLookup[id] || `Unknown (${id})`)
+        .filter(Boolean);
+    })(),
+    is_milestone: attributes.type_id === 3,
     created_at: attributes.created_at,
     url: task.id ? `https://app.productive.io/${orgId}/tasks/${task.id}` : null,
     attachments: attachments,
@@ -582,7 +603,7 @@ export function formatTask(
  */
 export function formatTaskMarkdown(task: FormattedTask): string {
   const lines = [
-    "# Task Created Successfully",
+    task.is_milestone ? "# Milestone Details" : "# Task Details",
     "",
     `**ID**: ${task.number ? `#${task.number}` : task.id}`,
     `**Title**: ${task.title}`,
@@ -644,6 +665,10 @@ export function formatTaskMarkdown(task: FormattedTask): string {
 
   if (task.start_date) {
     lines.push(`**Start Date**: ${task.start_date}`);
+  }
+
+  if (task.labels && task.labels.length > 0) {
+    lines.push(`**Labels**: ${task.labels.join(", ")}`);
   }
 
   const createdDate = new Date(task.created_at).toLocaleString("en-GB", {

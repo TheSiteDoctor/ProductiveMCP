@@ -19,6 +19,7 @@ import {
   markdownToHtml,
 } from "../utils/formatting.js";
 import { CreateTasksBatchSchema } from "../schemas/task.js";
+import { resolveLabelOptionIds } from "./tasks.js";
 import {
   CUSTOM_FIELD_IDS,
   TASK_TYPE_OPTIONS,
@@ -74,8 +75,8 @@ export async function createTasksBatch(
         payload.data.attributes.start_date = taskInput.start_date;
       }
 
-      // Add custom fields (task_type and priority)
-      const customFields: Record<string, string> = {};
+      // Add custom fields (task_type, priority, labels)
+      const customFields: Record<string, string | string[]> = {};
 
       // task_type has a default from schema, so it will always be present
       const taskTypeOptionId = TASK_TYPE_OPTIONS[taskInput.task_type];
@@ -87,6 +88,21 @@ export async function createTasksBatch(
       const priorityOptionId = PRIORITY_OPTIONS[taskInput.priority];
       if (priorityOptionId) {
         customFields[CUSTOM_FIELD_IDS.PRIORITY] = priorityOptionId;
+      }
+
+      // labels are optional per task
+      if (
+        taskInput.labels &&
+        taskInput.labels.length > 0 &&
+        CUSTOM_FIELD_IDS.LABELS
+      ) {
+        const labelOptionIds = await resolveLabelOptionIds(
+          client,
+          taskInput.labels,
+        );
+        if (labelOptionIds.length > 0) {
+          customFields[CUSTOM_FIELD_IDS.LABELS] = labelOptionIds;
+        }
       }
 
       if (Object.keys(customFields).length > 0) {

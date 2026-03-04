@@ -20,9 +20,11 @@ interface ProductiveConfig {
     task_type?: string;
     priority?: string;
     estimate?: string;
+    labels?: string;
   };
   task_type_options?: Record<string, string>;
   priority_options?: Record<string, string>;
+  label_options?: Record<string, string>;
   workflow_status_names?: string[];
   workflow_status_ids?: Record<string, string>;
 }
@@ -102,6 +104,7 @@ export const CUSTOM_FIELD_IDS = {
   TASK_TYPE: config.custom_field_ids?.task_type || "",
   PRIORITY: config.custom_field_ids?.priority || "",
   ESTIMATE: config.custom_field_ids?.estimate || "",
+  LABELS: config.custom_field_ids?.labels || "",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -127,6 +130,11 @@ export const PRIORITY_OPTIONS: Record<(typeof PRIORITIES)[number], string> = {
   Medium: priorityOpts["Medium"] || "",
   Low: priorityOpts["Low"] || "",
   Lowest: priorityOpts["Lowest"] || "",
+};
+
+// Build LABEL_OPTIONS from config (mutable — new labels can be added at runtime)
+export const LABEL_OPTIONS: Record<string, string> = {
+  ...(config.label_options || {}),
 };
 
 // ---------------------------------------------------------------------------
