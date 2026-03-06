@@ -78,7 +78,20 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 
 ### Connect to Claude Code
 
-Add to `.claude/settings.json` or `~/.claude.json`:
+#### Via CLI (recommended)
+
+Add the server globally so it's available in all projects:
+
+```bash
+claude mcp add --scope user productive -t stdio \
+  -e PRODUCTIVE_API_TOKEN=your_api_token_here \
+  -e PRODUCTIVE_ORG_ID=your_org_id_here \
+  -- node /absolute/path/to/productive-mcp-server/dist/index.js
+```
+
+#### Via config file
+
+Alternatively, add to `.claude/settings.json` or `~/.claude.json`:
 
 ```json
 {
