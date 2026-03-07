@@ -27,6 +27,7 @@ export const CreateCommentSchema = z
       .string()
       .min(1, "Comment body is required")
       .max(10000, "Comment body must be 10000 characters or less"),
+    visible_to_clients: z.boolean().optional().default(true),
     response_format: ResponseFormatSchema,
   })
   .strict();

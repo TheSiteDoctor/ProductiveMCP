@@ -84,6 +84,7 @@ function formatComment(
     created_at: attrs.created_at,
     updated_at: attrs.updated_at,
     pinned: attrs.pinned || false,
+    visible_to_clients: attrs.visible_to_clients !== false,
     author_id: authorId,
     author_name: authorName,
     task_id: taskId,
@@ -109,6 +110,7 @@ function formatCommentsMarkdown(
 
   for (const comment of comments) {
     const pinnedBadge = comment.pinned ? " 📌" : "";
+    const privateBadge = !comment.visible_to_clients ? " 🔒" : "";
     const author =
       comment.author_name || `User ${comment.author_id}` || "Unknown";
     const date = new Date(comment.created_at).toLocaleString("en-GB", {
@@ -119,7 +121,7 @@ function formatCommentsMarkdown(
       minute: "2-digit",
     });
 
-    lines.push(`## ${author}${pinnedBadge}`);
+    lines.push(`## ${author}${pinnedBadge}${privateBadge}`);
     lines.push(`*${date}*`);
     lines.push("");
     lines.push(comment.body);
@@ -171,6 +173,7 @@ export async function listComments(
  */
 function formatCommentMarkdown(comment: FormattedComment): string {
   const pinnedBadge = comment.pinned ? " 📌" : "";
+  const privateBadge = !comment.visible_to_clients ? " 🔒" : "";
   const author =
     comment.author_name || `User ${comment.author_id}` || "Unknown";
   const date = new Date(comment.created_at).toLocaleString("en-GB", {
@@ -182,7 +185,7 @@ function formatCommentMarkdown(comment: FormattedComment): string {
   });
 
   const lines = [
-    `# Comment${pinnedBadge}`,
+    `# Comment${pinnedBadge}${privateBadge}`,
     "",
     `**Author**: ${author}`,
     `**Date**: ${date}`,
@@ -212,6 +215,7 @@ export async function createComment(
       type: "comments",
       attributes: {
         body: htmlBody,
+        visible_to_clients: args.visible_to_clients,
       },
       relationships: {
         task: {

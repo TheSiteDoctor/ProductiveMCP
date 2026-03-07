@@ -1589,7 +1589,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_create_comment",
       description:
-        'Create a comment on a task. The body accepts Markdown formatting which will be converted to HTML.\n\nExample:\n{\n  "task_id": "12345",\n  "body": "This looks good, ready for review."\n}',
+        'Create a comment on a task. The body accepts Markdown formatting which will be converted to HTML. Set visible_to_clients to false to create an internal/private comment.\n\nExample:\n{\n  "task_id": "12345",\n  "body": "This looks good, ready for review.",\n  "visible_to_clients": false\n}',
       inputSchema: {
         type: "object",
         properties: {
@@ -1601,6 +1601,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             type: "string",
             description:
               "Comment body in Markdown format (required, max 10000 characters)",
+          },
+          visible_to_clients: {
+            type: "boolean",
+            description:
+              "Whether the comment is visible to clients (default: true). Set to false for internal/private comments.",
+            default: true,
           },
           response_format: {
             type: "string",
