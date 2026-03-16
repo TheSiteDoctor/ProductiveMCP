@@ -336,6 +336,12 @@ export interface UpdateTaskPayload {
           id: string;
         };
       };
+      task_list?: {
+        data: {
+          type: "task_lists";
+          id: string;
+        };
+      };
     };
   };
 }

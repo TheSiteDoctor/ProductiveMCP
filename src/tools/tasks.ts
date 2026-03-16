@@ -662,6 +662,16 @@ export async function updateTask(
     }
   }
 
+  // Handle task list relationship
+  if (args.task_list_id) {
+    if (!payload.data.relationships) {
+      payload.data.relationships = {};
+    }
+    payload.data.relationships.task_list = {
+      data: { type: "task_lists", id: args.task_list_id },
+    };
+  }
+
   const response = await client.patch<JSONAPIResponse>(
     `/tasks/${args.task_id}`,
     payload,

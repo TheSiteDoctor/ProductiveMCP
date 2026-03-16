@@ -137,6 +137,7 @@ export const UpdateTaskSchema = z
     priority: z.enum(PRIORITIES).optional(),
     task_type: z.enum(TASK_TYPES).optional(),
     workflow_status: z.string().optional(),
+    task_list_id: z.string().optional(),
     labels: z.array(z.string()).optional(),
     response_format: ResponseFormatSchema,
   })

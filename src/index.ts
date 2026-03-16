@@ -1071,6 +1071,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             enum: [...WORKFLOW_STATUSES],
             description: "Workflow status for the task",
           },
+          task_list_id: {
+            type: "string",
+            description:
+              "Move task to a different task list (use productive_list_task_lists to find IDs)",
+          },
           closed: {
             type: "boolean",
             description: "Mark task as closed (true) or open (false)",
