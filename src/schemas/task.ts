@@ -158,10 +158,16 @@ export const BatchTaskItemSchema = z
       .optional(),
     due_date: ISO8601DateSchema.optional(),
     start_date: ISO8601DateSchema.optional(),
+    initial_estimate: z.coerce
+      .number()
+      .int()
+      .min(0, "Initial estimate must be a positive number")
+      .optional(),
     task_list_id: z.string().optional(),
     assignee_id: z.string().optional(),
     task_type: z.enum(TASK_TYPES).default("Task"),
     priority: z.enum(PRIORITIES).default("Medium"),
+    workflow_status: z.string().optional(),
     labels: z.array(z.string()).optional(),
   })
   .strict();

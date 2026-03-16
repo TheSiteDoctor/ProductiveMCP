@@ -24,6 +24,7 @@ import {
   CUSTOM_FIELD_IDS,
   TASK_TYPE_OPTIONS,
   PRIORITY_OPTIONS,
+  WORKFLOW_STATUS_IDS,
 } from "../constants.js";
 
 /**
@@ -73,6 +74,30 @@ export async function createTasksBatch(
       }
       if (taskInput.start_date) {
         payload.data.attributes.start_date = taskInput.start_date;
+      }
+      if (taskInput.initial_estimate !== undefined) {
+        payload.data.attributes.initial_estimate = taskInput.initial_estimate;
+      }
+
+      // Add optional workflow status relationship
+      if (taskInput.workflow_status && payload.data.relationships) {
+        const statusId = WORKFLOW_STATUS_IDS[taskInput.workflow_status];
+        if (statusId) {
+          payload.data.relationships.workflow_status = {
+            data: {
+              type: "workflow_statuses",
+              id: statusId,
+            },
+          };
+        } else {
+          try {
+            console.error(
+              `Warning: Workflow status "${taskInput.workflow_status}" is not configured. Skipping status field.`,
+            );
+          } catch {
+            // Ignore logging errors
+          }
+        }
       }
 
       // Add custom fields (task_type, priority, labels)

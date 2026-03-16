@@ -982,6 +982,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
                   description:
                     "Task priority level (default: Medium). Set appropriately based on urgency.",
                 },
+                initial_estimate: {
+                  type: "number",
+                  description:
+                    "Optional initial estimate in minutes (e.g. 90 for 1.5 hours, 120 for 2 hours)",
+                },
+                workflow_status: {
+                  type: "string",
+                  enum: [...WORKFLOW_STATUSES],
+                  description: "Optional workflow status for the task",
+                },
                 labels: {
                   type: "array",
                   items: { type: "string" },
