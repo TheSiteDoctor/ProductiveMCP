@@ -437,7 +437,7 @@ export interface CreatePagePayload {
     type: "pages";
     attributes: {
       title: string;
-      body?: string;
+      body?: ProductiveDoc;
       version_number?: string;
     };
     relationships?: {
@@ -463,7 +463,7 @@ export interface UpdatePagePayload {
     id: string;
     attributes?: {
       title?: string;
-      body?: string | null;
+      body?: ProductiveDoc | null;
     };
   };
 }
