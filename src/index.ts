@@ -1086,6 +1086,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             description:
               "Move task to a different task list (use productive_list_task_lists to find IDs)",
           },
+          assignee_id: {
+            type: "string",
+            description:
+              "Assignee person ID, or null to unassign. Use productive_list_people to find person IDs.",
+            nullable: true,
+          },
           closed: {
             type: "boolean",
             description: "Mark task as closed (true) or open (false)",
