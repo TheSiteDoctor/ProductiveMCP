@@ -647,8 +647,9 @@ export async function updateTask(
     attributes.closed = args.closed;
   }
   if (args.estimate_minutes !== undefined) {
-    // On update, set remaining_time (the displayed "Time to complete" in Productive GUI).
-    // initial_estimate is only meaningful at creation time.
+    // Set both fields: initial_estimate is needed for tasks that never had an estimate,
+    // remaining_time is the displayed "Time to complete" in the Productive GUI.
+    attributes.initial_estimate = args.estimate_minutes;
     attributes.remaining_time = args.estimate_minutes;
   }
 

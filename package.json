@@ -1,6 +1,6 @@
 {
   "name": "productive-mcp-server",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "description": "MCP server for Productive.io task management",
   "type": "module",
   "main": "dist/index.js",
