@@ -124,12 +124,13 @@ async function resolveFileContent(
   }
 
   if (args.base64_content) {
-    // Decode from base64
+    // Decode from base64, stripping data URI prefix if present (e.g. "data:application/pdf;base64,")
     try {
-      const buffer = Buffer.from(args.base64_content, "base64");
-      if (
-        buffer.toString("base64") !== args.base64_content.replace(/\s/g, "")
-      ) {
+      const rawBase64 = args.base64_content
+        .replace(/^data:[^;]+;base64,/, "")
+        .replace(/\s/g, "");
+      const buffer = Buffer.from(rawBase64, "base64");
+      if (buffer.toString("base64") !== rawBase64) {
         throw new Error("Invalid base64 encoding");
       }
       return {
