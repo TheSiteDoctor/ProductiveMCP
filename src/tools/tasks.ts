@@ -647,8 +647,9 @@ export async function updateTask(
     attributes.closed = args.closed;
   }
   if (args.estimate_minutes !== undefined) {
-    // Map estimate_minutes to initial_estimate (the actual API field)
-    attributes.initial_estimate = args.estimate_minutes;
+    // On update, set remaining_time (the displayed "Time to complete" in Productive GUI).
+    // initial_estimate is only meaningful at creation time.
+    attributes.remaining_time = args.estimate_minutes;
   }
 
   // Handle custom fields

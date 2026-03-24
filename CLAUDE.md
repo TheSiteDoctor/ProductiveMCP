@@ -77,6 +77,10 @@ Different Productive API endpoints expect different formats for rich text body c
 
 Pages use Productive's ProseMirror document format. The body attribute must be a **stringified JSON string** (not a raw JSON object). The `markdownToProductiveDocString()` function converts markdown to ProseMirror JSON and then stringifies it.
 
+### Estimate Gotcha
+
+Productive uses two estimate fields: `initial_estimate` (set at creation, never changes) and `remaining_time` (displayed as "Time to complete" in the GUI, counts down as hours are logged). On **create**, set `initial_estimate` — Productive auto-sets `remaining_time` to match. On **update**, set `remaining_time` — this is what the GUI displays and edits.
+
 ### Response Constraints
 
 All tool responses are capped at 25,000 characters (`CHARACTER_LIMIT` in constants.ts) with pagination hints when truncated.

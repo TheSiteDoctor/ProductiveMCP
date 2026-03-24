@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-03-24
+
+### Added
+
+- `query` parameter on `productive_list_people` — search people by name or email via `filter[query]`
+- `assignee_id` parameter on `productive_update_task` — assign or unassign tasks (pass `null` to clear)
+- Dynamic server version — MCP server now reports actual version from package.json instead of hardcoded `1.0.0`
+
+### Fixed
+
+- **Page body persistence**: Pages API expects body as a stringified JSON string, not a raw JSON object. Body content now correctly persists on create and update.
+- **Label duplicate prevention**: Label resolution now fetches existing options from the Productive API with case-insensitive matching instead of relying on a stale local config. Results cached for 5 minutes with pagination support.
+- **Estimate updates**: `estimate_minutes` on update now sets `remaining_time` (the displayed "Time to complete" in Productive) instead of `initial_estimate`, which is only meaningful at creation time.
+
 ## [1.2.1] - 2026-03-03
 
 ### Added

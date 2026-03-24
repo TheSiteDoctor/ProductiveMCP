@@ -320,6 +320,7 @@ export interface UpdateTaskPayload {
       due_date?: string | null;
       start_date?: string | null;
       initial_estimate?: number;
+      remaining_time?: number;
       closed?: boolean;
       custom_fields?: Record<string, string | string[] | number>;
     };

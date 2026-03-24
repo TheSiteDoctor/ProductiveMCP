@@ -12,9 +12,14 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import { createRequire } from "module";
 import { ProductiveClient } from "./client.js";
 import { validateEnvironment } from "./utils/errors.js";
 import { TASK_TYPES, PRIORITIES, WORKFLOW_STATUSES } from "./constants.js";
+
+// Read version from package.json
+const require = createRequire(import.meta.url);
+const { version: SERVER_VERSION } = require("../package.json");
 
 // Import schemas
 import {
@@ -212,7 +217,7 @@ const client = new ProductiveClient(
 const server = new Server(
   {
     name: "productive-mcp-server",
-    version: "1.0.0",
+    version: SERVER_VERSION,
   },
   {
     capabilities: {
