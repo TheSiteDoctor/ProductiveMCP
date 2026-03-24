@@ -36,9 +36,98 @@ import {
 } from "../constants.js";
 
 /**
+ * Cached label options fetched from the Productive API.
+ * Refreshed every 5 minutes to avoid stale lookups without excessive API calls.
+ */
+let labelOptionsCache: {
+  map: Record<string, string>; // lowercaseName → optionId
+  nameMap: Record<string, string>; // lowercaseName → originalName (for LABEL_OPTIONS)
+  fetchedAt: number;
+} | null = null;
+
+const LABEL_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Fetch all label options from the Productive API with pagination support.
+ * Returns a case-insensitive name→ID map and updates the LABEL_OPTIONS runtime cache.
+ */
+async function fetchLabelOptions(
+  client: ProductiveClient,
+): Promise<Record<string, string>> {
+  if (!CUSTOM_FIELD_IDS.LABELS) return {};
+
+  // Return cached data if fresh
+  if (
+    labelOptionsCache &&
+    Date.now() - labelOptionsCache.fetchedAt < LABEL_CACHE_TTL_MS
+  ) {
+    return labelOptionsCache.map;
+  }
+
+  const caseInsensitiveMap: Record<string, string> = {};
+  const nameMap: Record<string, string> = {};
+  let pageNumber = 1;
+  const pageSize = 200;
+
+  try {
+    while (true) {
+      const response = await client.get<JSONAPIResponse>(
+        "/custom_field_options",
+        {
+          "filter[custom_field_id]": CUSTOM_FIELD_IDS.LABELS,
+          "filter[archived]": "false",
+          "page[number]": pageNumber,
+          "page[size]": pageSize,
+        },
+      );
+
+      const items = Array.isArray(response.data)
+        ? response.data
+        : [response.data];
+
+      for (const item of items) {
+        const attrs = item?.attributes as Record<string, unknown> | undefined;
+        if (item?.id && attrs?.name) {
+          const name = attrs.name as string;
+          const lowerName = name.toLowerCase();
+          caseInsensitiveMap[lowerName] = item.id;
+          nameMap[lowerName] = name;
+          // Also update LABEL_OPTIONS for display formatting
+          LABEL_OPTIONS[name] = item.id;
+        }
+      }
+
+      // Check if more pages exist
+      const totalCount = response.meta?.total_count;
+      if (totalCount && pageNumber * pageSize < totalCount) {
+        pageNumber++;
+      } else {
+        break;
+      }
+    }
+  } catch (error) {
+    try {
+      console.error(
+        `Warning: Failed to fetch label options: ${error instanceof Error ? error.message : error}`,
+      );
+    } catch {
+      // Ignore logging errors
+    }
+  }
+
+  labelOptionsCache = {
+    map: caseInsensitiveMap,
+    nameMap,
+    fetchedAt: Date.now(),
+  };
+
+  return caseInsensitiveMap;
+}
+
+/**
  * Create a new custom field option for the labels field.
  * Returns the new option ID, or null on failure.
- * Also updates the runtime LABEL_OPTIONS cache.
+ * Also updates both the LABEL_OPTIONS runtime cache and the label options cache.
  */
 async function createLabelOption(
   client: ProductiveClient,
@@ -71,8 +160,13 @@ async function createLabelOption(
       ? response.data[0]
       : response.data;
     if (data?.id) {
-      // Update runtime cache so subsequent calls don't recreate the option
+      // Update runtime LABEL_OPTIONS for display formatting
       LABEL_OPTIONS[name] = data.id;
+      // Update the API cache so we don't re-fetch immediately
+      if (labelOptionsCache) {
+        labelOptionsCache.map[name.toLowerCase()] = data.id;
+        labelOptionsCache.nameMap[name.toLowerCase()] = name;
+      }
       try {
         console.error(`Created new label option: "${name}" (ID: ${data.id})`);
       } catch {
@@ -96,15 +190,19 @@ async function createLabelOption(
 
 /**
  * Resolve label names to option IDs, creating new options as needed.
+ * Fetches existing options from the Productive API (with caching) and
+ * performs case-insensitive matching to avoid creating duplicates.
  */
 export async function resolveLabelOptionIds(
   client: ProductiveClient,
   labels: string[],
 ): Promise<string[]> {
+  // Fetch current options from API (cached with 5 min TTL)
+  const existingOptions = await fetchLabelOptions(client);
   const optionIds: string[] = [];
 
   for (const label of labels) {
-    const existingId = LABEL_OPTIONS[label];
+    const existingId = existingOptions[label.toLowerCase()];
     if (existingId) {
       optionIds.push(existingId);
     } else {
