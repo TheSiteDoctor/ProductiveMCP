@@ -174,6 +174,19 @@ Each attachment has:
 | `.zip`         | `application/zip`                                                         |
 | `.md`          | `text/markdown`                                                           |
 
+## Sandbox / Cowork Environments
+
+The MCP server runs as a **separate process** from the LLM's sandbox environment. This means:
+
+- **Sandbox temp directories are not accessible** — paths like `/sessions/[id]/file.png` will fail with ENOENT because the MCP server cannot see them.
+- **Mounted workspace directories work** — paths like `/sessions/[id]/mnt/[workspace]/file.png` are accessible because they map to the host filesystem.
+
+When working in a sandbox environment:
+
+1. **Preferred:** Save/copy files to the **mounted workspace folder** before calling `productive_upload_attachment` with `file_path`
+2. **Alternative:** Use the `base64_content` parameter — read the file in the sandbox, encode to base64, and pass directly. Data URI prefixes (e.g. `data:image/png;base64,`) are automatically stripped as of v1.3.1.
+3. **Will not work:** Direct S3 uploads may be blocked by sandbox proxy restrictions (403 Forbidden). The MCP server handles S3 internally, so this only matters if bypassing the MCP server.
+
 ## MCP Server Implementation
 
 The Productive MCP server (v1.3.0+) handles the entire 5-step flow via the `productive_upload_attachment` tool in `src/tools/attachments.ts`. It accepts file content from a local path, URL, or base64 string and handles the S3 upload and linking automatically.
