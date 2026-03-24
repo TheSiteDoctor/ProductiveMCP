@@ -69,13 +69,13 @@ Schemas live in `src/schemas/` (one file per domain, plus `common.ts` for shared
 
 Different Productive API endpoints expect different formats for rich text body content:
 
-| Endpoint     | Input accepted   | Sent to API as          | Function                          |
-| ------------ | ---------------- | ----------------------- | --------------------------------- |
-| **Tasks**    | Markdown or HTML | HTML string             | `markdownToHtml()`                |
-| **Comments** | Markdown or HTML | HTML string             | `markdownToHtml()`                |
-| **Pages**    | Markdown         | Stringified JSON string | `markdownToProductiveDocString()` |
+| Endpoint     | Input accepted   | Sent to API as           | Function                    |
+| ------------ | ---------------- | ------------------------ | --------------------------- |
+| **Tasks**    | Markdown or HTML | HTML string              | `markdownToHtml()`          |
+| **Comments** | Markdown or HTML | HTML string              | `markdownToHtml()`          |
+| **Pages**    | Markdown         | Raw ProseMirror JSON obj | `markdownToProductiveDoc()` |
 
-Pages use Productive's ProseMirror document format. The body attribute must be a **stringified JSON string** (not a raw JSON object). The `markdownToProductiveDocString()` function converts markdown to ProseMirror JSON and then stringifies it.
+Pages use Productive's ProseMirror document format. The body attribute must be a **raw JSON object** (not a stringified string). The `markdownToProductiveDoc()` function converts markdown to ProseMirror JSON structure.
 
 ### Estimate Gotcha
 
