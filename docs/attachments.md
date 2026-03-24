@@ -138,6 +138,16 @@ PATCH /api/v2/tasks/<task_id>
 }
 ```
 
+## Gotchas
+
+1. **The `aws_policy` is time-limited** — upload to S3 immediately after creating the attachment record. Do not store the policy for later use.
+2. **~45MB practical size limit** per file.
+3. **Base64 cleanup** — if working with base64 data, strip any `data:...;base64,` prefix and whitespace before decoding.
+4. **All IDs must be strings** in JSON:API bodies (e.g. `"id": "789"`, not `"id": 789`).
+5. **No shortcut** — there is no single-call upload endpoint. All 4 steps (create record → upload to S3 → confirm upload → link to resource) are required.
+6. **Step 4 confirms the upload** — the PATCH response includes `data.attributes.url`, which is the final CDN URL for the file.
+7. **Step 5 replaces the array** — always include existing attachment IDs alongside new ones, or they'll be unlinked from the resource.
+
 ## Reading Attachments
 
 Attachments are automatically included when fetching tasks with `?include=attachments`. They appear in the `included` array with type `"attachments"`.
