@@ -1114,10 +1114,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_list_people",
       description:
-        'List people in your Productive.io organization. Use this to find person IDs for task assignment.\n\nExample:\n{\n  "limit": 20\n}',
+        'List people in your Productive.io organization. Use this to find person IDs for task assignment.\n\nExample:\n{\n  "query": "Josh",\n  "limit": 20\n}',
       inputSchema: {
         type: "object",
         properties: {
+          query: {
+            type: "string",
+            description: "Search query to filter people by name or email",
+          },
           limit: {
             type: "number",
             description: "Number of results to return (1-100, default: 20)",

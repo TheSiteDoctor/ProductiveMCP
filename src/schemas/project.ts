@@ -34,6 +34,7 @@ export const ListTaskListsSchema = z
  */
 export const ListPeopleSchema = z
   .object({
+    query: z.string().optional(),
     limit: LimitSchema,
     offset: OffsetSchema,
     response_format: ResponseFormatSchema,

@@ -167,6 +167,10 @@ export async function listPeople(
     "page[size]": args.limit,
   };
 
+  if (args.query) {
+    params["filter[query]"] = args.query;
+  }
+
   const response = await client.get<JSONAPIResponse>("/people", params);
 
   const people = (
