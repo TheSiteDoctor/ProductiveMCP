@@ -48,6 +48,39 @@ let labelOptionsCache: {
 const LABEL_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
+ * Resolve a workflow status name to the correct ID for a given project.
+ *
+ * Workflow status IDs are project-specific in Productive — the same name
+ * (e.g. "In Progress") has different IDs in different projects. This function
+ * queries the API to find the correct ID, falling back to the static config
+ * only if the API lookup fails.
+ */
+async function resolveWorkflowStatusId(
+  client: ProductiveClient,
+  projectId: string,
+  statusName: string,
+): Promise<string | null> {
+  try {
+    const response = await client.get<JSONAPIResponse>("/workflow_statuses", {
+      "filter[project_id]": projectId,
+    });
+    const statuses = Array.isArray(response.data)
+      ? response.data
+      : [response.data];
+    const match = statuses.find(
+      (s) => (s.attributes as { name?: string })?.name === statusName,
+    );
+    if (match?.id) {
+      return match.id;
+    }
+  } catch {
+    // Fall through to static config
+  }
+  // Fallback to static config (may be wrong for cross-project usage)
+  return WORKFLOW_STATUS_IDS[statusName] || null;
+}
+
+/**
  * Fetch all label options from the Productive API with pagination support.
  * Returns a case-insensitive name→ID map and updates the LABEL_OPTIONS runtime cache.
  */
@@ -283,9 +316,13 @@ export async function createTask(
     };
   }
 
-  // Add optional workflow status relationship
+  // Add optional workflow status relationship (resolve per-project)
   if (args.workflow_status && payload.data.relationships) {
-    const statusId = WORKFLOW_STATUS_IDS[args.workflow_status];
+    const statusId = await resolveWorkflowStatusId(
+      client,
+      args.project_id,
+      args.workflow_status,
+    );
     if (statusId) {
       payload.data.relationships.workflow_status = {
         data: {
@@ -296,7 +333,7 @@ export async function createTask(
     } else {
       try {
         console.error(
-          `Warning: Workflow status "${args.workflow_status}" is not configured. Skipping status field.`,
+          `Warning: Workflow status "${args.workflow_status}" not found for project ${args.project_id}. Skipping status field.`,
         );
       } catch {
         // Ignore logging errors
@@ -480,7 +517,11 @@ export async function createMilestone(
     };
   }
   if (args.workflow_status) {
-    const statusId = WORKFLOW_STATUS_IDS[args.workflow_status];
+    const statusId = await resolveWorkflowStatusId(
+      client,
+      args.project_id,
+      args.workflow_status,
+    );
     if (statusId) {
       payload.data.relationships.workflow_status = {
         data: { type: "workflow_statuses", id: statusId },
@@ -488,7 +529,7 @@ export async function createMilestone(
     } else {
       try {
         console.error(
-          `Warning: Workflow status "${args.workflow_status}" is not configured. Skipping status field.`,
+          `Warning: Workflow status "${args.workflow_status}" not found for project ${args.project_id}. Skipping status field.`,
         );
       } catch {
         // Ignore logging errors
@@ -738,26 +779,57 @@ export async function updateTask(
     };
   }
 
-  // Handle workflow status relationship
+  // Handle workflow status relationship (resolve per-project)
   if (args.workflow_status !== undefined) {
     if (!payload.data.relationships) {
       payload.data.relationships = {};
     }
-    const statusId = WORKFLOW_STATUS_IDS[args.workflow_status];
-    if (statusId) {
-      payload.data.relationships.workflow_status = {
-        data: {
-          type: "workflow_statuses",
-          id: statusId,
-        },
-      };
+    // Fetch the task to get its project_id for status resolution
+    const taskResponse = await client.get<JSONAPIResponse>(
+      `/tasks/${args.task_id}`,
+      { include: "project" },
+    );
+    const taskData = Array.isArray(taskResponse.data)
+      ? taskResponse.data[0]
+      : taskResponse.data;
+    const projectRel = (taskData as Task).relationships?.project;
+    const projectId =
+      projectRel && "data" in projectRel
+        ? (projectRel.data as { id: string })?.id
+        : null;
+
+    if (projectId) {
+      const statusId = await resolveWorkflowStatusId(
+        client,
+        projectId,
+        args.workflow_status,
+      );
+      if (statusId) {
+        payload.data.relationships.workflow_status = {
+          data: {
+            type: "workflow_statuses",
+            id: statusId,
+          },
+        };
+      } else {
+        try {
+          console.error(
+            `Warning: Workflow status "${args.workflow_status}" not found for project ${projectId}. Skipping status field.`,
+          );
+        } catch {
+          // Ignore logging errors
+        }
+      }
     } else {
-      try {
-        console.error(
-          `Warning: Workflow status "${args.workflow_status}" is not configured. Skipping status field.`,
-        );
-      } catch {
-        // Ignore logging errors
+      // Fallback to static config if project can't be determined
+      const statusId = WORKFLOW_STATUS_IDS[args.workflow_status];
+      if (statusId) {
+        payload.data.relationships.workflow_status = {
+          data: {
+            type: "workflow_statuses",
+            id: statusId,
+          },
+        };
       }
     }
   }

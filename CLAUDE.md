@@ -77,6 +77,10 @@ Different Productive API endpoints expect different formats for rich text body c
 
 Pages use Productive's ProseMirror document format. The body attribute must be a **raw JSON object** (not a stringified string). The `markdownToProductiveDoc()` function converts markdown to ProseMirror JSON structure.
 
+### Workflow Status Gotcha
+
+Workflow status IDs are **per-project** in Productive — the same name (e.g. "In Progress") has different IDs in different project workflows. The `resolveWorkflowStatusId()` helper in `src/tools/tasks.ts` queries `GET /workflow_statuses?filter[project_id]=X` at runtime to find the correct ID. The static config (`productive.config.json`) is only used as a fallback.
+
 ### Estimate Gotcha
 
 Productive uses two estimate fields: `initial_estimate` (set at creation, never changes) and `remaining_time` (displayed as "Time to complete" in the GUI, counts down as hours are logged). On **create**, set `initial_estimate` — Productive auto-sets `remaining_time` to match. On **update**, set `remaining_time` — this is what the GUI displays and edits.

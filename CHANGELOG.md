@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.4] - 2026-03-26
+
+### Fixed
+
+- **Workflow status updates across projects**: Resolve workflow status IDs dynamically per-project instead of using static config. The same status name (e.g. "In Progress") has different IDs in different projects — using the wrong ID caused "attribute is invalid" errors.
+
 ## [1.3.3] - 2026-03-24
 
 ### Fixed
