@@ -926,6 +926,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             type: "boolean",
             description: "Mark task as closed (true) or open (false)",
           },
+          parent_task_id: {
+            type: "string",
+            description:
+              "Set or change the parent task ID to make this a sub-task, or null to remove the parent (make it a top-level task)",
+            nullable: true,
+          },
           labels: {
             type: "array",
             items: { type: "string" },

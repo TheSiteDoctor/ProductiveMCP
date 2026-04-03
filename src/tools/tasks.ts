@@ -844,6 +844,21 @@ export async function updateTask(
     };
   }
 
+  // Handle parent task relationship (null to clear, string to set)
+  if (args.parent_task_id !== undefined) {
+    if (!payload.data.relationships) {
+      payload.data.relationships = {};
+    }
+    payload.data.relationships.parent_task = {
+      data: args.parent_task_id
+        ? {
+            type: "tasks",
+            id: args.parent_task_id,
+          }
+        : null,
+    };
+  }
+
   const response = await client.patch<JSONAPIResponse>(
     `/tasks/${args.task_id}`,
     payload,

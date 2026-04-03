@@ -48,6 +48,12 @@ import type {
   FormattedServiceType,
   ProductiveDoc,
   ProductiveDocNode,
+  Deal,
+  DealAttributes,
+  FormattedDeal,
+  DealStatus,
+  DealStatusAttributes,
+  FormattedDealStatus,
 } from "../types.js";
 
 /**
@@ -591,6 +597,11 @@ export function formatTask(
         .map((id) => reverseLookup[id] || `Unknown (${id})`)
         .filter(Boolean);
     })(),
+    parent_task_id:
+      task.relationships?.parent_task?.data &&
+      "id" in task.relationships.parent_task.data
+        ? task.relationships.parent_task.data.id
+        : null,
     is_milestone: attributes.type_id === 3,
     created_at: attributes.created_at,
     url: task.id ? `https://app.productive.io/${orgId}/tasks/${task.id}` : null,
@@ -669,6 +680,10 @@ export function formatTaskMarkdown(task: FormattedTask): string {
 
   if (task.labels && task.labels.length > 0) {
     lines.push(`**Labels**: ${task.labels.join(", ")}`);
+  }
+
+  if (task.parent_task_id) {
+    lines.push(`**Parent Task ID**: ${task.parent_task_id}`);
   }
 
   const createdDate = new Date(task.created_at).toLocaleString("en-GB", {
@@ -1360,6 +1375,402 @@ export function formatBudgetAuditMarkdown(result: BudgetAuditResult): string {
 
   if (result.issues_found === 0) {
     lines.push("All budgets are healthy with valid end dates.");
+  }
+
+  return lines.join("\n");
+}
+
+// ============================================================
+// Deal formatting
+// ============================================================
+
+const STAGE_STATUS_MAP: Record<number, "open" | "won" | "lost"> = {
+  1: "open",
+  2: "won",
+  3: "lost",
+};
+
+/**
+ * Resolve a named relationship from JSON:API included data
+ */
+function resolveIncludedName(
+  includedData: unknown[] | undefined,
+  type: string,
+  id: string | null,
+  nameExtractor?: (attrs: Record<string, unknown>) => string | null,
+): string | null {
+  if (!id || !includedData) return null;
+  const item = includedData.find(
+    (
+      i,
+    ): i is {
+      type: string;
+      id: string;
+      attributes?: Record<string, unknown>;
+    } =>
+      typeof i === "object" &&
+      i !== null &&
+      "type" in i &&
+      (i as { type: unknown }).type === type &&
+      "id" in i &&
+      (i as { id: unknown }).id === id,
+  );
+  if (!item?.attributes) return null;
+  if (nameExtractor) return nameExtractor(item.attributes);
+  return (item.attributes.name as string) || null;
+}
+
+/**
+ * Format a deal for display
+ */
+export function formatDeal(
+  deal: Deal,
+  orgId: string,
+  includedData?: unknown[],
+): FormattedDeal {
+  const attributes = deal.attributes as DealAttributes;
+
+  // Extract relationship IDs
+  const projectId =
+    deal.relationships?.project?.data && "id" in deal.relationships.project.data
+      ? deal.relationships.project.data.id
+      : null;
+  const companyId =
+    deal.relationships?.company?.data && "id" in deal.relationships.company.data
+      ? deal.relationships.company.data.id
+      : null;
+  const responsibleId =
+    deal.relationships?.responsible?.data &&
+    "id" in deal.relationships.responsible.data
+      ? deal.relationships.responsible.data.id
+      : null;
+  const dealStatusId =
+    deal.relationships?.deal_status?.data &&
+    "id" in deal.relationships.deal_status.data
+      ? deal.relationships.deal_status.data.id
+      : null;
+  const pipelineId =
+    deal.relationships?.pipeline?.data &&
+    "id" in deal.relationships.pipeline.data
+      ? deal.relationships.pipeline.data.id
+      : null;
+  const contactId =
+    deal.relationships?.contact?.data && "id" in deal.relationships.contact.data
+      ? deal.relationships.contact.data.id
+      : null;
+
+  // Resolve stage_status from the deal_status relationship's status_id
+  let stageStatus: "open" | "won" | "lost" | null = null;
+  if (dealStatusId && includedData) {
+    const dsItem = includedData.find(
+      (
+        i,
+      ): i is {
+        type: string;
+        id: string;
+        attributes?: Record<string, unknown>;
+      } =>
+        typeof i === "object" &&
+        i !== null &&
+        "type" in i &&
+        (i as { type: unknown }).type === "deal_statuses" &&
+        "id" in i &&
+        (i as { id: unknown }).id === dealStatusId,
+    );
+    if (dsItem?.attributes?.status_id) {
+      stageStatus =
+        STAGE_STATUS_MAP[dsItem.attributes.status_id as number] || null;
+    }
+  }
+
+  // Resolve names from included data
+  const personNameExtractor = (attrs: Record<string, unknown>) => {
+    const first = (attrs.first_name as string) || "";
+    const last = (attrs.last_name as string) || "";
+    return `${first} ${last}`.trim() || null;
+  };
+
+  return {
+    id: deal.id,
+    name: attributes.name,
+    stage_status: stageStatus,
+    probability: attributes.probability,
+    revenue: attributes.revenue,
+    services_revenue: attributes.services_revenue,
+    budget_total: attributes.budget_total,
+    profit: attributes.profit,
+    profit_margin: attributes.profit_margin,
+    currency: attributes.currency,
+    start_date: attributes.date || null,
+    end_date: attributes.end_date || null,
+    sales_closed_on: attributes.sales_closed_on || null,
+    note: attributes.note || null,
+    tag_list: attributes.tag_list || [],
+    lost_comment: attributes.lost_comment || null,
+    days_since_created: attributes.days_since_created,
+    days_since_last_activity: attributes.days_since_last_activity,
+    days_in_current_stage: attributes.days_in_current_stage,
+    last_activity_at: attributes.last_activity_at || null,
+    project_id: projectId,
+    project_name: resolveIncludedName(includedData, "projects", projectId),
+    company_id: companyId,
+    company_name: resolveIncludedName(includedData, "companies", companyId),
+    responsible_id: responsibleId,
+    responsible_name: resolveIncludedName(
+      includedData,
+      "people",
+      responsibleId,
+      personNameExtractor,
+    ),
+    deal_status_id: dealStatusId,
+    deal_status_name: resolveIncludedName(
+      includedData,
+      "deal_statuses",
+      dealStatusId,
+    ),
+    pipeline_id: pipelineId,
+    pipeline_name: resolveIncludedName(includedData, "pipelines", pipelineId),
+    contact_id: contactId,
+    contact_name: resolveIncludedName(
+      includedData,
+      "contacts",
+      contactId,
+      personNameExtractor,
+    ),
+    created_at: attributes.created_at,
+    url: deal.id ? `https://app.productive.io/${orgId}/deals/${deal.id}` : null,
+  };
+}
+
+/**
+ * Format deals as markdown list
+ */
+export function formatDealListMarkdown(
+  deals: FormattedDeal[],
+  total?: number,
+): string {
+  if (deals.length === 0) {
+    return "No deals found.";
+  }
+
+  const lines = ["# Deals", ""];
+
+  if (total !== undefined) {
+    lines.push(`**Total**: ${total} deals`, "");
+  }
+
+  for (const deal of deals) {
+    const stageLabel = deal.stage_status
+      ? deal.stage_status.charAt(0).toUpperCase() + deal.stage_status.slice(1)
+      : "Unknown";
+    lines.push(`- **${deal.name}** (${stageLabel})`);
+    lines.push(`  ID: ${deal.id}`);
+
+    if (deal.company_name) {
+      lines.push(`  Company: ${deal.company_name}`);
+    }
+    if (deal.deal_status_name) {
+      lines.push(`  Stage: ${deal.deal_status_name}`);
+    }
+    if (deal.probability !== null && deal.probability !== undefined) {
+      lines.push(`  Probability: ${deal.probability}%`);
+    }
+    if (deal.revenue !== null && deal.revenue !== undefined && deal.currency) {
+      lines.push(`  Revenue: ${deal.revenue} ${deal.currency}`);
+    }
+    if (deal.responsible_name) {
+      lines.push(`  Owner: ${deal.responsible_name}`);
+    }
+    if (
+      deal.days_in_current_stage !== null &&
+      deal.days_in_current_stage !== undefined
+    ) {
+      lines.push(`  Days in stage: ${deal.days_in_current_stage}`);
+    }
+    if (deal.url) {
+      lines.push(`  [View in Productive](${deal.url})`);
+    }
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Format a single deal as detailed markdown
+ */
+export function formatSingleDealMarkdown(deal: FormattedDeal): string {
+  const lines = [`# ${deal.name}`, ""];
+
+  const stageLabel = deal.stage_status
+    ? deal.stage_status.charAt(0).toUpperCase() + deal.stage_status.slice(1)
+    : "Unknown";
+  lines.push(`**Status**: ${stageLabel}`);
+  lines.push(`**ID**: ${deal.id}`);
+
+  if (deal.pipeline_name) {
+    lines.push(`**Pipeline**: ${deal.pipeline_name}`);
+  }
+  if (deal.deal_status_name) {
+    lines.push(`**Stage**: ${deal.deal_status_name}`);
+  }
+  if (deal.probability !== null && deal.probability !== undefined) {
+    lines.push(`**Probability**: ${deal.probability}%`);
+  }
+  if (deal.revenue !== null && deal.revenue !== undefined && deal.currency) {
+    lines.push(`**Revenue**: ${deal.revenue} ${deal.currency}`);
+  }
+  if (deal.budget_total !== null && deal.budget_total !== undefined) {
+    lines.push(`**Budget Total**: ${deal.budget_total} ${deal.currency || ""}`);
+  }
+  if (deal.profit !== null && deal.profit !== undefined) {
+    lines.push(`**Profit**: ${deal.profit} ${deal.currency || ""}`);
+  }
+  if (deal.profit_margin !== null && deal.profit_margin !== undefined) {
+    lines.push(`**Profit Margin**: ${deal.profit_margin}%`);
+  }
+
+  lines.push("");
+  lines.push("## Relationships");
+
+  if (deal.company_name) {
+    lines.push(`**Company**: ${deal.company_name} (ID: ${deal.company_id})`);
+  }
+  if (deal.responsible_name) {
+    lines.push(
+      `**Owner**: ${deal.responsible_name} (ID: ${deal.responsible_id})`,
+    );
+  }
+  if (deal.contact_name) {
+    lines.push(`**Contact**: ${deal.contact_name} (ID: ${deal.contact_id})`);
+  }
+  if (deal.project_name) {
+    lines.push(`**Project**: ${deal.project_name} (ID: ${deal.project_id})`);
+  }
+
+  lines.push("");
+  lines.push("## Dates");
+  if (deal.start_date) {
+    lines.push(`**Start Date**: ${deal.start_date}`);
+  }
+  if (deal.end_date) {
+    lines.push(`**End Date**: ${deal.end_date}`);
+  }
+  if (deal.sales_closed_on) {
+    lines.push(`**Closed On**: ${deal.sales_closed_on}`);
+  }
+
+  if (
+    deal.days_since_created !== null ||
+    deal.days_since_last_activity !== null ||
+    deal.days_in_current_stage !== null
+  ) {
+    lines.push("");
+    lines.push("## Activity");
+    if (deal.days_since_created !== null) {
+      lines.push(`**Days Since Created**: ${deal.days_since_created}`);
+    }
+    if (deal.days_since_last_activity !== null) {
+      lines.push(
+        `**Days Since Last Activity**: ${deal.days_since_last_activity}`,
+      );
+    }
+    if (deal.days_in_current_stage !== null) {
+      lines.push(`**Days In Current Stage**: ${deal.days_in_current_stage}`);
+    }
+    if (deal.last_activity_at) {
+      lines.push(`**Last Activity**: ${deal.last_activity_at}`);
+    }
+  }
+
+  if (deal.note) {
+    lines.push("", "## Notes", deal.note);
+  }
+
+  if (deal.tag_list.length > 0) {
+    lines.push("", `**Tags**: ${deal.tag_list.join(", ")}`);
+  }
+
+  if (deal.lost_comment) {
+    lines.push("", `**Lost Reason**: ${deal.lost_comment}`);
+  }
+
+  const createdDate = new Date(deal.created_at).toLocaleDateString("en-GB", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
+  lines.push("", `**Created**: ${createdDate}`);
+
+  if (deal.url) {
+    lines.push("", `[View in Productive](${deal.url})`);
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Format a deal status for display
+ */
+export function formatDealStatus(
+  status: DealStatus,
+  includedData?: unknown[],
+): FormattedDealStatus {
+  const attributes = status.attributes as DealStatusAttributes;
+
+  const pipelineId =
+    status.relationships?.pipeline?.data &&
+    "id" in status.relationships.pipeline.data
+      ? status.relationships.pipeline.data.id
+      : null;
+
+  return {
+    id: status.id,
+    name: attributes.name,
+    position: attributes.position,
+    stage_status: STAGE_STATUS_MAP[attributes.status_id] || "open",
+    probability: attributes.probability,
+    pipeline_id: pipelineId,
+    pipeline_name: resolveIncludedName(includedData, "pipelines", pipelineId),
+  };
+}
+
+/**
+ * Format deal statuses as markdown list
+ */
+export function formatDealStatusListMarkdown(
+  statuses: FormattedDealStatus[],
+  total?: number,
+): string {
+  if (statuses.length === 0) {
+    return "No deal statuses found.";
+  }
+
+  const lines = ["# Deal Statuses (Pipeline Stages)", ""];
+
+  if (total !== undefined) {
+    lines.push(`**Total**: ${total} statuses`, "");
+  }
+
+  for (const status of statuses) {
+    const stageLabel =
+      status.stage_status.charAt(0).toUpperCase() +
+      status.stage_status.slice(1);
+    lines.push(`- **${status.name}** (${stageLabel})`);
+    lines.push(`  ID: ${status.id}`);
+    if (status.pipeline_name) {
+      lines.push(`  Pipeline: ${status.pipeline_name}`);
+    }
+    if (status.position !== null) {
+      lines.push(`  Position: ${status.position}`);
+    }
+    if (status.probability !== null) {
+      lines.push(`  Auto-probability: ${status.probability}%`);
+    }
+    lines.push("");
   }
 
   return lines.join("\n");

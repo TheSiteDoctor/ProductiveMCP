@@ -343,6 +343,12 @@ export interface UpdateTaskPayload {
           id: string;
         };
       };
+      parent_task?: {
+        data: {
+          type: "tasks";
+          id: string;
+        } | null;
+      };
     };
   };
 }
@@ -374,6 +380,7 @@ export interface FormattedTask {
   due_date: string | null;
   start_date: string | null;
   labels: string[];
+  parent_task_id: string | null;
   is_milestone: boolean;
   created_at: string;
   url: string | null;
@@ -677,6 +684,112 @@ export interface BudgetAuditResult {
     project_id: string;
     project_name: string;
   }>;
+}
+
+// Deal types (deals with budget=false, i.e. sales deals)
+export interface DealAttributes {
+  name: string;
+  budget: boolean;
+  date: string | null;
+  end_date: string | null;
+  probability: number | null;
+  revenue: number | null;
+  services_revenue: number | null;
+  budget_total: number | null;
+  profit: number | null;
+  profit_margin: number | null;
+  currency: string | null;
+  note: string | null;
+  tag_list: string[] | null;
+  sales_closed_at: string | null;
+  sales_closed_on: string | null;
+  lost_comment: string | null;
+  days_since_created: number | null;
+  days_since_last_activity: number | null;
+  days_in_current_stage: number | null;
+  last_activity_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Deal extends JSONAPIData<DealAttributes> {
+  type: "deals";
+  id: string;
+}
+
+export interface FormattedDeal {
+  id: string;
+  name: string;
+  stage_status: "open" | "won" | "lost" | null;
+  probability: number | null;
+  revenue: number | null;
+  services_revenue: number | null;
+  budget_total: number | null;
+  profit: number | null;
+  profit_margin: number | null;
+  currency: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  sales_closed_on: string | null;
+  note: string | null;
+  tag_list: string[];
+  lost_comment: string | null;
+  days_since_created: number | null;
+  days_since_last_activity: number | null;
+  days_in_current_stage: number | null;
+  last_activity_at: string | null;
+  project_id: string | null;
+  project_name: string | null;
+  company_id: string | null;
+  company_name: string | null;
+  responsible_id: string | null;
+  responsible_name: string | null;
+  deal_status_id: string | null;
+  deal_status_name: string | null;
+  pipeline_id: string | null;
+  pipeline_name: string | null;
+  contact_id: string | null;
+  contact_name: string | null;
+  created_at: string;
+  url: string | null;
+}
+
+export interface UpdateDealPayload {
+  data: {
+    type: "deals";
+    id: string;
+    attributes?: {
+      name?: string;
+      probability?: number;
+      deal_status_id?: number;
+      note?: string | null;
+      tag_list?: string[];
+    };
+  };
+}
+
+// Deal Status types (pipeline stages)
+export interface DealStatusAttributes {
+  name: string;
+  position: number | null;
+  status_id: number; // 1=open, 2=won, 3=lost
+  probability: number | null;
+  created_at: string;
+}
+
+export interface DealStatus extends JSONAPIData<DealStatusAttributes> {
+  type: "deal_statuses";
+  id: string;
+}
+
+export interface FormattedDealStatus {
+  id: string;
+  name: string;
+  position: number | null;
+  stage_status: "open" | "won" | "lost";
+  probability: number | null;
+  pipeline_id: string | null;
+  pipeline_name: string | null;
 }
 
 // Revenue Distribution types
