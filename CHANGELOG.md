@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-04-03
+
+### Added
+
+- **CLI interface**: New `productive` CLI command alongside the existing MCP server. All 71 tools are available as subcommands (e.g. `productive search-tasks --project_id 123`). Features include:
+  - Auto-generated flags from Zod schemas with type hints, choices, and required/optional indicators
+  - `@file` convention for long string args (e.g. `--body @design.md`, `--body @-` for stdin)
+  - JSON output by default (override with `--format markdown`)
+  - Comma-separated array values (e.g. `--labels "Bug,Urgent"`)
+  - JSON auto-parsing for nested args (e.g. batch task creation)
+
+### Changed
+
+- **Shared tool registry**: Extracted tool-to-handler mapping from 530-line switch statement into `src/registry.ts`, shared by both MCP server and CLI. Adding new tools now requires a single registry entry instead of maintaining parallel switch cases.
+
 ## [1.3.4] - 2026-03-26
 
 ### Fixed
@@ -101,6 +116,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rate limiting (100 requests/10s sliding window)
 - Response truncation with pagination hints
 
+[1.4.0]: https://github.com/TheSiteDoctor/ProductiveMCP/compare/v1.3.4...v1.4.0
+[1.3.4]: https://github.com/TheSiteDoctor/ProductiveMCP/compare/v1.3.3...v1.3.4
+[1.3.3]: https://github.com/TheSiteDoctor/ProductiveMCP/compare/v1.3.2...v1.3.3
+[1.3.2]: https://github.com/TheSiteDoctor/ProductiveMCP/compare/v1.3.1...v1.3.2
+[1.3.1]: https://github.com/TheSiteDoctor/ProductiveMCP/compare/v1.3.0...v1.3.1
+[1.3.0]: https://github.com/TheSiteDoctor/ProductiveMCP/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/TheSiteDoctor/ProductiveMCP/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/TheSiteDoctor/ProductiveMCP/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/TheSiteDoctor/ProductiveMCP/compare/v1.1.0...v1.1.1

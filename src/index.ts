@@ -16,186 +16,11 @@ import { createRequire } from "module";
 import { ProductiveClient } from "./client.js";
 import { validateEnvironment } from "./utils/errors.js";
 import { TASK_TYPES, PRIORITIES, WORKFLOW_STATUSES } from "./constants.js";
+import { toolRegistry } from "./registry.js";
 
 // Read version from package.json
 const require = createRequire(import.meta.url);
 const { version: SERVER_VERSION } = require("../package.json");
-
-// Import schemas
-import {
-  ListProjectsSchema,
-  ListTaskListsSchema,
-  ListPeopleSchema,
-  ListBoardsSchema,
-  GetTaskListSchema,
-  CreateTaskListSchema,
-  UpdateTaskListSchema,
-  ArchiveTaskListSchema,
-  RestoreTaskListSchema,
-  DeleteTaskListSchema,
-  RepositionTaskListSchema,
-  MoveTaskListSchema,
-  CopyTaskListSchema,
-} from "./schemas/project.js";
-import {
-  CreateTaskSchema,
-  CreateMilestoneSchema,
-  SearchTasksSchema,
-  GetTaskSchema,
-  UpdateTaskSchema,
-  CreateTasksBatchSchema,
-} from "./schemas/task.js";
-import {
-  CreateTodoSchema,
-  ListTodosSchema,
-  GetTodoSchema,
-  UpdateTodoSchema,
-  DeleteTodoSchema,
-} from "./schemas/todo.js";
-import {
-  ListPagesSchema,
-  GetPageSchema,
-  CreatePageSchema,
-  UpdatePageSchema,
-  DeletePageSchema,
-  SearchPagesSchema,
-} from "./schemas/page.js";
-import {
-  CreateTaskDependencySchema,
-  ListTaskDependenciesSchema,
-  GetTaskDependencySchema,
-  UpdateTaskDependencySchema,
-  DeleteTaskDependencySchema,
-} from "./schemas/dependency.js";
-import {
-  MarkAsBlockedBySchema,
-  MarkAsDuplicateSchema,
-} from "./schemas/workflow.js";
-import {
-  ListAttachmentsSchema,
-  UploadAttachmentSchema,
-} from "./schemas/attachment.js";
-import {
-  ListCommentsSchema,
-  CreateCommentSchema,
-  GetCommentSchema,
-  UpdateCommentSchema,
-  DeleteCommentSchema,
-} from "./schemas/comment.js";
-import { ListSubtasksSchema } from "./schemas/subtask.js";
-import {
-  ListBudgetsSchema,
-  GetBudgetSchema,
-  UpdateBudgetSchema,
-  MarkBudgetDeliveredSchema,
-  CloseBudgetSchema,
-  AuditProjectBudgetsSchema,
-} from "./schemas/budget.js";
-import {
-  ListRevenueDistributionsSchema,
-  GetRevenueDistributionSchema,
-  CreateRevenueDistributionSchema,
-  UpdateRevenueDistributionSchema,
-  DeleteRevenueDistributionSchema,
-  ExtendRevenueDistributionSchema,
-  ReportOverdueDistributionsSchema,
-} from "./schemas/revenue-distribution.js";
-import {
-  ListServicesSchema,
-  GetServiceSchema,
-  CreateServiceSchema,
-  UpdateServiceSchema,
-  ListServiceTypesSchema,
-  GetServiceTypeSchema,
-  CreateServiceTypeSchema,
-  UpdateServiceTypeSchema,
-  ArchiveServiceTypeSchema,
-} from "./schemas/service.js";
-
-// Import tool implementations
-import {
-  listProjects,
-  listTaskLists,
-  listPeople,
-  listBoards,
-  getTaskList,
-  createTaskList,
-  updateTaskList,
-  archiveTaskList,
-  restoreTaskList,
-  deleteTaskList,
-  repositionTaskList,
-  moveTaskList,
-  copyTaskList,
-} from "./tools/projects.js";
-import {
-  createTask,
-  createMilestone,
-  searchTasks,
-  getTask,
-  updateTask,
-} from "./tools/tasks.js";
-import { createTasksBatch } from "./tools/batch.js";
-import {
-  createTodo,
-  listTodos,
-  getTodo,
-  updateTodo,
-  deleteTodo,
-} from "./tools/todos.js";
-import {
-  listPages,
-  getPage,
-  createPage,
-  updatePage,
-  deletePage,
-  searchPages,
-} from "./tools/pages.js";
-import {
-  createTaskDependency,
-  listTaskDependencies,
-  getTaskDependency,
-  updateTaskDependency,
-  deleteTaskDependency,
-} from "./tools/dependencies.js";
-import { markAsBlockedBy, markAsDuplicate } from "./tools/workflows.js";
-import { listAttachments, uploadAttachment } from "./tools/attachments.js";
-import {
-  listComments,
-  createComment,
-  getComment,
-  updateComment,
-  deleteComment,
-} from "./tools/comments.js";
-import { listSubtasks } from "./tools/subtasks.js";
-import {
-  listBudgets,
-  getBudget,
-  updateBudget,
-  markBudgetDelivered,
-  closeBudget,
-  auditProjectBudgets,
-} from "./tools/budgets.js";
-import {
-  listRevenueDistributions,
-  getRevenueDistribution,
-  createRevenueDistribution,
-  updateRevenueDistribution,
-  deleteRevenueDistribution,
-  extendRevenueDistribution,
-  reportOverdueDistributions,
-} from "./tools/revenue-distributions.js";
-import {
-  listServices,
-  getService,
-  createService,
-  updateService,
-  listServiceTypes,
-  getServiceType,
-  createServiceType,
-  updateServiceType,
-  archiveServiceType,
-} from "./tools/services.js";
 
 // Validate environment variables
 try {
@@ -1921,6 +1746,199 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
 
+    // Deal tools (sales deals, not budgets)
+    {
+      name: "productive_list_deals",
+      description:
+        'List sales deals in Productive.io. Deals are sales opportunities tracked through a pipeline. Use filter[type]=1 internally (budgets are type=2).\n\nExample:\n{\n  "company_id": "123",\n  "stage_status": "open",\n  "limit": 20\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          company_id: {
+            type: "string",
+            description: "Filter by company/client ID",
+          },
+          responsible_id: {
+            type: "string",
+            description: "Filter by responsible person ID",
+          },
+          pipeline_id: {
+            type: "string",
+            description: "Filter by pipeline ID",
+          },
+          stage_status: {
+            type: "string",
+            enum: ["open", "won", "lost"],
+            description: "Filter by deal stage status",
+          },
+          status_id: {
+            type: "string",
+            description:
+              "Filter by specific deal status/pipeline stage ID. Use productive_list_deal_statuses to find IDs.",
+          },
+          sort: {
+            type: "string",
+            description:
+              "Sort field. Prefix with - for descending. Examples: -last_activity_at, name, -created_at, -deal_value_total. Default: -last_activity_at",
+          },
+          limit: {
+            type: "number",
+            description: "Number of results to return (1-100, default: 20)",
+            default: 20,
+          },
+          offset: {
+            type: "number",
+            description: "Offset for pagination (default: 0)",
+            default: 0,
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+      },
+    },
+    {
+      name: "productive_get_deal",
+      description:
+        'Get details of a specific sales deal by ID. Returns full deal information including pipeline stage, probability, value, company, and activity metrics.\n\nExample:\n{\n  "deal_id": "12345"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          deal_id: {
+            type: "string",
+            description: "The deal ID to retrieve",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["deal_id"],
+      },
+    },
+    {
+      name: "productive_search_deals",
+      description:
+        'Search sales deals by text query. Searches deal names and other text fields.\n\nExample:\n{\n  "query": "website redesign",\n  "stage_status": "open"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Text to search for in deal names",
+          },
+          company_id: {
+            type: "string",
+            description: "Filter by company/client ID",
+          },
+          stage_status: {
+            type: "string",
+            enum: ["open", "won", "lost"],
+            description: "Filter by deal stage status",
+          },
+          pipeline_id: {
+            type: "string",
+            description: "Filter by pipeline ID",
+          },
+          limit: {
+            type: "number",
+            description: "Number of results to return (1-100, default: 20)",
+            default: 20,
+          },
+          offset: {
+            type: "number",
+            description: "Offset for pagination (default: 0)",
+            default: 0,
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["query"],
+      },
+    },
+    {
+      name: "productive_update_deal",
+      description:
+        'Update a sales deal. Can change name, probability, pipeline stage, notes, and tags. Moving to a "won" stage auto-sets probability to 100.\n\nExample:\n{\n  "deal_id": "12345",\n  "probability": 75,\n  "deal_status_id": "5678"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          deal_id: {
+            type: "string",
+            description: "The deal ID to update",
+          },
+          name: {
+            type: "string",
+            description: "New deal name (max 200 chars)",
+          },
+          probability: {
+            type: "number",
+            description: "Win probability percentage (0-100)",
+          },
+          note: {
+            type: ["string", "null"],
+            description: "Deal notes (set to null to clear)",
+          },
+          tag_list: {
+            type: "array",
+            items: { type: "string" },
+            description: "Tags for the deal (replaces existing tags)",
+          },
+          deal_status_id: {
+            type: "string",
+            description:
+              "Pipeline stage ID to move the deal to. Use productive_list_deal_statuses to find IDs.",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["deal_id"],
+      },
+    },
+    {
+      name: "productive_list_deal_statuses",
+      description:
+        'List deal statuses (pipeline stages). Each status has a stage type: open, won, or lost. Use this to find status IDs for filtering or updating deals.\n\nExample:\n{\n  "pipeline_id": "123"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          pipeline_id: {
+            type: "string",
+            description: "Filter by pipeline ID",
+          },
+          limit: {
+            type: "number",
+            description: "Number of results to return (1-100, default: 20)",
+            default: 20,
+          },
+          offset: {
+            type: "number",
+            description: "Offset for pagination (default: 0)",
+            default: 0,
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+      },
+    },
+
     // Revenue Distribution tools
     {
       name: "productive_list_revenue_distributions",
@@ -2471,489 +2489,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   });
 
   try {
-    switch (name) {
-      // Project tools
-      case "productive_list_projects": {
-        const validated = ListProjectsSchema.parse(args);
-        const result = await listProjects(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_list_task_lists": {
-        const validated = ListTaskListsSchema.parse(args);
-        const result = await listTaskLists(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_list_people": {
-        const validated = ListPeopleSchema.parse(args);
-        const result = await listPeople(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Board tools
-      case "productive_list_boards": {
-        const validated = ListBoardsSchema.parse(args);
-        const result = await listBoards(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Task list tools
-      case "productive_get_task_list": {
-        const validated = GetTaskListSchema.parse(args);
-        const result = await getTaskList(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_create_task_list": {
-        const validated = CreateTaskListSchema.parse(args);
-        const result = await createTaskList(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_update_task_list": {
-        const validated = UpdateTaskListSchema.parse(args);
-        const result = await updateTaskList(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_archive_task_list": {
-        const validated = ArchiveTaskListSchema.parse(args);
-        const result = await archiveTaskList(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_restore_task_list": {
-        const validated = RestoreTaskListSchema.parse(args);
-        const result = await restoreTaskList(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_delete_task_list": {
-        const validated = DeleteTaskListSchema.parse(args);
-        const result = await deleteTaskList(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_reposition_task_list": {
-        const validated = RepositionTaskListSchema.parse(args);
-        const result = await repositionTaskList(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_move_task_list": {
-        const validated = MoveTaskListSchema.parse(args);
-        const result = await moveTaskList(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_copy_task_list": {
-        const validated = CopyTaskListSchema.parse(args);
-        const result = await copyTaskList(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Task tools
-      case "productive_create_task": {
-        const validated = CreateTaskSchema.parse(args);
-        const result = await createTask(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_create_milestone": {
-        const validated = CreateMilestoneSchema.parse(args);
-        const result = await createMilestone(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_search_tasks": {
-        const validated = SearchTasksSchema.parse(args);
-        const result = await searchTasks(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_get_task": {
-        const validated = GetTaskSchema.parse(args);
-        const result = await getTask(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_update_task": {
-        const validated = UpdateTaskSchema.parse(args);
-        const result = await updateTask(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Todo tools
-      case "productive_create_todo": {
-        const validated = CreateTodoSchema.parse(args);
-        const result = await createTodo(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_list_todos": {
-        const validated = ListTodosSchema.parse(args);
-        const result = await listTodos(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_update_todo": {
-        const validated = UpdateTodoSchema.parse(args);
-        const result = await updateTodo(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_delete_todo": {
-        const validated = DeleteTodoSchema.parse(args);
-        const result = await deleteTodo(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Page tools
-      case "productive_list_pages": {
-        const validated = ListPagesSchema.parse(args);
-        const result = await listPages(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_get_page": {
-        const validated = GetPageSchema.parse(args);
-        const result = await getPage(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_create_page": {
-        const validated = CreatePageSchema.parse(args);
-        const result = await createPage(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_update_page": {
-        const validated = UpdatePageSchema.parse(args);
-        const result = await updatePage(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_delete_page": {
-        const validated = DeletePageSchema.parse(args);
-        const result = await deletePage(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_search_pages": {
-        const validated = SearchPagesSchema.parse(args);
-        const result = await searchPages(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Batch tools
-      case "productive_create_tasks_batch": {
-        const validated = CreateTasksBatchSchema.parse(args);
-        const result = await createTasksBatch(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Task dependency tools
-      case "productive_create_task_dependency": {
-        const validated = CreateTaskDependencySchema.parse(args);
-        const result = await createTaskDependency(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_list_task_dependencies": {
-        const validated = ListTaskDependenciesSchema.parse(args);
-        const result = await listTaskDependencies(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_get_task_dependency": {
-        const validated = GetTaskDependencySchema.parse(args);
-        const result = await getTaskDependency(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_update_task_dependency": {
-        const validated = UpdateTaskDependencySchema.parse(args);
-        const result = await updateTaskDependency(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_delete_task_dependency": {
-        const validated = DeleteTaskDependencySchema.parse(args);
-        const result = await deleteTaskDependency(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Workflow helper tools
-      case "productive_mark_as_blocked_by": {
-        const validated = MarkAsBlockedBySchema.parse(args);
-        const result = await markAsBlockedBy(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_mark_as_duplicate": {
-        const validated = MarkAsDuplicateSchema.parse(args);
-        const result = await markAsDuplicate(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Attachment tools
-      case "productive_list_attachments": {
-        const validated = ListAttachmentsSchema.parse(args);
-        const result = await listAttachments(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_upload_attachment": {
-        const validated = UploadAttachmentSchema.parse(args);
-        const result = await uploadAttachment(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Comment tools
-      case "productive_list_comments": {
-        const validated = ListCommentsSchema.parse(args);
-        const result = await listComments(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_create_comment": {
-        const validated = CreateCommentSchema.parse(args);
-        const result = await createComment(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_get_comment": {
-        const validated = GetCommentSchema.parse(args);
-        const result = await getComment(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_update_comment": {
-        const validated = UpdateCommentSchema.parse(args);
-        const result = await updateComment(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_delete_comment": {
-        const validated = DeleteCommentSchema.parse(args);
-        const result = await deleteComment(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Sub-task tools
-      case "productive_list_subtasks": {
-        const validated = ListSubtasksSchema.parse(args);
-        const result = await listSubtasks(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Budget tools
-      case "productive_list_budgets": {
-        const validated = ListBudgetsSchema.parse(args);
-        const result = await listBudgets(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_get_budget": {
-        const validated = GetBudgetSchema.parse(args);
-        const result = await getBudget(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_update_budget": {
-        const validated = UpdateBudgetSchema.parse(args);
-        const result = await updateBudget(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_mark_budget_delivered": {
-        const validated = MarkBudgetDeliveredSchema.parse(args);
-        const result = await markBudgetDelivered(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_close_budget": {
-        const validated = CloseBudgetSchema.parse(args);
-        const result = await closeBudget(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_audit_project_budgets": {
-        const validated = AuditProjectBudgetsSchema.parse(args);
-        const result = await auditProjectBudgets(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Revenue Distribution tools
-      case "productive_list_revenue_distributions": {
-        const validated = ListRevenueDistributionsSchema.parse(args);
-        const result = await listRevenueDistributions(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_get_revenue_distribution": {
-        const validated = GetRevenueDistributionSchema.parse(args);
-        const result = await getRevenueDistribution(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_create_revenue_distribution": {
-        const validated = CreateRevenueDistributionSchema.parse(args);
-        const result = await createRevenueDistribution(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_update_revenue_distribution": {
-        const validated = UpdateRevenueDistributionSchema.parse(args);
-        const result = await updateRevenueDistribution(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_delete_revenue_distribution": {
-        const validated = DeleteRevenueDistributionSchema.parse(args);
-        const result = await deleteRevenueDistribution(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_extend_revenue_distribution": {
-        const validated = ExtendRevenueDistributionSchema.parse(args);
-        const result = await extendRevenueDistribution(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_report_overdue_distributions": {
-        const validated = ReportOverdueDistributionsSchema.parse(args);
-        const result = await reportOverdueDistributions(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Service tools
-      case "productive_list_services": {
-        const validated = ListServicesSchema.parse(args);
-        const result = await listServices(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_get_service": {
-        const validated = GetServiceSchema.parse(args);
-        const result = await getService(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_create_service": {
-        const validated = CreateServiceSchema.parse(args);
-        const result = await createService(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_update_service": {
-        const validated = UpdateServiceSchema.parse(args);
-        const result = await updateService(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Service Type tools
-      case "productive_list_service_types": {
-        const validated = ListServiceTypesSchema.parse(args);
-        const result = await listServiceTypes(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_get_service_type": {
-        const validated = GetServiceTypeSchema.parse(args);
-        const result = await getServiceType(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_create_service_type": {
-        const validated = CreateServiceTypeSchema.parse(args);
-        const result = await createServiceType(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_update_service_type": {
-        const validated = UpdateServiceTypeSchema.parse(args);
-        const result = await updateServiceType(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_archive_service_type": {
-        const validated = ArchiveServiceTypeSchema.parse(args);
-        const result = await archiveServiceType(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      default:
-        safeLog("[MCP Tool Error]", { tool: name, error: "Unknown tool" });
-        throw new Error(`Unknown tool: ${name}`);
+    const entry = toolRegistry[name];
+    if (!entry) {
+      safeLog("[MCP Tool Error]", { tool: name, error: "Unknown tool" });
+      throw new Error(`Unknown tool: ${name}`);
     }
+
+    const validated = entry.schema.parse(args);
+    const result = await entry.handler(client, validated);
+    safeLog("[MCP Tool Success]", { tool: name });
+    return { content: [{ type: "text", text: result }] };
   } catch (error) {
     // Log detailed error information
     safeLog("[MCP Tool Error]", {

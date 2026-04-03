@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-An MCP (Model Context Protocol) server that exposes 50+ tools for interacting with the Productive.io API. It runs over stdio transport and is consumed by Claude Desktop, Claude Code, and other MCP-compatible clients.
+An MCP (Model Context Protocol) server that exposes 70+ tools for interacting with the Productive.io API. It runs over stdio transport and is consumed by Claude Desktop, Claude Code, and other MCP-compatible clients. A CLI interface (`productive` command) is also available for use via shell/Bash.
 
 ## Commands
 
@@ -12,6 +12,7 @@ An MCP (Model Context Protocol) server that exposes 50+ tools for interacting wi
 npm run build    # TypeScript compilation (tsc) → dist/
 npm run dev      # Watch mode with tsx auto-reload
 npm start        # Run compiled server (dist/index.js)
+npm run cli      # Run CLI (dist/cli.js) — or use `productive` after npm link
 npm run setup    # Auto-discover Productive.io custom fields → productive.config.json
 npm run clean    # Remove dist/
 ```
@@ -20,12 +21,11 @@ There are no tests or linting configured in this project.
 
 ## Architecture
 
-### Entry Point & Server Setup
+### Entry Points
 
-`src/index.ts` is the monolithic entry point (~2700 lines). It creates an MCP `Server` instance with stdio transport and registers two request handlers:
-
-1. **ListToolsRequestSchema** — returns all tool definitions (name, description, inputSchema)
-2. **CallToolRequestSchema** — routes tool calls to handler functions, validates args with Zod, formats responses
+- `src/index.ts` — MCP server entry point. Creates an MCP `Server` with stdio transport, registers tool definitions (`ListToolsRequestSchema`) and routes calls via the shared registry (`CallToolRequestSchema`).
+- `src/cli.ts` — CLI entry point. Uses Commander.js to auto-generate subcommands from the shared registry. Supports `@file` for long string args, JSON output by default.
+- `src/registry.ts` — Shared tool registry mapping tool names to `{ schema, handler }` pairs. Both entry points import from here.
 
 ### Tool Pattern
 
@@ -93,8 +93,27 @@ All tool responses are capped at 25,000 characters (`CHARACTER_LIMIT` in constan
 
 1. Create/extend a Zod schema in `src/schemas/`
 2. Create/extend a handler function in `src/tools/`
-3. Register the tool definition in the `ListToolsRequestSchema` handler in `src/index.ts`
-4. Add the routing case in the `CallToolRequestSchema` handler in `src/index.ts`
+3. Add an entry to the registry in `src/registry.ts`
+4. Add the tool definition (name, description, inputSchema) in the `ListToolsRequestSchema` handler in `src/index.ts`
+
+The CLI automatically picks up new registry entries — no CLI-specific changes needed.
+
+## CLI Usage
+
+The CLI mirrors the MCP tools as subcommands. Tool name `productive_search_tasks` becomes `search-tasks`:
+
+```bash
+productive search-tasks --project_id 123 --limit 5
+productive create-task --title "Fix bug" --project_id 123 --task_list_id 456
+productive create-page --title "Design Doc" --body @design.md --project_id 123
+echo "# Notes" | productive create-page --title "Notes" --body @- --project_id 123
+productive search-tasks --format markdown --query "bug"
+```
+
+- `@filepath` reads content from a file; `@-` reads from stdin (for long body/description args)
+- JSON output by default; use `--format markdown` for human-readable output
+- Comma-separated arrays: `--labels "Bug,Urgent"`
+- Run `productive --help` or `productive <command> --help` for all options
 
 ## Environment
 
