@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2] - 2026-04-03
+
+### Fixed
+
+- `truncateResponse` no longer truncates JSON format output — mid-string cuts produced invalid JSON that broke downstream parsers (e.g. `JSONDecodeError: Invalid control character at char 25000`). JSON responses are now returned in full regardless of size; only Markdown responses are truncated with a pagination hint.
+
 ## [1.4.1] - 2026-04-03
 
 ### Added

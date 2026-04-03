@@ -1064,13 +1064,16 @@ export function truncateResponse(
     return content;
   }
 
-  const truncated = content.substring(0, CHARACTER_LIMIT);
-  const truncationMessage =
-    format === "markdown"
-      ? "\n\n---\n**Response truncated.** Use `limit` and `offset` parameters to paginate through results."
-      : "\n\n[Response truncated. Use limit and offset parameters to paginate.]";
+  // Never truncate JSON — mid-string cuts produce invalid JSON that breaks parsers
+  if (format === "json") {
+    return content;
+  }
 
-  return truncated + truncationMessage;
+  const truncated = content.substring(0, CHARACTER_LIMIT);
+  return (
+    truncated +
+    "\n\n---\n**Response truncated.** Use `limit` and `offset` parameters to paginate through results."
+  );
 }
 
 /**
