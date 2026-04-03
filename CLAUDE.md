@@ -79,7 +79,15 @@ Pages use Productive's ProseMirror document format. The body attribute must be a
 
 ### Workflow Status Gotcha
 
-Workflow status IDs are **per-project** in Productive — the same name (e.g. "In Progress") has different IDs in different project workflows. The `resolveWorkflowStatusId()` helper in `src/tools/tasks.ts` queries `GET /workflow_statuses?filter[project_id]=X` at runtime to find the correct ID. The static config (`productive.config.json`) is only used as a fallback.
+Workflow status IDs are **per-project** in Productive. `GET /workflow_statuses?filter[project_id]=X` returns **400 Unsupported filter** — do not use it.
+
+`resolveWorkflowStatusId()` in `src/tools/tasks.ts` uses a 3-step lookup instead:
+
+1. `GET /tasks?filter[project_id]=X&page[size]=1&include=workflow_status` — fetch any task to get a status ID
+2. `GET /workflow_statuses/{id}?include=workflow` — get the workflow ID from that status
+3. `GET /workflow_statuses?filter[workflow_id]=Y` — fetch all statuses for that workflow
+
+Results are cached per project for 5 minutes. Static config (`productive.config.json`) is the final fallback.
 
 ### Estimate Gotcha
 

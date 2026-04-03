@@ -48,35 +48,94 @@ let labelOptionsCache: {
 const LABEL_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
+ * Per-project cache of workflow status name → ID mappings.
+ * Keyed by projectId; expires after 5 minutes.
+ */
+const workflowStatusCache = new Map<
+  string,
+  { statuses: Record<string, string>; fetchedAt: number }
+>();
+
+const WORKFLOW_STATUS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
  * Resolve a workflow status name to the correct ID for a given project.
  *
- * Workflow status IDs are project-specific in Productive — the same name
- * (e.g. "In Progress") has different IDs in different projects. This function
- * queries the API to find the correct ID, falling back to the static config
- * only if the API lookup fails.
+ * GET /workflow_statuses?filter[project_id] is unsupported (returns 400).
+ * Instead this uses a 3-step lookup:
+ *   1. Fetch one task from the project with include=workflow_status to get a status ID.
+ *   2. Fetch that workflow_status record to obtain its workflow_id.
+ *   3. Fetch all statuses for that workflow_id.
+ * Results are cached per project for 5 minutes.
  */
 async function resolveWorkflowStatusId(
   client: ProductiveClient,
   projectId: string,
   statusName: string,
 ): Promise<string | null> {
-  try {
-    const response = await client.get<JSONAPIResponse>("/workflow_statuses", {
-      "filter[project_id]": projectId,
-    });
-    const statuses = Array.isArray(response.data)
-      ? response.data
-      : [response.data];
-    const match = statuses.find(
-      (s) => (s.attributes as { name?: string })?.name === statusName,
+  // Return from cache if fresh
+  const cached = workflowStatusCache.get(projectId);
+  if (cached && Date.now() - cached.fetchedAt < WORKFLOW_STATUS_CACHE_TTL_MS) {
+    return (
+      cached.statuses[statusName] || WORKFLOW_STATUS_IDS[statusName] || null
     );
-    if (match?.id) {
-      return match.id;
+  }
+
+  try {
+    // Step 1: get any task from the project to obtain a workflow_status ID
+    const taskResponse = await client.get<JSONAPIResponse>("/tasks", {
+      "filter[project_id]": projectId,
+      "page[size]": "1",
+      include: "workflow_status",
+    });
+    const included = (taskResponse.included ?? []) as Array<{
+      id: string;
+      type: string;
+    }>;
+    const anyStatus = included.find((r) => r.type === "workflow_statuses");
+    if (!anyStatus) {
+      return WORKFLOW_STATUS_IDS[statusName] || null;
     }
+
+    // Step 2: fetch that workflow_status to get its workflow_id
+    const wsResponse = await client.get<JSONAPIResponse>(
+      `/workflow_statuses/${anyStatus.id}`,
+      { include: "workflow" },
+    );
+    const wsData = Array.isArray(wsResponse.data)
+      ? wsResponse.data[0]
+      : wsResponse.data;
+    const workflowId = (
+      wsData?.relationships?.workflow as { data?: { id: string } } | undefined
+    )?.data?.id;
+    if (!workflowId) {
+      return WORKFLOW_STATUS_IDS[statusName] || null;
+    }
+
+    // Step 3: fetch all statuses for this workflow
+    const allResponse = await client.get<JSONAPIResponse>(
+      "/workflow_statuses",
+      {
+        "filter[workflow_id]": workflowId,
+      },
+    );
+    const allStatuses = Array.isArray(allResponse.data)
+      ? allResponse.data
+      : [allResponse.data];
+    const statusMap: Record<string, string> = {};
+    for (const s of allStatuses) {
+      const name = (s.attributes as { name?: string })?.name;
+      if (name && s.id) statusMap[name] = s.id;
+    }
+
+    workflowStatusCache.set(projectId, {
+      statuses: statusMap,
+      fetchedAt: Date.now(),
+    });
+    return statusMap[statusName] || WORKFLOW_STATUS_IDS[statusName] || null;
   } catch {
     // Fall through to static config
   }
-  // Fallback to static config (may be wrong for cross-project usage)
   return WORKFLOW_STATUS_IDS[statusName] || null;
 }
 

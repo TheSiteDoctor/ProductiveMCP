@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.3] - 2026-04-03
+
+### Fixed
+
+- `resolveWorkflowStatusId` no longer uses the unsupported `filter[project_id]` on `/workflow_statuses` (returned 400). It now uses a 3-step lookup: fetch one task from the project to get a status ID, fetch that status to get its workflow ID, then fetch all statuses for that workflow. Results are cached per project for 5 minutes.
+- Corrected stale IDs in `productive.config.json` static fallback: `In Progress` (142518→142890), `To Do` (142549→142889), `To Be Discussed` (142550→142895). Removed non-existent `Closed` entry. All 10 real statuses now confirmed against the API.
+
 ## [1.4.2] - 2026-04-03
 
 ### Fixed
