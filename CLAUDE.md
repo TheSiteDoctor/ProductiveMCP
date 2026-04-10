@@ -69,18 +69,18 @@ Schemas live in `src/schemas/` (one file per domain, plus `common.ts` for shared
 
 Different Productive API endpoints expect different formats for rich text body content:
 
-| Endpoint     | Input accepted   | Sent to API as           | Function                    |
-| ------------ | ---------------- | ------------------------ | --------------------------- |
-| **Tasks**    | Markdown or HTML | HTML string              | `markdownToHtml()`          |
-| **Comments** | Markdown or HTML | HTML string              | `markdownToHtml()`          |
-| **Pages**    | Markdown         | Raw ProseMirror JSON obj | `markdownToProductiveDoc()` |
+| Endpoint     | Input accepted   | Sent to API as               | Function                          |
+| ------------ | ---------------- | ---------------------------- | --------------------------------- |
+| **Tasks**    | Markdown or HTML | HTML string                  | `markdownToHtml()`                |
+| **Comments** | Markdown or HTML | HTML string                  | `markdownToHtml()`                |
+| **Pages**    | Markdown         | Stringified ProseMirror JSON | `markdownToProductiveDocString()` |
 
-Pages use Productive's ProseMirror document format. Two rules are **both required** for pages to render correctly (confirmed by Productive support + live page comparison):
+Pages use Productive's ProseMirror document format. Two rules are **both required** (confirmed by Productive support ticket + live curl API testing + GUI page comparison):
 
-1. **Body must be a raw JSON object** (not a stringified string). Sending a string causes Productive to treat the request as invalid and fall back to the last valid document version (empty for new pages).
-2. **Every block node must have an `id` attribute** — a 10-char random alphanumeric string. Productive's real-time collaborative editor uses these IDs to track document state. Without them, the editor overwrites the API-provided content with an empty state. Paragraphs nested inside `li` use `id: null` instead of a real ID.
+1. **Body must be a stringified JSON string** (confirmed by curl test — sending a raw JSON object causes Productive to reject the body and return the default empty document). The API response also returns `body` as a stringified string. Do not send a raw object.
+2. **Every block node must have an `id` attribute** — a 10-char random alphanumeric string (`generateNodeId()`). Productive's real-time collaborative editor uses these IDs to track document state. Without them, the editor overwrites API-provided content with empty state. This is why previous stringified-string-only attempts also failed.
 
-Node attrs summary:
+Node attrs required:
 
 | Node                      | Required attrs                                            |
 | ------------------------- | --------------------------------------------------------- |
@@ -91,7 +91,7 @@ Node attrs summary:
 | `blockquote`              | `{ id: "<10-char>" }`                                     |
 | `li`, `divider`, `text`   | no attrs                                                  |
 
-Do not revisit the string vs object question — both are confirmed and documented here.
+This has been tested empirically. Do not revisit — the string vs object question is settled by curl evidence.
 
 ### Workflow Status Gotcha
 

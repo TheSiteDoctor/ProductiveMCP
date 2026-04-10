@@ -115,6 +115,17 @@ export function markdownToProductiveDoc(markdown: string): ProductiveDoc {
 }
 
 /**
+ * Convert Markdown to a stringified Productive document JSON.
+ * Productive's Pages API expects the body attribute as a stringified JSON string
+ * (confirmed by live API testing — sending a raw object causes the API to reject
+ * the body and return an empty default document).
+ * e.g. "body": "{\"type\":\"doc\",\"content\":[...]}"
+ */
+export function markdownToProductiveDocString(markdown: string): string {
+  return JSON.stringify(markdownToProductiveDoc(markdown));
+}
+
+/**
  * Convert marked tokens to Productive document nodes
  */
 function convertTokensToNodes(tokens: Token[]): ProductiveDocNode[] {
