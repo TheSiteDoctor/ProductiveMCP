@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.4] - 2026-04-10
+
+### Fixed
+
+- Page body now persists correctly in Productive's UI (content no longer appears then disappears). Root cause was two compounding bugs: (1) block nodes in the generated ProseMirror document were missing `id` attributes required by Productive's real-time collaborative editor — without these the editor overwrites API-provided content with empty state; (2) the body must be sent as a stringified JSON string, not a raw JSON object — sending a raw object causes the API to reject the body and return the default empty document. Both fixes are required together.
+
 ## [1.4.3] - 2026-04-03
 
 ### Fixed
