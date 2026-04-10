@@ -75,7 +75,23 @@ Different Productive API endpoints expect different formats for rich text body c
 | **Comments** | Markdown or HTML | HTML string              | `markdownToHtml()`          |
 | **Pages**    | Markdown         | Raw ProseMirror JSON obj | `markdownToProductiveDoc()` |
 
-Pages use Productive's ProseMirror document format. The body attribute must be a **raw JSON object** (not a stringified string). The `markdownToProductiveDoc()` function converts markdown to ProseMirror JSON structure.
+Pages use Productive's ProseMirror document format. Two rules are **both required** for pages to render correctly (confirmed by Productive support + live page comparison):
+
+1. **Body must be a raw JSON object** (not a stringified string). Sending a string causes Productive to treat the request as invalid and fall back to the last valid document version (empty for new pages).
+2. **Every block node must have an `id` attribute** — a 10-char random alphanumeric string. Productive's real-time collaborative editor uses these IDs to track document state. Without them, the editor overwrites the API-provided content with an empty state. Paragraphs nested inside `li` use `id: null` instead of a real ID.
+
+Node attrs summary:
+
+| Node                      | Required attrs                                            |
+| ------------------------- | --------------------------------------------------------- |
+| `paragraph` (top-level)   | `{ id: "<10-char>", horizontalAlign: "start" }`           |
+| `paragraph` (inside `li`) | `{ id: null, horizontalAlign: null }`                     |
+| `heading`                 | `{ level: N, id: "<10-char>", horizontalAlign: "start" }` |
+| `ul` / `ol`               | `{ id: "<10-char>" }`                                     |
+| `blockquote`              | `{ id: "<10-char>" }`                                     |
+| `li`, `divider`, `text`   | no attrs                                                  |
+
+Do not revisit the string vs object question — both are confirmed and documented here.
 
 ### Workflow Status Gotcha
 

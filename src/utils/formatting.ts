@@ -82,6 +82,18 @@ export function markdownToHtml(markdown: string): string {
 // Productive Document Format types imported from types.ts
 
 /**
+ * Generate a random 10-character alphanumeric node ID matching Productive's format.
+ * Required by Productive's real-time collaborative editor to track document state.
+ */
+function generateNodeId(): string {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  return Array.from(
+    { length: 10 },
+    () => chars[Math.floor(Math.random() * chars.length)],
+  ).join("");
+}
+
+/**
  * Convert Markdown to Productive JSON Document Format for Pages.
  * Productive Pages use a JSON document format similar to Atlassian Document Format (ADF).
  * This function parses markdown and converts it to the required structure.
@@ -100,16 +112,6 @@ export function markdownToProductiveDoc(markdown: string): ProductiveDoc {
     type: "doc",
     content: convertTokensToNodes(tokens),
   };
-}
-
-/**
- * Convert Markdown to a stringified Productive document JSON.
- * Productive's Pages API expects the body attribute as a string containing JSON
- * (not a raw JSON object), matching the format returned in API responses:
- * e.g. "body": "{\"type\":\"doc\",\"content\":[...]}"
- */
-export function markdownToProductiveDocString(markdown: string): string {
-  return JSON.stringify(markdownToProductiveDoc(markdown));
 }
 
 /**
@@ -136,25 +138,32 @@ function convertTokenToNode(token: Token): ProductiveDocNode | null {
     case "heading":
       return {
         type: "heading",
-        attrs: { level: Math.min(token.depth, 3) }, // Productive supports 3 levels
+        attrs: {
+          level: Math.min(token.depth, 3), // Productive supports 3 levels
+          id: generateNodeId(),
+          horizontalAlign: "start",
+        },
         content: convertInlineTokens(token.tokens || []),
       };
 
     case "paragraph":
       return {
         type: "paragraph",
+        attrs: { id: generateNodeId(), horizontalAlign: "start" },
         content: convertInlineTokens(token.tokens || []),
       };
 
     case "blockquote":
       return {
         type: "blockquote",
+        attrs: { id: generateNodeId() },
         content: convertTokensToNodes(token.tokens || []),
       };
 
     case "list":
       return {
         type: token.ordered ? "ol" : "ul",
+        attrs: { id: generateNodeId() },
         content: (token.items || []).map((item: Tokens.ListItem) => ({
           type: "li",
           content: convertListItemTokens(item.tokens || []),
@@ -165,6 +174,7 @@ function convertTokenToNode(token: Token): ProductiveDocNode | null {
       // Code blocks become paragraphs with code-marked text
       return {
         type: "paragraph",
+        attrs: { id: generateNodeId(), horizontalAlign: "start" },
         content: [
           {
             type: "text",
@@ -188,6 +198,7 @@ function convertTokenToNode(token: Token): ProductiveDocNode | null {
       if ("text" in token && typeof token.text === "string") {
         return {
           type: "paragraph",
+          attrs: { id: generateNodeId(), horizontalAlign: "start" },
           content: [{ type: "text", text: token.text }],
         };
       }
@@ -209,8 +220,10 @@ function convertListItemTokens(tokens: Token[]): ProductiveDocNode[] {
       Array.isArray(token.tokens)
     ) {
       // This is a text token with nested inline formatting - wrap in paragraph
+      // Paragraphs inside li use id: null per Productive's own document format
       nodes.push({
         type: "paragraph",
+        attrs: { id: null, horizontalAlign: null },
         content: convertInlineTokens(token.tokens),
       });
     } else if (
@@ -229,6 +242,7 @@ function convertListItemTokens(tokens: Token[]): ProductiveDocNode[] {
       if (inlineNodes.length > 0) {
         nodes.push({
           type: "paragraph",
+          attrs: { id: null, horizontalAlign: null },
           content: inlineNodes,
         });
       }
