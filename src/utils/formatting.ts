@@ -181,19 +181,67 @@ function convertTokenToNode(token: Token): ProductiveDocNode | null {
         })),
       };
 
-    case "code":
-      // Code blocks become paragraphs with code-marked text
+    case "code": {
+      // Code blocks become paragraphs with code-marked text.
+      // Multi-line content is split into text+br sequences — embedding \n in text
+      // nodes violates ProseMirror schema and causes Productive's editor to discard content.
+      const lines = token.text.split("\n");
+      const codeContent: ProductiveDocNode[] = [];
+      lines.forEach((line: string, i: number) => {
+        codeContent.push({
+          type: "text",
+          text: line,
+          marks: [{ type: "code" }],
+        });
+        if (i < lines.length - 1) codeContent.push({ type: "br" });
+      });
       return {
         type: "paragraph",
         attrs: { id: generateNodeId(), horizontalAlign: "start" },
-        content: [
-          {
-            type: "text",
-            text: token.text,
-            marks: [{ type: "code" }],
-          },
-        ],
+        content: codeContent,
       };
+    }
+
+    case "table": {
+      // Convert GFM tables to Productive's table node format.
+      // Structure: table → table_row → table_header (header) / table_cell (body)
+      const tableRows: ProductiveDocNode[] = [];
+      if (token.header?.length) {
+        tableRows.push({
+          type: "table_row",
+          content: token.header.map(
+            (cell: { tokens?: Token[]; text?: string }) => ({
+              type: "table_header",
+              attrs: { colspan: 1, rowspan: 1, colwidth: null },
+              content: [
+                {
+                  type: "paragraph",
+                  attrs: { id: null, horizontalAlign: null },
+                  content: convertInlineTokens(cell.tokens || []),
+                },
+              ],
+            }),
+          ),
+        });
+      }
+      for (const row of token.rows || []) {
+        tableRows.push({
+          type: "table_row",
+          content: row.map((cell: { tokens?: Token[]; text?: string }) => ({
+            type: "table_cell",
+            attrs: { colspan: 1, rowspan: 1, colwidth: null },
+            content: [
+              {
+                type: "paragraph",
+                attrs: { id: null, horizontalAlign: null },
+                content: convertInlineTokens(cell.tokens || []),
+              },
+            ],
+          })),
+        });
+      }
+      return { type: "table", content: tableRows };
+    }
 
     case "hr":
       return {
@@ -310,7 +358,9 @@ function convertInlineToken(token: Token): ProductiveDocNode[] {
       });
 
     case "br":
-      return [{ type: "text", text: "\n" }];
+      // Use the Productive `br` inline node — never embed \n in text nodes,
+      // as that violates ProseMirror schema and causes the editor to discard content.
+      return [{ type: "br" }];
 
     case "escape":
       return [{ type: "text", text: token.text }];

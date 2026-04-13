@@ -93,6 +93,18 @@ Node attrs required:
 
 This has been tested empirically. Do not revisit — the string vs object question is settled by curl evidence.
 
+**Third rule — no `\n` in text nodes.** Text nodes must never contain newline characters. Productive's collaborative editor normalises documents against its ProseMirror schema on load and silently discards text nodes with embedded `\n`, causing content to vanish. Line breaks within a paragraph must use `{ type: "br" }` inline nodes instead. This affects:
+
+- Soft line breaks in markdown (e.g. consecutive bold items on separate lines) — produce `br` tokens in marked, which must map to `{ type: "br" }`, not `{ type: "text", text: "\n" }`
+- Multi-line code blocks — split on `\n` and intersperse `br` nodes between code-marked text nodes
+
+**Supported block node types** (from Productive Document Format API docs):
+`paragraph`, `heading`, `blockquote`, `ol`, `ul`, `checklist`, `table`, `divider`, `banner`
+
+**Table format:** `table` (no attrs) → `table_row` (no attrs) → `table_header` or `table_cell` (attrs: `{ colspan: 1, rowspan: 1, colwidth: null }`). Cells contain a `paragraph` child with `{ id: null, horizontalAlign: null }`.
+
+**`codeBlock` is NOT a supported node type.** Code blocks are rendered as paragraphs with inline `code` marks on the text nodes.
+
 ### Workflow Status Gotcha
 
 Workflow status IDs are **per-project** in Productive. `GET /workflow_statuses?filter[project_id]=X` returns **400 Unsupported filter** — do not use it.

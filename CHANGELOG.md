@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.5] - 2026-04-13
+
+### Fixed
+
+- Page body content no longer disappears after loading in Productive's collaborative editor. Three root causes addressed:
+  1. `br` inline tokens were emitting `{ type: "text", text: "\n" }` — text nodes must not contain `\n` in ProseMirror; the editor silently discards them on load. Fixed to emit `{ type: "br" }`.
+  2. Code blocks with multi-line content emitted a single text node with embedded `\n` characters (same violation). Fixed by splitting on `\n` and interspersing `br` nodes.
+  3. GFM markdown tables were silently dropped (no handler). Added full table conversion to Productive's `table → table_row → table_header/table_cell` format.
+
+### Added
+
+- Debug logging: `createPage` and `updatePage` now log the converted ProseMirror JSON to stderr before the API call (`[Pages:createPage]` / `[Pages:updatePage]`).
+- CLI now logs `[CLI Tool Call]` with tool name, version, and args to stderr on every invocation, matching the MCP server's existing `[MCP Tool Call]` logging — makes it possible to identify the source interface in logs.
+
 ## [1.4.4] - 2026-04-10
 
 ### Fixed

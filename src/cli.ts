@@ -302,6 +302,13 @@ for (const [toolName, entry] of Object.entries(toolRegistry)) {
       // Validate with Zod schema
       const validated = entry.schema.parse(args);
 
+      // Log the tool call to stderr (mirrors MCP server's [MCP Tool Call] logging)
+      console.error("[CLI Tool Call]", {
+        tool: toolName,
+        version,
+        args: JSON.stringify(validated, null, 2),
+      });
+
       // Call the tool handler
       const result = await entry.handler(client, validated);
       console.log(result);
