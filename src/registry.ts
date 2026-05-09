@@ -29,7 +29,20 @@ import {
   GetTaskSchema,
   UpdateTaskSchema,
   CreateTasksBatchSchema,
+  ListMyTasksDueTodaySchema,
 } from "./schemas/task.js";
+import {
+  StartTimerSchema,
+  StopTimerSchema,
+  GetRunningTimerSchema,
+  UpdateTimerSchema,
+} from "./schemas/timer.js";
+import {
+  CreateTimeEntrySchema,
+  UpdateTimeEntrySchema,
+  DeleteTimeEntrySchema,
+  ListTimeEntriesSchema,
+} from "./schemas/time-entry.js";
 import {
   CreateTodoSchema,
   ListTodosSchema,
@@ -126,7 +139,20 @@ import {
   searchTasks,
   getTask,
   updateTask,
+  listMyTasksDueToday,
 } from "./tools/tasks.js";
+import {
+  startTimer,
+  stopTimer,
+  getRunningTimer,
+  updateTimer,
+} from "./tools/timers.js";
+import {
+  createTimeEntry,
+  updateTimeEntry,
+  deleteTimeEntry,
+  listTimeEntries,
+} from "./tools/time-entries.js";
 import { createTasksBatch } from "./tools/batch.js";
 import {
   createTodo,
@@ -433,5 +459,41 @@ export const toolRegistry: Record<string, ToolRegistryEntry> = {
   productive_archive_service_type: {
     schema: ArchiveServiceTypeSchema,
     handler: archiveServiceType,
+  },
+
+  // Timer tools
+  productive_start_timer: { schema: StartTimerSchema, handler: startTimer },
+  productive_stop_timer: { schema: StopTimerSchema, handler: stopTimer },
+  productive_get_running_timer: {
+    schema: GetRunningTimerSchema,
+    handler: getRunningTimer,
+  },
+  productive_update_timer: {
+    schema: UpdateTimerSchema,
+    handler: updateTimer,
+  },
+
+  // Time entry tools
+  productive_create_time_entry: {
+    schema: CreateTimeEntrySchema,
+    handler: createTimeEntry,
+  },
+  productive_update_time_entry: {
+    schema: UpdateTimeEntrySchema,
+    handler: updateTimeEntry,
+  },
+  productive_delete_time_entry: {
+    schema: DeleteTimeEntrySchema,
+    handler: deleteTimeEntry,
+  },
+  productive_list_time_entries: {
+    schema: ListTimeEntriesSchema,
+    handler: listTimeEntries,
+  },
+
+  // Task convenience tools
+  productive_list_my_tasks_due_today: {
+    schema: ListMyTasksDueTodaySchema,
+    handler: listMyTasksDueToday,
   },
 };

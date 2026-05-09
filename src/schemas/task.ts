@@ -174,6 +174,26 @@ export const BatchTaskItemSchema = z
   .strict();
 
 /**
+ * Schema for "list my open tasks due today or earlier" — the headline view
+ * for the time tracker. Uses the authenticated user (resolved from
+ * PRODUCTIVE_PERSON_ID env or `/people/me`) and groups results into Today
+ * vs Overdue.
+ */
+export const ListMyTasksDueTodaySchema = z
+  .object({
+    include_overdue: z.boolean().default(true),
+    person_id: z
+      .string()
+      .optional()
+      .describe(
+        "Person whose tasks to fetch. Defaults to the authenticated user.",
+      ),
+    limit: z.coerce.number().int().min(1).max(100).default(100),
+    response_format: ResponseFormatSchema,
+  })
+  .strict();
+
+/**
  * Schema for batch task creation
  */
 export const CreateTasksBatchSchema = z

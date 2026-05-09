@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-05-08
+
+### Added
+
+- **Time tracking tools** — nine new MCP tools, the foundation for the upcoming ProductiveTimer desktop app. All verified end-to-end against the live Productive API:
+  - `productive_start_timer` — start a timer against a service, optionally with a backdated `started_at`, a linked task, and a note. Internally: `POST /timers` (only `relationships.service` propagates), then a follow-up `PATCH /time_entries/{linked}` for task / note since those don't propagate through the timer POST.
+  - `productive_stop_timer` — `PATCH /timers/{id}/stop` (custom action route — empty body). Optional `note` / `billable_time_minutes` are applied to the linked time_entry just before stopping.
+  - `productive_get_running_timer` — current user's active timer, or `No running timer`. Productive doesn't accept `filter[stopped_at]=null`, so we fetch the most-recent timer for the person and check `stopped_at` client-side.
+  - `productive_update_timer` — patch a running timer's note, task, service, or billable time via `PATCH /time_entries/{linked}` (timers themselves are not directly patchable; `PATCH /timers/{id}` returns 404). Pass `task_id: null` to unlink. **Cannot update `started_at` on a running timer** — the API has no public verb for that; to anchor the start time, stop the timer and start a new one with `started_at` in the past.
+  - `productive_create_time_entry` — manual past-tense entry. `time_minutes` is in **minutes** (Productive's `time` attribute), not hours.
+  - `productive_update_time_entry` / `productive_delete_time_entry` — patch or remove existing entries.
+  - `productive_list_time_entries` — list entries by person and date range, optionally filtered by service / task / project. Defaults to the last 7 days; renders as a Markdown table with total / billable totals.
+  - `productive_list_my_tasks_due_today` — convenience view: the authenticated user's open tasks, split into Today / Overdue / Undated. The due-date predicate is applied client-side because Productive's `filter[due_date]` does not support `[lte]` operator suffixes.
+- **Current-user resolution** — new helper `resolveCurrentPersonId` (in `src/tools/timers.ts`, re-used by time-entry and task tools). Lookup order: `PRODUCTIVE_PERSON_ID` env → `GET /people/me` → `GET /people?filter[email]=PRODUCTIVE_USER_EMAIL`. Cached for the process lifetime.
+- New `Timer`, `TimeEntry`, `FormattedTimer`, and `FormattedTimeEntry` types in `src/types.ts` plus `formatTimer` / `formatTimerMarkdown` / `formatTimeEntry` / `formatTimeEntryMarkdown` / `formatTimeEntryListMarkdown` formatters in `src/utils/formatting.ts`. The timer formatter reads metadata from the linked `time_entry` (including `?include=time_entry,time_entry.service,time_entry.task,time_entry.project,time_entry.person`), since Productive timers carry only `person_id` / `started_at` / `stopped_at` / `total_time` themselves.
+- `.env.example` documents the optional `PRODUCTIVE_PERSON_ID` and `PRODUCTIVE_USER_EMAIL` variables.
+
 ## [1.4.5] - 2026-04-13
 
 ### Fixed

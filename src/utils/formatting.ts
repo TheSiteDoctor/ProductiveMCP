@@ -54,6 +54,12 @@ import type {
   DealStatus,
   DealStatusAttributes,
   FormattedDealStatus,
+  Timer,
+  TimerAttributes,
+  FormattedTimer,
+  TimeEntry,
+  TimeEntryAttributes,
+  FormattedTimeEntry,
 } from "../types.js";
 
 /**
@@ -2423,6 +2429,390 @@ export function formatSingleServiceTypeMarkdown(
 
   if (serviceType.description) {
     lines.push(`**Description**: ${serviceType.description}`);
+  }
+
+  return lines.join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// Timer + time-entry formatters
+// ---------------------------------------------------------------------------
+
+/**
+ * Render minutes as `Hh Mm` (e.g. 95 → "1h 35m"). Returns "0m" for zero.
+ */
+function formatDuration(minutes: number | null): string {
+  if (minutes === null || minutes === undefined) return "—";
+  const total = Math.max(0, Math.round(minutes));
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
+/**
+ * Look up a single included resource by type + id.
+ */
+interface IncludedResource {
+  id: string;
+  type: string;
+  attributes?: Record<string, unknown>;
+  relationships?: Record<string, unknown>;
+}
+
+function findIncluded(
+  included: unknown[] | undefined,
+  type: string,
+  id: string,
+): IncludedResource | null {
+  if (!included) return null;
+  return (
+    (included.find(
+      (item): item is IncludedResource =>
+        typeof item === "object" &&
+        item !== null &&
+        "type" in item &&
+        (item as { type: unknown }).type === type &&
+        "id" in item &&
+        (item as { id: unknown }).id === id,
+    ) as IncludedResource | undefined) ?? null
+  );
+}
+
+/**
+ * Resolve a related resource ID from a JSON:API relationships block.
+ */
+function relatedId(
+  relationships: Record<string, unknown> | undefined,
+  key: string,
+): string | null {
+  const rel = relationships?.[key] as
+    | { data?: { id?: string } | null }
+    | undefined;
+  return rel?.data?.id ?? null;
+}
+
+function personFullName(
+  attrs: Record<string, unknown> | undefined,
+): string | null {
+  if (!attrs) return null;
+  const first = (attrs.first_name as string | undefined) ?? "";
+  const last = (attrs.last_name as string | undefined) ?? "";
+  const name = `${first} ${last}`.trim();
+  return name || null;
+}
+
+/**
+ * Convert a raw JSON:API timer resource into a flattened FormattedTimer.
+ *
+ * Productive's timer resource only carries `person_id` / `started_at` /
+ * `stopped_at` / `total_time`. Service, task, note, and billable_time live
+ * on the linked `time_entry`, which must be in `included` (caller should
+ * request `?include=time_entry,time_entry.service,time_entry.task,time_entry.project`).
+ */
+export function formatTimer(
+  timer: Timer,
+  orgId: string,
+  included?: unknown[],
+): FormattedTimer {
+  const attributes = timer.attributes as TimerAttributes;
+  const rels = timer.relationships as Record<string, unknown> | undefined;
+
+  // Resolve the linked time_entry first — that's where all the metadata lives.
+  const timeEntryId = relatedId(rels, "time_entry");
+  const timeEntry = timeEntryId
+    ? findIncluded(included, "time_entries", timeEntryId)
+    : null;
+  const teRels = (timeEntry?.relationships as Record<string, unknown>) ?? {};
+  const teAttrs = (timeEntry?.attributes as Record<string, unknown>) ?? {};
+
+  const serviceId = relatedId(teRels, "service");
+  const taskId = relatedId(teRels, "task");
+  const personId =
+    relatedId(teRels, "person") ??
+    (typeof attributes.person_id === "number"
+      ? String(attributes.person_id)
+      : null);
+
+  const service = serviceId
+    ? findIncluded(included, "services", serviceId)
+    : null;
+  const task = taskId ? findIncluded(included, "tasks", taskId) : null;
+  const person = personId ? findIncluded(included, "people", personId) : null;
+
+  // Project comes from the task or the service if either includes it.
+  let projectId: string | null = null;
+  if (task) {
+    projectId = relatedId(
+      task as { relationships?: Record<string, unknown> },
+      "project",
+    );
+  }
+  if (!projectId && service) {
+    projectId = relatedId(
+      service as { relationships?: Record<string, unknown> },
+      "project",
+    );
+  }
+  const project = projectId
+    ? findIncluded(included, "projects", projectId)
+    : null;
+  const projectName = (project?.attributes?.name as string | undefined) ?? null;
+
+  const stoppedAt = attributes.stopped_at ?? null;
+  const startedAt = attributes.started_at;
+  const isRunning = stoppedAt === null;
+
+  // Prefer the server's total_time after stop; otherwise derive elapsed from
+  // started_at so live UIs get a useful tick.
+  let elapsed: number | null = null;
+  if (typeof attributes.total_time === "number" && attributes.total_time > 0) {
+    elapsed = attributes.total_time;
+  } else if (startedAt) {
+    const startMs = new Date(startedAt).getTime();
+    const endMs = stoppedAt ? new Date(stoppedAt).getTime() : Date.now();
+    if (Number.isFinite(startMs) && Number.isFinite(endMs)) {
+      elapsed = Math.max(0, Math.round((endMs - startMs) / 60000));
+    }
+  }
+
+  return {
+    id: timer.id,
+    started_at: startedAt,
+    stopped_at: stoppedAt,
+    is_running: isRunning,
+    elapsed_minutes: elapsed,
+    billable_minutes:
+      typeof teAttrs.billable_time === "number"
+        ? (teAttrs.billable_time as number)
+        : null,
+    note: (teAttrs.note as string | null | undefined) ?? null,
+    service_id: serviceId,
+    service_name: (service?.attributes?.name as string | undefined) ?? null,
+    task_id: taskId,
+    task_title: (task?.attributes?.title as string | undefined) ?? null,
+    task_number:
+      typeof task?.attributes?.number === "number"
+        ? (task.attributes.number as number)
+        : null,
+    project_id: projectId,
+    project_name: projectName,
+    person_id: personId,
+    person_name: personFullName(person?.attributes),
+    url: timer.id ? `https://app.productive.io/${orgId}/time-tracking` : null,
+  };
+}
+
+/**
+ * Format a timer as a readable Markdown card.
+ */
+export function formatTimerMarkdown(timer: FormattedTimer): string {
+  const status = timer.is_running ? "● Running" : "■ Stopped";
+  const lines = [
+    `# ${status}`,
+    "",
+    `**Timer ID**: ${timer.id}`,
+    `**Elapsed**: ${formatDuration(timer.elapsed_minutes)}`,
+    `**Started**: ${timer.started_at}`,
+  ];
+
+  if (timer.stopped_at) {
+    lines.push(`**Stopped**: ${timer.stopped_at}`);
+  }
+
+  if (timer.service_name) {
+    lines.push(`**Service**: ${timer.service_name}`);
+  } else if (timer.service_id) {
+    lines.push(`**Service ID**: ${timer.service_id}`);
+  }
+
+  if (timer.task_title) {
+    const num = timer.task_number ? `#${timer.task_number} ` : "";
+    lines.push(`**Task**: ${num}${timer.task_title}`);
+  } else if (timer.task_id) {
+    lines.push(`**Task ID**: ${timer.task_id}`);
+  } else if (timer.is_running) {
+    lines.push(`**Task**: _(unlinked)_`);
+  }
+
+  if (timer.project_name) {
+    lines.push(`**Project**: ${timer.project_name}`);
+  }
+
+  if (timer.person_name) {
+    lines.push(`**Person**: ${timer.person_name}`);
+  }
+
+  if (timer.billable_minutes !== null) {
+    lines.push(`**Billable**: ${formatDuration(timer.billable_minutes)}`);
+  }
+
+  if (timer.note) {
+    lines.push("", `**Notes**: ${timer.note}`);
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Convert a raw JSON:API time-entry resource into a flattened FormattedTimeEntry.
+ */
+export function formatTimeEntry(
+  entry: TimeEntry,
+  included?: unknown[],
+): FormattedTimeEntry {
+  const attributes = entry.attributes as TimeEntryAttributes;
+  const rels = entry.relationships as Record<string, unknown> | undefined;
+
+  const serviceId = relatedId(rels, "service");
+  const taskId = relatedId(rels, "task");
+  const personId = relatedId(rels, "person");
+
+  const service = serviceId
+    ? findIncluded(included, "services", serviceId)
+    : null;
+  const task = taskId ? findIncluded(included, "tasks", taskId) : null;
+  const person = personId ? findIncluded(included, "people", personId) : null;
+
+  let projectId: string | null = null;
+  let projectName: string | null = null;
+  if (task) {
+    projectId = relatedId(
+      task as { relationships?: Record<string, unknown> },
+      "project",
+    );
+  }
+  if (!projectId && service) {
+    projectId = relatedId(
+      service as { relationships?: Record<string, unknown> },
+      "project",
+    );
+  }
+  if (projectId) {
+    const project = findIncluded(included, "projects", projectId);
+    projectName = (project?.attributes?.name as string | undefined) ?? null;
+  }
+
+  return {
+    id: entry.id,
+    date: attributes.date,
+    time_minutes: attributes.time,
+    billable_minutes: attributes.billable_time ?? null,
+    note: attributes.note ?? null,
+    started_at: attributes.started_at ?? null,
+    approved: attributes.approved ?? null,
+    service_id: serviceId,
+    service_name: (service?.attributes?.name as string | undefined) ?? null,
+    task_id: taskId,
+    task_title: (task?.attributes?.title as string | undefined) ?? null,
+    task_number:
+      typeof task?.attributes?.number === "number"
+        ? (task.attributes.number as number)
+        : null,
+    project_id: projectId,
+    project_name: projectName,
+    person_id: personId,
+    person_name: personFullName(person?.attributes),
+  };
+}
+
+/**
+ * Format a single time entry as Markdown.
+ */
+export function formatTimeEntryMarkdown(entry: FormattedTimeEntry): string {
+  const lines = [
+    `# Time Entry`,
+    "",
+    `**ID**: ${entry.id}`,
+    `**Date**: ${entry.date}`,
+    `**Duration**: ${formatDuration(entry.time_minutes)}`,
+  ];
+
+  if (entry.billable_minutes !== null) {
+    lines.push(`**Billable**: ${formatDuration(entry.billable_minutes)}`);
+  }
+
+  if (entry.service_name) {
+    lines.push(`**Service**: ${entry.service_name}`);
+  } else if (entry.service_id) {
+    lines.push(`**Service ID**: ${entry.service_id}`);
+  }
+
+  if (entry.task_title) {
+    const num = entry.task_number ? `#${entry.task_number} ` : "";
+    lines.push(`**Task**: ${num}${entry.task_title}`);
+  } else if (entry.task_id) {
+    lines.push(`**Task ID**: ${entry.task_id}`);
+  }
+
+  if (entry.project_name) {
+    lines.push(`**Project**: ${entry.project_name}`);
+  }
+
+  if (entry.person_name) {
+    lines.push(`**Person**: ${entry.person_name}`);
+  }
+
+  if (entry.started_at) {
+    lines.push(`**Started**: ${entry.started_at}`);
+  }
+
+  if (entry.approved !== null) {
+    lines.push(`**Approved**: ${entry.approved ? "yes" : "no"}`);
+  }
+
+  if (entry.note) {
+    lines.push("", `**Notes**: ${entry.note}`);
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Format a list of time entries as a Markdown table with totals.
+ */
+export function formatTimeEntryListMarkdown(
+  entries: FormattedTimeEntry[],
+  total?: number,
+): string {
+  if (entries.length === 0) {
+    return "No time entries found.";
+  }
+
+  const totalMinutes = entries.reduce(
+    (sum, e) => sum + (e.time_minutes || 0),
+    0,
+  );
+  const totalBillable = entries.reduce(
+    (sum, e) => sum + (e.billable_minutes ?? 0),
+    0,
+  );
+
+  const lines = ["# Time Entries", ""];
+  if (total !== undefined) {
+    lines.push(`**Total entries**: ${total}`);
+  }
+  lines.push(`**Total time**: ${formatDuration(totalMinutes)}`);
+  lines.push(`**Billable time**: ${formatDuration(totalBillable)}`);
+  lines.push("");
+  lines.push("| Date | Project | Service | Task | Time | Billable | Note |");
+  lines.push("|---|---|---|---|---|---|---|");
+
+  for (const e of entries) {
+    const project = e.project_name ?? "—";
+    const service = e.service_name ?? "—";
+    const taskLabel = e.task_title
+      ? `${e.task_number ? `#${e.task_number} ` : ""}${e.task_title}`
+      : "—";
+    const note = (e.note ?? "").replace(/\|/g, "\\|").replace(/\n+/g, " ");
+    const noteShort =
+      note.length > 60 ? `${note.slice(0, 57)}...` : note || "—";
+    lines.push(
+      `| ${e.date} | ${project} | ${service} | ${taskLabel} | ${formatDuration(
+        e.time_minutes,
+      )} | ${formatDuration(e.billable_minutes)} | ${noteShort} |`,
+    );
   }
 
   return lines.join("\n");

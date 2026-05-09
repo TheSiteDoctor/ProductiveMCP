@@ -26,7 +26,9 @@ import {
   SearchTasksSchema,
   GetTaskSchema,
   UpdateTaskSchema,
+  ListMyTasksDueTodaySchema,
 } from "../schemas/task.js";
+import { resolveCurrentPersonId } from "./timers.js";
 import {
   CUSTOM_FIELD_IDS,
   TASK_TYPE_OPTIONS,
@@ -938,4 +940,109 @@ export async function updateTask(
   );
 
   return truncateResponse(result, args.response_format);
+}
+
+/**
+ * List the authenticated user's open tasks that are due today or earlier.
+ *
+ * Today's tasks come first, overdue underneath. The due-date predicate is
+ * applied client-side because Productive's `filter[due_date]` doesn't
+ * support `[lte]` operator suffixes — we fetch by assignee + status, sort
+ * by due_date ascending, and split locally.
+ */
+export async function listMyTasksDueToday(
+  client: ProductiveClient,
+  args: z.infer<typeof ListMyTasksDueTodaySchema>,
+): Promise<string> {
+  const personId = args.person_id ?? (await resolveCurrentPersonId(client));
+
+  const params: Record<string, unknown> = {
+    "filter[assignee_id]": personId,
+    "filter[status]": 1, // 1 = open in Productive
+    sort: "due_date",
+    include: "project,task_list,assignee,workflow_status,attachments",
+    "page[size]": args.limit,
+  };
+
+  const response = await client.get<JSONAPIResponse>("/tasks", params);
+
+  const orgId = client.getOrgId();
+  const tasks = (Array.isArray(response.data) ? response.data : [response.data])
+    .filter((t): t is Task => !!t?.id)
+    .map((task) => formatTask(task as Task, orgId, response.included));
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const today: FormattedTask[] = [];
+  const overdue: FormattedTask[] = [];
+  const undated: FormattedTask[] = [];
+
+  for (const t of tasks) {
+    if (!t.due_date) {
+      undated.push(t);
+    } else if (t.due_date === todayIso) {
+      today.push(t);
+    } else if (t.due_date < todayIso) {
+      overdue.push(t);
+    }
+    // Future-due tasks fall through — they aren't "due today or earlier".
+  }
+
+  if (args.response_format === "json") {
+    return truncateResponse(
+      JSON.stringify(
+        {
+          today,
+          overdue: args.include_overdue ? overdue : [],
+          undated,
+          counts: {
+            today: today.length,
+            overdue: overdue.length,
+            undated: undated.length,
+          },
+          person_id: personId,
+          today_date: todayIso,
+        },
+        null,
+        2,
+      ),
+      args.response_format,
+    );
+  }
+
+  // Markdown — sectioned by Today / Overdue (date-ascending so most-urgent first).
+  const lines: string[] = [`# My open tasks (as of ${todayIso})`, ""];
+
+  const renderRow = (t: FormattedTask): string => {
+    const num = t.number ? `#${t.number}` : t.id;
+    const project = t.project_name ? ` · ${t.project_name}` : "";
+    const due = t.due_date ? ` · due ${t.due_date}` : "";
+    const url = t.url ? ` — [open](${t.url})` : "";
+    return `- ○ **${num}** ${t.title}${project}${due}${url}`;
+  };
+
+  lines.push(`## Today (${today.length})`);
+  if (today.length === 0) {
+    lines.push("_Nothing due today._");
+  } else {
+    for (const t of today) lines.push(renderRow(t));
+  }
+  lines.push("");
+
+  if (args.include_overdue) {
+    overdue.sort((a, b) => (a.due_date ?? "").localeCompare(b.due_date ?? ""));
+    lines.push(`## Overdue (${overdue.length})`);
+    if (overdue.length === 0) {
+      lines.push("_Nothing overdue. Nice._");
+    } else {
+      for (const t of overdue) lines.push(renderRow(t));
+    }
+    lines.push("");
+  }
+
+  if (undated.length > 0) {
+    lines.push(`## Undated (${undated.length})`);
+    for (const t of undated) lines.push(renderRow(t));
+  }
+
+  return truncateResponse(lines.join("\n"), args.response_format);
 }

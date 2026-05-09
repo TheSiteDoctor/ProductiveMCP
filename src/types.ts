@@ -980,6 +980,166 @@ export interface FormattedService {
   person_name: string | null;
 }
 
+// Timer types
+//
+// A Productive timer is a thin tracking-session marker — only `started_at`,
+// `stopped_at`, `total_time`, and `person_id` live on the resource itself.
+// All metadata (service, task, note, billable_time, …) is on the linked
+// `time_entry` that Productive auto-mints when you POST /timers.
+//
+// Verbs supported by the API (empirically discovered against the live org):
+//   POST   /timers                   — start (accepts started_at, service)
+//   GET    /timers, /timers/{id}     — list / read (use ?include=time_entry)
+//   PATCH  /timers/{id}/stop         — stop (empty body)
+//   PATCH  /timers/{id}              — 404 (timers are not directly patchable)
+//   DELETE /timers/{id}              — 404
+// Update note / task / service / billable_time via PATCH /time_entries/{id}.
+export interface TimerAttributes {
+  person_id: number;
+  started_at: string;
+  stopped_at: string | null;
+  total_time: number; // accumulated minutes (computed by Productive on stop)
+}
+
+export interface Timer extends JSONAPIData<TimerAttributes> {
+  type: "timers";
+  id: string;
+}
+
+export interface CreateTimerPayload {
+  data: {
+    type: "timers";
+    attributes: {
+      started_at?: string;
+    };
+    relationships: {
+      service: {
+        data: {
+          type: "services";
+          id: string;
+        };
+      };
+    };
+  };
+}
+
+export interface FormattedTimer {
+  id: string;
+  started_at: string;
+  stopped_at: string | null;
+  is_running: boolean;
+  elapsed_minutes: number | null;
+  billable_minutes: number | null;
+  note: string | null;
+  service_id: string | null;
+  service_name: string | null;
+  task_id: string | null;
+  task_title: string | null;
+  task_number: number | null;
+  project_id: string | null;
+  project_name: string | null;
+  person_id: string | null;
+  person_name: string | null;
+  url: string | null;
+}
+
+// Time entry types
+export interface TimeEntryAttributes {
+  date: string;
+  time: number; // minutes
+  billable_time: number | null;
+  note: string | null;
+  started_at: string | null;
+  approved: boolean | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface TimeEntry extends JSONAPIData<TimeEntryAttributes> {
+  type: "time_entries";
+  id: string;
+}
+
+export interface CreateTimeEntryPayload {
+  data: {
+    type: "time_entries";
+    attributes: {
+      date: string;
+      time: number;
+      billable_time?: number;
+      note?: string;
+      started_at?: string;
+    };
+    relationships: {
+      service: {
+        data: {
+          type: "services";
+          id: string;
+        };
+      };
+      task?: {
+        data: {
+          type: "tasks";
+          id: string;
+        };
+      };
+      person: {
+        data: {
+          type: "people";
+          id: string;
+        };
+      };
+    };
+  };
+}
+
+export interface UpdateTimeEntryPayload {
+  data: {
+    type: "time_entries";
+    id: string;
+    attributes?: {
+      date?: string;
+      time?: number;
+      billable_time?: number;
+      note?: string | null;
+      started_at?: string | null;
+    };
+    relationships?: {
+      service?: {
+        data: {
+          type: "services";
+          id: string;
+        };
+      };
+      task?: {
+        data: {
+          type: "tasks";
+          id: string;
+        } | null;
+      };
+    };
+  };
+}
+
+export interface FormattedTimeEntry {
+  id: string;
+  date: string;
+  time_minutes: number;
+  billable_minutes: number | null;
+  note: string | null;
+  started_at: string | null;
+  approved: boolean | null;
+  service_id: string | null;
+  service_name: string | null;
+  task_id: string | null;
+  task_title: string | null;
+  task_number: number | null;
+  project_id: string | null;
+  project_name: string | null;
+  person_id: string | null;
+  person_name: string | null;
+}
+
 // Service Type types
 export interface ServiceTypeAttributes {
   name: string;

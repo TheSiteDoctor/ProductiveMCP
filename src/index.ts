@@ -2468,6 +2468,332 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ["service_type_id"],
       },
     },
+
+    // Time tracking — running timers
+    {
+      name: "productive_start_timer",
+      description:
+        'Start a running timer for the authenticated user against a service (and optionally a task). Productive allows only one running timer per user — call productive_get_running_timer first if you\'re unsure.\n\nExample:\n{\n  "service_id": "1234",\n  "task_id": "56789",\n  "note": "Investigating reported bug",\n  "started_at": "2026-05-08T13:30:00Z"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          service_id: {
+            type: "string",
+            description: "Service to track time against (required)",
+          },
+          task_id: {
+            type: "string",
+            description: "Optional task to link the timer to",
+          },
+          note: {
+            type: "string",
+            description: "Optional note describing what you're working on",
+          },
+          started_at: {
+            type: "string",
+            description:
+              "ISO 8601 datetime to back-date the start to (e.g. 2026-05-08T13:30:00Z). Defaults to now.",
+          },
+          person_id: {
+            type: "string",
+            description:
+              "Person to start the timer for. Defaults to the authenticated user (PRODUCTIVE_PERSON_ID env or /people/me).",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["service_id"],
+      },
+    },
+    {
+      name: "productive_stop_timer",
+      description:
+        'Stop a running timer. Internally calls PATCH /timers/{id}/stop; Productive converts the timer into a finalised time_entry. To back-date a stop (e.g. for idle detection), stop now and then call productive_update_time_entry on the resulting entry to adjust `time_minutes` and `started_at`.\n\nExample:\n{\n  "timer_id": "987654",\n  "note": "Wrapping up"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          timer_id: {
+            type: "string",
+            description: "Timer ID to stop (required)",
+          },
+          note: {
+            type: "string",
+            description:
+              "Optional note applied to the linked time_entry just before stopping",
+          },
+          billable_time_minutes: {
+            type: "number",
+            description:
+              "Override the billable time (in minutes) on the linked entry just before stopping. Defaults to the tracked time.",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["timer_id"],
+      },
+    },
+    {
+      name: "productive_get_running_timer",
+      description:
+        "Return the current user's active timer (if any). Returns 'No running timer' when nothing is active.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          person_id: {
+            type: "string",
+            description:
+              "Person whose running timer to fetch. Defaults to the authenticated user.",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+      },
+    },
+    {
+      name: "productive_update_timer",
+      description:
+        'Update a running timer\'s metadata: note, linked task, service, or billable time. Internally routes through PATCH /time_entries/{linked} since Productive timers themselves are not directly patchable. Pass task_id: null to unlink the task. Pass note: null to clear the note.\n\nNOTE: Productive\'s API has no public verb to backdate a running timer\'s started_at. To anchor the start time, stop the timer and start a new one with `started_at` in the past via productive_start_timer.\n\nExample (link a task and add a note):\n{\n  "timer_id": "987654",\n  "task_id": "56789",\n  "note": "Reviewing PR feedback"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          timer_id: {
+            type: "string",
+            description: "Timer ID to update (required)",
+          },
+          service_id: {
+            type: "string",
+            description: "Change the service the timer is tracking against",
+          },
+          task_id: {
+            type: ["string", "null"],
+            description:
+              "Link to a task (string), or pass null to unlink the current task",
+          },
+          note: {
+            type: ["string", "null"],
+            description: "Update or clear the note",
+          },
+          billable_time_minutes: {
+            type: "number",
+            description:
+              "Override the billable time on the linked entry (in minutes)",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["timer_id"],
+      },
+    },
+
+    // Time tracking — time entries (manual / past-tense)
+    {
+      name: "productive_create_time_entry",
+      description:
+        'Create a manual time entry. `time_minutes` is the duration in MINUTES (not hours). If `started_at` is provided it must fall on the same UTC date as `date`.\n\nExample:\n{\n  "service_id": "1234",\n  "task_id": "56789",\n  "date": "2026-05-08",\n  "time_minutes": 90,\n  "note": "Initial code review"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          service_id: {
+            type: "string",
+            description: "Service to log time against (required)",
+          },
+          task_id: {
+            type: "string",
+            description: "Optional task to link the time entry to",
+          },
+          date: {
+            type: "string",
+            description: "Entry date in ISO 8601 format YYYY-MM-DD (required)",
+          },
+          time_minutes: {
+            type: "number",
+            description: "Duration in MINUTES (required, must be ≥ 1)",
+          },
+          billable_time_minutes: {
+            type: "number",
+            description: "Billable time in minutes (defaults to time_minutes)",
+          },
+          note: {
+            type: "string",
+            description: "Optional note describing the work",
+          },
+          started_at: {
+            type: "string",
+            description:
+              "Optional ISO 8601 datetime — must fall on the same UTC date as `date`",
+          },
+          person_id: {
+            type: "string",
+            description:
+              "Person to log time for. Defaults to the authenticated user.",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["service_id", "date", "time_minutes"],
+      },
+    },
+    {
+      name: "productive_update_time_entry",
+      description:
+        "Update an existing time entry — date, duration, billable time, note, started_at, or its linked service/task. Pass task_id: null to unlink. Closed budgets reject updates.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          time_entry_id: {
+            type: "string",
+            description: "Time entry ID (required)",
+          },
+          date: { type: "string", description: "ISO 8601 date YYYY-MM-DD" },
+          time_minutes: {
+            type: "number",
+            description: "Duration in minutes (≥ 1)",
+          },
+          billable_time_minutes: {
+            type: "number",
+            description: "Billable time in minutes",
+          },
+          note: {
+            type: ["string", "null"],
+            description: "Note (null to clear)",
+          },
+          started_at: {
+            type: ["string", "null"],
+            description: "ISO 8601 datetime (null to clear)",
+          },
+          service_id: {
+            type: "string",
+            description: "Change the linked service",
+          },
+          task_id: {
+            type: ["string", "null"],
+            description: "Change the linked task (string) or unlink (null)",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["time_entry_id"],
+      },
+    },
+    {
+      name: "productive_delete_time_entry",
+      description: "Permanently delete a time entry. This is irreversible.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          time_entry_id: {
+            type: "string",
+            description: "Time entry ID to delete (required)",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["time_entry_id"],
+      },
+    },
+    {
+      name: "productive_list_time_entries",
+      description:
+        'List time entries for a person and date range. Defaults to the last 7 days for the authenticated user. Optionally filter by service, task, or project.\n\nExample (last week, one project):\n{\n  "project_id": "1234",\n  "date_from": "2026-05-01",\n  "date_to": "2026-05-08"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          person_id: {
+            type: "string",
+            description:
+              "Person whose entries to fetch. Defaults to the authenticated user.",
+          },
+          date_from: {
+            type: "string",
+            description:
+              "Start date inclusive (YYYY-MM-DD). Defaults to 7 days ago.",
+          },
+          date_to: {
+            type: "string",
+            description: "End date inclusive (YYYY-MM-DD). Defaults to today.",
+          },
+          service_id: { type: "string", description: "Filter by service ID" },
+          task_id: { type: "string", description: "Filter by task ID" },
+          project_id: { type: "string", description: "Filter by project ID" },
+          limit: {
+            type: "number",
+            description: "Number of results to return (1-100, default: 20)",
+            default: 20,
+          },
+          offset: {
+            type: "number",
+            description: "Offset for pagination (default: 0)",
+            default: 0,
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+      },
+    },
+    {
+      name: "productive_list_my_tasks_due_today",
+      description:
+        "List the authenticated user's open tasks that are due today or earlier. Tasks are split into Today / Overdue (and Undated) sections. Today first, overdue date-ascending.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          include_overdue: {
+            type: "boolean",
+            description: "Include overdue tasks (default: true)",
+            default: true,
+          },
+          person_id: {
+            type: "string",
+            description:
+              "Person whose tasks to fetch. Defaults to the authenticated user.",
+          },
+          limit: {
+            type: "number",
+            description:
+              "Maximum tasks to fetch from the API before splitting (1-100, default: 100)",
+            default: 100,
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+      },
+    },
   ],
 }));
 
