@@ -1582,6 +1582,9 @@ export function formatDeal(
     revenue: attributes.revenue,
     services_revenue: attributes.services_revenue,
     budget_total: attributes.budget_total,
+    deal_value: attributes.deal_value ?? null,
+    deal_value_source: attributes.deal_value_source ?? null,
+    deal_value_total: attributes.deal_value_total ?? null,
     profit: attributes.profit,
     profit_margin: attributes.profit_margin,
     currency: attributes.currency,
@@ -1662,6 +1665,17 @@ export function formatDealListMarkdown(
     if (deal.revenue !== null && deal.revenue !== undefined && deal.currency) {
       lines.push(`  Revenue: ${deal.revenue} ${deal.currency}`);
     }
+    if (
+      deal.deal_value_total !== null &&
+      deal.deal_value_total !== undefined &&
+      deal.currency
+    ) {
+      const sourceLabel =
+        deal.deal_value_source === "manual" ? " (manual)" : "";
+      lines.push(
+        `  Deal value: ${deal.deal_value_total} ${deal.currency}${sourceLabel}`,
+      );
+    }
     if (deal.responsible_name) {
       lines.push(`  Owner: ${deal.responsible_name}`);
     }
@@ -1703,6 +1717,14 @@ export function formatSingleDealMarkdown(deal: FormattedDeal): string {
   }
   if (deal.revenue !== null && deal.revenue !== undefined && deal.currency) {
     lines.push(`**Revenue**: ${deal.revenue} ${deal.currency}`);
+  }
+  if (deal.deal_value_total !== null && deal.deal_value_total !== undefined) {
+    const sourceLabel = deal.deal_value_source
+      ? ` _(source: ${deal.deal_value_source})_`
+      : "";
+    lines.push(
+      `**Deal Value**: ${deal.deal_value_total} ${deal.currency || ""}${sourceLabel}`,
+    );
   }
   if (deal.budget_total !== null && deal.budget_total !== undefined) {
     lines.push(`**Budget Total**: ${deal.budget_total} ${deal.currency || ""}`);

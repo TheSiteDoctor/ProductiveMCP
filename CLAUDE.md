@@ -121,6 +121,54 @@ Results are cached per project for 5 minutes. Static config (`productive.config.
 
 Productive uses two estimate fields: `initial_estimate` (set at creation, never changes) and `remaining_time` (displayed as "Time to complete" in the GUI, counts down as hours are logged). On **create**, set `initial_estimate` — Productive auto-sets `remaining_time` to match. On **update**, set `remaining_time` — this is what the GUI displays and edits.
 
+### Deal Value Gotcha
+
+Productive deals have **three** value-shaped attributes:
+
+| Attribute           | Writable | Format                      | Notes                                 |
+| ------------------- | -------- | --------------------------- | ------------------------------------- |
+| `deal_value`        | Yes      | string in minor units       | Manual value. "60000.0" = £600.00     |
+| `deal_value_source` | Yes      | `manual` \| `from_services` | Controls which value the GUI displays |
+| `deal_value_total`  | No       | integer in minor units      | Effective value; computed from source |
+| `budget_total`      | No       | integer in minor units      | Derived from services                 |
+| `revenue`           | No       | integer in minor units      | From invoiced services                |
+
+**Setting `deal_value` without `deal_value_source: "manual"` silently zeroes the deal** — `from_services` mode ignores the manual value and recomputes from services. `createDeal` and `updateDeal` auto-set `deal_value_source: "manual"` when `deal_value` is supplied; pass the source explicitly to override.
+
+The schema also exposes `deal_value` as a **number in minor units** at the tool boundary (e.g. `60000`) and converts to the API's stringified format internally. The API reads it back as `"60000.0"`.
+
+### Date Attribute on Deals
+
+The deal start date is `date` on the API — not `start_date`. The MCP schema uses `start_date` and translates. (The end date is `end_date` on both sides.)
+
+### Required Custom Fields on Deals
+
+Most Productive orgs have required custom fields on deals. The API returns 422 with `code: "required_custom_field"` and `source.pointer: "data/attributes/custom_field_<id>"`. The error utility passes both through verbatim, so callers see the pointer in the message.
+
+Use `productive_list_custom_fields` with `customizable_type: "deals"` to discover required fields and their option IDs (for select/multi-select types) before calling `create_deal` / `update_deal`. The filter value is **plural** (`deals`, `tasks`, `projects`) — singular silently returns zero results.
+
+### Comments Are Polymorphic
+
+Comments can attach to `task`, `deal`, `project`, `discussion`, `invoice`, `person`, `company`, or `purchase_order`. Sent via the **singular** relationship key with a **plural** resource type:
+
+```json
+"relationships": { "deal": { "data": { "type": "deals", "id": "..." } } }
+```
+
+The error message points at `data/attributes/commentable` when missing, but the relationship form is what works. `createComment` accepts either the legacy `task_id` shorthand or a `commentable_type` + `commentable_id` pair.
+
+**Listing comments is not polymorphic.** The /comments endpoint only supports `filter[task_id]` and `filter[project_id]`. Deal/invoice/etc comments cannot be listed in bulk — fetch by known comment ID via `productive_get_comment`.
+
+### Sort Param Unsupported on Some Endpoints
+
+These endpoints **400 with `sort_param_unsupported`** if you send any `sort=` value:
+
+- `/pipelines`
+- `/custom_fields`
+- `/custom_field_options`
+
+Results come back in position/creation order natively. The new tools omit `sort`. The error reporter surfaces this clearly: `[sort_param_unsupported] (param sort)`.
+
 ### Response Constraints
 
 All tool responses are capped at 25,000 characters (`CHARACTER_LIMIT` in constants.ts) with pagination hints when truncated.

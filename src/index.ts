@@ -1419,13 +1419,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_list_comments",
       description:
-        'List all comments for a specific task. Returns comments with author information, sorted by most recent first.\n\nExample:\n{\n  "task_id": "12345"\n}',
+        'List comments by task or project. The Productive API only supports filtering this endpoint by task_id or project_id — other commentable types (deals, invoices, etc.) cannot be listed in bulk; use productive_get_comment with a known comment ID instead.\n\nExample:\n{\n  "task_id": "12345"\n}',
       inputSchema: {
         type: "object",
         properties: {
           task_id: {
             type: "string",
-            description: "Task ID to list comments for (required)",
+            description:
+              "Task ID to list comments for. Either task_id or project_id must be provided.",
+          },
+          project_id: {
+            type: "string",
+            description:
+              "Project ID to list comments for. Either task_id or project_id must be provided.",
           },
           limit: {
             type: "number",
@@ -1444,19 +1450,39 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             default: "markdown",
           },
         },
-        required: ["task_id"],
       },
     },
     {
       name: "productive_create_comment",
       description:
-        'Create a comment on a task. The body accepts Markdown formatting which will be converted to HTML. Set visible_to_clients to false to create an internal/private comment.\n\nExample:\n{\n  "task_id": "12345",\n  "body": "This looks good, ready for review.",\n  "visible_to_clients": false\n}',
+        'Create a comment on a task, deal, project, or other commentable resource. Comments are internal-only — the PDF/proposal export pulls from the deal\'s `note` field, not comments. Provide either `task_id` (shorthand for commentable_type="task") or the polymorphic `commentable_type` + `commentable_id` pair.\n\nSupported commentable types: task, deal, project, discussion, invoice, person, company, purchase_order.\n\nExample (deal):\n{\n  "commentable_type": "deal",\n  "commentable_id": "3871711",\n  "body": "Migrated from Pipedrive. Original ref: WVB-1073."\n}\n\nExample (task — legacy):\n{\n  "task_id": "12345",\n  "body": "Ready for review.",\n  "visible_to_clients": false\n}',
       inputSchema: {
         type: "object",
         properties: {
           task_id: {
             type: "string",
-            description: "Task ID to comment on (required)",
+            description:
+              "Shortcut for commenting on a task. Equivalent to commentable_type='task' + commentable_id=<task_id>.",
+          },
+          commentable_type: {
+            type: "string",
+            enum: [
+              "task",
+              "deal",
+              "project",
+              "discussion",
+              "invoice",
+              "person",
+              "company",
+              "purchase_order",
+            ],
+            description:
+              "Type of resource to attach the comment to. Required (with commentable_id) unless task_id is provided.",
+          },
+          commentable_id: {
+            type: "string",
+            description:
+              "ID of the resource to attach the comment to. Must be paired with commentable_type.",
           },
           body: {
             type: "string",
@@ -1476,7 +1502,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             default: "markdown",
           },
         },
-        required: ["task_id", "body"],
+        required: ["body"],
       },
     },
     {
@@ -1874,7 +1900,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_update_deal",
       description:
-        'Update a sales deal. Can change name, probability, pipeline stage, notes, and tags. Moving to a "won" stage auto-sets probability to 100.\n\nExample:\n{\n  "deal_id": "12345",\n  "probability": 75,\n  "deal_status_id": "5678"\n}',
+        'Update a sales deal. Can change name, probability, pipeline stage, notes, tags, and deal value. Moving to a "won" stage auto-sets probability to 100. Set deal_value to assign a monetary amount without creating services — this auto-switches deal_value_source to "manual".\n\nExample (set manual deal value):\n{\n  "deal_id": "12345",\n  "deal_value": 250000\n}\n\nExample (move stage):\n{\n  "deal_id": "12345",\n  "probability": 75,\n  "deal_status_id": "5678"\n}',
       inputSchema: {
         type: "object",
         properties: {
@@ -1892,7 +1918,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           },
           note: {
             type: ["string", "null"],
-            description: "Deal notes (set to null to clear)",
+            description:
+              'Deal notes (HTML). To clear the note, send JSON null, an empty string, or the literal string "null" — all three are accepted and converted to a real null on the API.',
           },
           tag_list: {
             type: "array",
@@ -1903,6 +1930,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             type: "string",
             description:
               "Pipeline stage ID to move the deal to. Use productive_list_deal_statuses to find IDs.",
+          },
+          deal_value: {
+            type: "number",
+            description:
+              "Deal value in minor units (cents/pence). E.g. 250000 = £2,500.00. Setting this auto-sets deal_value_source to 'manual' unless overridden — letting you assign a deal value without creating services.",
+          },
+          deal_value_source: {
+            type: "string",
+            enum: ["manual", "from_services"],
+            description:
+              "How the deal value is determined. 'manual' uses deal_value directly; 'from_services' sums service values. Defaults to 'manual' when deal_value is supplied.",
           },
           response_format: {
             type: "string",
@@ -1924,6 +1962,282 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           pipeline_id: {
             type: "string",
             description: "Filter by pipeline ID",
+          },
+          limit: {
+            type: "number",
+            description: "Number of results to return (1-100, default: 20)",
+            default: 20,
+          },
+          offset: {
+            type: "number",
+            description: "Offset for pagination (default: 0)",
+            default: 0,
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+      },
+    },
+    {
+      name: "productive_create_deal",
+      description:
+        'Create a sales deal (budget=false). Required: name, company_id. Strongly recommended: pipeline_id + deal_status_id (use productive_list_pipelines and productive_list_deal_statuses), responsible_id.\n\nDeal value: pass `deal_value` in MINOR units (pence/cents) — e.g. 60000 for £600.00. We auto-set `deal_value_source: "manual"` so the value sticks without you needing to create services. The start date attribute is named `date` on the API; pass it here as `start_date` (we translate).\n\nRequired custom fields: discover with productive_list_custom_fields (customizable_type=\'deals\'). When the API rejects with 422 the error message includes the missing pointer, e.g. `(at data/attributes/custom_field_160113)`.\n\nExample:\n{\n  "name": "WVB-1073 Auto-clear customer baskets",\n  "company_id": "1123910",\n  "pipeline_id": "83190",\n  "deal_status_id": "635163",\n  "responsible_id": "1037643",\n  "currency": "GBP",\n  "deal_value": 60000,\n  "start_date": "2020-05-01",\n  "custom_fields": { "160113": "359031", "161358": ["360654"] }\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          name: {
+            type: "string",
+            description: "Deal name (max 200 chars).",
+          },
+          company_id: {
+            type: "string",
+            description:
+              "Productive company ID (required). Use productive_list_companies to find IDs.",
+          },
+          pipeline_id: {
+            type: "string",
+            description:
+              "Pipeline ID. Use productive_list_pipelines to enumerate.",
+          },
+          deal_status_id: {
+            type: "string",
+            description:
+              "Pipeline stage ID. Use productive_list_deal_statuses filtered by pipeline_id.",
+          },
+          responsible_id: {
+            type: "string",
+            description: "Owner person ID. Defaults to API token's user.",
+          },
+          project_id: {
+            type: "string",
+            description: "Optional project to link.",
+          },
+          contact_id: {
+            type: "string",
+            description: "Optional contact person ID.",
+          },
+          currency: {
+            type: "string",
+            description:
+              "ISO 4217 currency code (e.g. GBP). Defaults to the company's default_currency.",
+          },
+          deal_value: {
+            type: "number",
+            description:
+              "Deal value in minor units (cents/pence). E.g. 60000 = £600.00. Auto-sets deal_value_source='manual' unless overridden.",
+          },
+          deal_value_source: {
+            type: "string",
+            enum: ["manual", "from_services"],
+            description:
+              "How the deal value is determined. Defaults to 'manual' when deal_value is supplied.",
+          },
+          start_date: {
+            type: "string",
+            description:
+              "Deal start date (YYYY-MM-DD). Maps to API attribute 'date'.",
+          },
+          end_date: {
+            type: "string",
+            description: "Deal end date (YYYY-MM-DD).",
+          },
+          probability: {
+            type: "number",
+            description:
+              "Win probability percentage (0-100). If omitted, Productive uses the stage default.",
+          },
+          deal_type_id: {
+            type: "number",
+            description: "Deal type ID. Defaults to 2 (standard sales deal).",
+          },
+          note: {
+            type: "string",
+            description: "Deal note (HTML accepted).",
+          },
+          tag_list: {
+            type: "array",
+            items: { type: "string" },
+            description: "Tags to apply.",
+          },
+          custom_fields: {
+            type: "object",
+            description:
+              "Custom field values keyed by field ID string. Single-select: option ID string. Multi-select: array of option ID strings. Use productive_list_custom_fields to discover required fields.",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["name", "company_id"],
+      },
+    },
+    {
+      name: "productive_create_budget",
+      description:
+        'Create a budget (budget=true on the /deals endpoint). Use this when sales is closed-won and you want to track delivery. For sales pipeline deals, use productive_create_deal instead.\n\nExample:\n{\n  "name": "WVB Q2 Retainer",\n  "company_id": "1123910",\n  "currency": "GBP",\n  "start_date": "2026-04-01",\n  "end_date": "2026-06-30"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Budget name (max 200 chars)." },
+          company_id: {
+            type: "string",
+            description: "Productive company ID (required).",
+          },
+          project_id: {
+            type: "string",
+            description: "Optional project to link.",
+          },
+          responsible_id: {
+            type: "string",
+            description: "Owner person ID.",
+          },
+          currency: { type: "string", description: "ISO 4217 currency code." },
+          start_date: {
+            type: "string",
+            description:
+              "Start date (YYYY-MM-DD). Maps to API attribute 'date'.",
+          },
+          end_date: { type: "string", description: "End date (YYYY-MM-DD)." },
+          note: { type: "string", description: "Budget note (HTML accepted)." },
+          tag_list: {
+            type: "array",
+            items: { type: "string" },
+            description: "Tags to apply.",
+          },
+          custom_fields: {
+            type: "object",
+            description:
+              "Custom field values keyed by field ID. Use productive_list_custom_fields with customizable_type='deals' to discover required fields.",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["name", "company_id"],
+      },
+    },
+    {
+      name: "productive_list_pipelines",
+      description:
+        "List sales pipelines. Each pipeline contains multiple deal_statuses (stages). Use this to discover pipeline IDs for productive_create_deal and productive_list_deal_statuses.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          limit: {
+            type: "number",
+            description: "Number of results to return (1-100, default: 20)",
+            default: 20,
+          },
+          offset: {
+            type: "number",
+            description: "Offset for pagination (default: 0)",
+            default: 0,
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+      },
+    },
+    {
+      name: "productive_list_companies",
+      description:
+        'List companies. Supports a free-text query filter for quickly finding a company by name.\n\nExample:\n{\n  "query": "Wye Valley",\n  "limit": 5\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Free-text search across company name.",
+          },
+          limit: {
+            type: "number",
+            description: "Number of results to return (1-100, default: 20)",
+            default: 20,
+          },
+          offset: {
+            type: "number",
+            description: "Offset for pagination (default: 0)",
+            default: 0,
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+      },
+    },
+    {
+      name: "productive_get_company",
+      description:
+        'Get a specific company by ID. Useful when you have the ID but need details like default_currency for productive_create_deal.\n\nExample:\n{\n  "company_id": "1123910"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          company_id: {
+            type: "string",
+            description: "Company ID to retrieve",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["company_id"],
+      },
+    },
+    {
+      name: "productive_list_custom_fields",
+      description:
+        'List custom fields, optionally filtered by which resource they\'re attached to. Call this BEFORE productive_create_deal / productive_update_deal — orgs commonly have required custom fields that will 422 the create without them.\n\nFor select / multi-select fields, the response includes the available option IDs and labels (set include_options=false to skip).\n\nExample:\n{\n  "customizable_type": "deals"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          customizable_type: {
+            type: "string",
+            enum: [
+              "deals",
+              "tasks",
+              "projects",
+              "people",
+              "companies",
+              "employees",
+              "invoices",
+              "time_entries",
+              "expenses",
+              "services",
+              "documents",
+            ],
+            description:
+              "Filter by resource type (plural form, as used by the API).",
+          },
+          include_archived: {
+            type: "boolean",
+            description: "Include archived custom fields (default: false).",
+            default: false,
+          },
+          include_options: {
+            type: "boolean",
+            description:
+              "For select / multi-select fields, fetch option IDs and labels (default: true).",
+            default: true,
           },
           limit: {
             type: "number",

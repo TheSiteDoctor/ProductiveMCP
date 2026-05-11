@@ -569,6 +569,8 @@ export interface CommentAttributes {
   updated_at: string;
   pinned: boolean;
   visible_to_clients: boolean;
+  commentable_type?: string | null;
+  commentable_id?: string | null;
 }
 
 export interface Comment extends JSONAPIData<CommentAttributes> {
@@ -586,7 +588,23 @@ export interface FormattedComment {
   author_id: string | null;
   author_name: string | null;
   task_id: string | null;
+  commentable_type: string | null;
+  commentable_id: string | null;
 }
+
+/**
+ * Resource types Productive lets you comment on. Each one is sent under a
+ * different relationship key in the create payload.
+ */
+export type CommentableType =
+  | "task"
+  | "deal"
+  | "project"
+  | "discussion"
+  | "invoice"
+  | "person"
+  | "company"
+  | "purchase_order";
 
 export interface CreateCommentPayload {
   data: {
@@ -595,14 +613,18 @@ export interface CreateCommentPayload {
       body: string;
       visible_to_clients?: boolean;
     };
-    relationships: {
-      task: {
+    // Polymorphic: exactly one of these is set based on the commentable_type.
+    // The relationship key uses the singular form ("deal", "task", etc.) and the
+    // target resource type uses the plural form ("deals", "tasks").
+    relationships: Record<
+      string,
+      {
         data: {
-          type: "tasks";
+          type: string;
           id: string;
         };
-      };
-    };
+      }
+    >;
   };
 }
 
@@ -708,6 +730,13 @@ export interface DealAttributes {
   days_since_last_activity: number | null;
   days_in_current_stage: number | null;
   last_activity_at: string | null;
+  // Manual deal value (alternative to services-derived value).
+  // deal_value: stringified decimal in minor units (cents/pence) — e.g. "250000.0" = £2,500.00
+  // deal_value_source: "manual" sets the deal value directly; "from_services" derives it from services
+  // deal_value_total: read-only effective value in minor units (cents), sums retainer periods
+  deal_value: string | null;
+  deal_value_source: "manual" | "from_services" | null;
+  deal_value_total: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -725,6 +754,9 @@ export interface FormattedDeal {
   revenue: number | null;
   services_revenue: number | null;
   budget_total: number | null;
+  deal_value: string | null;
+  deal_value_source: "manual" | "from_services" | null;
+  deal_value_total: number | null;
   profit: number | null;
   profit_margin: number | null;
   currency: string | null;
@@ -764,6 +796,9 @@ export interface UpdateDealPayload {
       deal_status_id?: number;
       note?: string | null;
       tag_list?: string[];
+      // deal_value is sent as integer minor units (cents/pence) per Productive API docs
+      deal_value?: number;
+      deal_value_source?: "manual" | "from_services";
     };
   };
 }
@@ -1178,4 +1213,150 @@ export interface FormattedServiceType {
   name: string;
   description: string | null;
   archived: boolean;
+}
+
+// Pipeline types
+export interface PipelineAttributes {
+  name: string;
+  position: number | null;
+  icon_id: string | null;
+  pipeline_type_id: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Pipeline extends JSONAPIData<PipelineAttributes> {
+  type: "pipelines";
+  id: string;
+}
+
+export interface FormattedPipeline {
+  id: string;
+  name: string;
+  position: number | null;
+  icon_id: string | null;
+  pipeline_type_id: number | null;
+}
+
+// Company types
+export interface CompanyAttributes {
+  name: string;
+  billing_name: string | null;
+  domain: string | null;
+  default_currency: string | null;
+  vat: string | null;
+  tag_list: string[] | null;
+  archived_at: string | null;
+  last_activity_at: string | null;
+  due_days: number | null;
+  payment_terms_type: number | null;
+  parent_company_id: string | null;
+  custom_fields: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Company extends JSONAPIData<CompanyAttributes> {
+  type: "companies";
+  id: string;
+}
+
+export interface FormattedCompany {
+  id: string;
+  name: string;
+  billing_name: string | null;
+  domain: string | null;
+  default_currency: string | null;
+  tag_list: string[];
+  archived: boolean;
+  last_activity_at: string | null;
+  parent_company_id: string | null;
+  url: string | null;
+}
+
+// Custom field types
+export interface CustomFieldAttributes {
+  name: string;
+  description: string | null;
+  data_type_id: number;
+  customizable_type: string;
+  required: boolean;
+  position: number | null;
+  archived_at: string | null;
+  aggregation_type_id: number | null;
+  formatting_type_id: number | null;
+  global: boolean;
+  show_in_add_edit_views: boolean;
+  sensitive: boolean;
+  quick_add_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomField extends JSONAPIData<CustomFieldAttributes> {
+  type: "custom_fields";
+  id: string;
+}
+
+export interface CustomFieldOptionAttributes {
+  name: string;
+  position: number | null;
+  color_id: string | null;
+  archived_at: string | null;
+}
+
+export interface CustomFieldOption extends JSONAPIData<CustomFieldOptionAttributes> {
+  type: "custom_field_options";
+  id: string;
+}
+
+export interface FormattedCustomFieldOption {
+  id: string;
+  name: string;
+  archived: boolean;
+}
+
+export interface FormattedCustomField {
+  id: string;
+  name: string;
+  description: string | null;
+  data_type_id: number;
+  data_type: string; // friendly label
+  customizable_type: string;
+  required: boolean;
+  archived: boolean;
+  position: number | null;
+  options: FormattedCustomFieldOption[] | null;
+}
+
+// Deal/budget create payloads — sit alongside the existing UpdateDealPayload
+// (deals and budgets share the /deals endpoint; budget=false → deal, budget=true → budget).
+export interface CreateDealPayload {
+  data: {
+    type: "deals";
+    attributes: {
+      name: string;
+      budget?: boolean;
+      currency?: string;
+      // Cents/pence as string ("60000.0") — matches the API's reported format.
+      deal_value?: string;
+      deal_value_source?: "manual" | "from_services";
+      // Productive uses `date` for the start date, not `start_date`.
+      date?: string;
+      end_date?: string;
+      deal_type_id?: number;
+      probability?: number;
+      note?: string;
+      tag_list?: string[];
+      custom_fields?: Record<string, unknown>;
+    };
+    relationships: {
+      company: { data: { type: "companies"; id: string } };
+      responsible?: { data: { type: "people"; id: string } };
+      deal_status?: { data: { type: "deal_statuses"; id: string } };
+      pipeline?: { data: { type: "pipelines"; id: string } };
+      project?: { data: { type: "projects"; id: string } };
+      contact?: { data: { type: "people"; id: string } };
+    };
+  };
 }

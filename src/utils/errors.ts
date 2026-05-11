@@ -2,16 +2,16 @@
  * Error handling utilities
  */
 
-import { AxiosError } from 'axios';
+import { AxiosError } from "axios";
 
 export class ProductiveAPIError extends Error {
   constructor(
     message: string,
     public statusCode?: number,
-    public originalError?: unknown
+    public originalError?: unknown,
   ) {
     super(message);
-    this.name = 'ProductiveAPIError';
+    this.name = "ProductiveAPIError";
   }
 }
 
@@ -24,7 +24,7 @@ export function handleAxiosError(error: AxiosError): string {
     const data = error.response.data as unknown;
 
     // Log detailed error information to stderr for debugging
-    console.error('[Productive API Error]', {
+    console.error("[Productive API Error]", {
       status: status,
       method: error.config?.method?.toUpperCase(),
       url: error.config?.url,
@@ -35,30 +35,33 @@ export function handleAxiosError(error: AxiosError): string {
       case 400:
         return formatBadRequestError(data);
       case 401:
-        return 'Error: Authentication failed. Please check your PRODUCTIVE_API_TOKEN environment variable.';
+        return "Error: Authentication failed. Please check your PRODUCTIVE_API_TOKEN environment variable.";
       case 403:
-        return 'Error: Access forbidden. Please check your PRODUCTIVE_ORG_ID and API token permissions.';
+        return "Error: Access forbidden. Please check your PRODUCTIVE_ORG_ID and API token permissions.";
       case 404:
         return formatNotFoundError(data);
       case 422:
         return formatValidationError(data);
       case 429:
-        return 'Error: Rate limit exceeded (100 requests/10s). Please wait before retrying.';
+        return "Error: Rate limit exceeded (100 requests/10s). Please wait before retrying.";
       case 500:
       case 502:
       case 503:
-        return 'Error: Productive.io server error. Please try again later.';
+        return "Error: Productive.io server error. Please try again later.";
       default:
         return `Error: API request failed with status ${status}. ${extractErrorMessage(data)}`;
     }
   } else if (error.request) {
-    console.error('[Productive API Error] No response received:', {
+    console.error("[Productive API Error] No response received:", {
       method: error.config?.method?.toUpperCase(),
       url: error.config?.url,
     });
-    return 'Error: No response from Productive.io API. Please check your internet connection.';
+    return "Error: No response from Productive.io API. Please check your internet connection.";
   } else {
-    console.error('[Productive API Error] Request setup failed:', error.message);
+    console.error(
+      "[Productive API Error] Request setup failed:",
+      error.message,
+    );
     return `Error: Request setup failed. ${error.message}`;
   }
 }
@@ -70,9 +73,9 @@ function formatBadRequestError(data: unknown): string {
 
 function formatNotFoundError(data: unknown): string {
   const message = extractErrorMessage(data);
-  if (message.toLowerCase().includes('project')) {
+  if (message.toLowerCase().includes("project")) {
     return `Error: Project not found. ${message} Use productive_list_projects to see available projects.`;
-  } else if (message.toLowerCase().includes('task')) {
+  } else if (message.toLowerCase().includes("task")) {
     return `Error: Task not found. ${message}`;
   }
   return `Error: Resource not found. ${message}`;
@@ -82,11 +85,11 @@ function formatValidationError(data: unknown): string {
   const message = extractErrorMessage(data);
 
   // Common validation errors with helpful hints
-  if (message.toLowerCase().includes('title')) {
+  if (message.toLowerCase().includes("title")) {
     return `Error: Invalid title. ${message} Task titles must be 1-200 characters.`;
-  } else if (message.toLowerCase().includes('date')) {
+  } else if (message.toLowerCase().includes("date")) {
     return `Error: Invalid date format. ${message} Use ISO 8601 format (e.g., "2025-11-20").`;
-  } else if (message.toLowerCase().includes('project')) {
+  } else if (message.toLowerCase().includes("project")) {
     return `Error: Invalid project. ${message} Use productive_list_projects to see available projects.`;
   }
 
@@ -94,52 +97,73 @@ function formatValidationError(data: unknown): string {
 }
 
 function extractErrorMessage(data: unknown): string {
-  if (typeof data === 'string') {
+  if (typeof data === "string") {
     return data;
   }
 
-  // JSON:API error format
-  if (typeof data === 'object' && data !== null && 'errors' in data) {
+  // JSON:API error format. We surface source.pointer and code verbatim so the
+  // caller can act on errors like {code: "required_custom_field", source:
+  // {pointer: "data/attributes/custom_field_160113"}} without us swallowing the
+  // useful bit.
+  if (typeof data === "object" && data !== null && "errors" in data) {
     const dataObj = data as { errors?: unknown[] };
     if (Array.isArray(dataObj.errors) && dataObj.errors.length > 0) {
       const errorMessages = dataObj.errors
         .map((err: unknown) => {
-          if (typeof err === 'object' && err !== null) {
+          if (typeof err === "object" && err !== null) {
             const errObj = err as Record<string, unknown>;
-            if (typeof errObj.detail === 'string') return errObj.detail;
-            if (typeof errObj.title === 'string') return errObj.title;
+            const parts: string[] = [];
+            if (typeof errObj.detail === "string") {
+              parts.push(errObj.detail);
+            } else if (typeof errObj.title === "string") {
+              parts.push(errObj.title);
+            }
+            if (typeof errObj.code === "string") {
+              parts.push(`[${errObj.code}]`);
+            }
+            const source = errObj.source as
+              | { pointer?: string; parameter?: string }
+              | undefined;
+            if (source?.pointer) {
+              parts.push(`(at ${source.pointer})`);
+            } else if (source?.parameter) {
+              parts.push(`(param ${source.parameter})`);
+            }
+            if (parts.length > 0) {
+              return parts.join(" ");
+            }
           }
           return JSON.stringify(err);
         })
-        .join('; ');
+        .join("; ");
       return errorMessages;
     }
   }
 
-  if (typeof data === 'object' && data !== null) {
+  if (typeof data === "object" && data !== null) {
     const dataObj = data as Record<string, unknown>;
-    if (typeof dataObj.message === 'string') {
+    if (typeof dataObj.message === "string") {
       return dataObj.message;
     }
-    if (typeof dataObj.error === 'string') {
+    if (typeof dataObj.error === "string") {
       return dataObj.error;
     }
   }
 
-  return 'Unknown error occurred.';
+  return "Unknown error occurred.";
 }
 
 /**
  * Validate required environment variables
  */
 export function validateEnvironment(): void {
-  const required = ['PRODUCTIVE_API_TOKEN', 'PRODUCTIVE_ORG_ID'];
-  const missing = required.filter(varName => !process.env[varName]);
+  const required = ["PRODUCTIVE_API_TOKEN", "PRODUCTIVE_ORG_ID"];
+  const missing = required.filter((varName) => !process.env[varName]);
 
   if (missing.length > 0) {
     throw new ProductiveAPIError(
-      `Missing required environment variables: ${missing.join(', ')}. ` +
-      'Please set these in your .env file or environment.'
+      `Missing required environment variables: ${missing.join(", ")}. ` +
+        "Please set these in your .env file or environment.",
     );
   }
 }

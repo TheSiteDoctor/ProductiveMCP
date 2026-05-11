@@ -78,6 +78,33 @@ function formatComment(
     taskId = comment.relationships.task.data.id;
   }
 
+  // Determine the commentable parent. Prefer the attribute the API already
+  // computes (`commentable_type` + `commentable_id`); fall back to scanning
+  // typed relationships for the first non-null match.
+  let commentableType: string | null =
+    (attrs.commentable_type as string) ?? null;
+  let commentableId: string | null = (attrs.commentable_id as string) ?? null;
+  if (!commentableType || !commentableId) {
+    const rels = comment.relationships ?? {};
+    for (const key of [
+      "task",
+      "deal",
+      "project",
+      "discussion",
+      "invoice",
+      "person",
+      "company",
+      "purchase_order",
+    ]) {
+      const rel = (rels as Record<string, { data?: unknown } | undefined>)[key];
+      if (rel?.data && typeof rel.data === "object" && "id" in rel.data) {
+        commentableType = key;
+        commentableId = (rel.data as { id: string }).id;
+        break;
+      }
+    }
+  }
+
   return {
     id: comment.id,
     body: attrs.body || "",
@@ -88,6 +115,8 @@ function formatComment(
     author_id: authorId,
     author_name: authorName,
     task_id: taskId,
+    commentable_type: commentableType,
+    commentable_id: commentableId,
   };
 }
 
@@ -134,7 +163,11 @@ function formatCommentsMarkdown(
 }
 
 /**
- * List comments for a task
+ * List comments by task_id or project_id.
+ *
+ * Productive's /comments endpoint only supports these two filters. For other
+ * commentable types (deals, invoices, etc.) the API has no list filter — use
+ * productive_get_comment with a known comment ID instead.
  */
 export async function listComments(
   client: ProductiveClient,
@@ -143,13 +176,20 @@ export async function listComments(
   // Calculate page number from offset and limit
   const pageNumber = Math.floor(args.offset / args.limit) + 1;
 
-  const response = await client.get<JSONAPIResponse>("/comments", {
-    "filter[task_id]": args.task_id,
+  const params: Record<string, unknown> = {
     "page[number]": pageNumber,
     "page[size]": args.limit,
     include: "creator,task",
-    sort: "-created_at", // Most recent first
-  });
+    sort: "-created_at",
+  };
+  if (args.task_id) {
+    params["filter[task_id]"] = args.task_id;
+  }
+  if (args.project_id) {
+    params["filter[project_id]"] = args.project_id;
+  }
+
+  const response = await client.get<JSONAPIResponse>("/comments", params);
 
   const comments = (
     Array.isArray(response.data) ? response.data : [response.data]
@@ -194,6 +234,10 @@ function formatCommentMarkdown(comment: FormattedComment): string {
 
   if (comment.task_id) {
     lines.push(`**Task ID**: ${comment.task_id}`);
+  } else if (comment.commentable_type && comment.commentable_id) {
+    lines.push(
+      `**Parent**: ${comment.commentable_type} ${comment.commentable_id}`,
+    );
   }
 
   lines.push("", "---", "", comment.body);
@@ -202,13 +246,48 @@ function formatCommentMarkdown(comment: FormattedComment): string {
 }
 
 /**
- * Create a comment on a task
+ * Singular commentable type → JSON:API plural resource type.
+ *
+ * Productive's comments payload uses the singular form as the relationship key
+ * (e.g. `deal`) but the resource type within is plural (`deals`).
+ */
+const COMMENTABLE_RESOURCE_TYPES: Record<string, string> = {
+  task: "tasks",
+  deal: "deals",
+  project: "projects",
+  discussion: "discussions",
+  invoice: "invoices",
+  person: "people",
+  company: "companies",
+  purchase_order: "purchase_orders",
+};
+
+/**
+ * Create a comment on a task, deal, project, or other commentable resource.
+ *
+ * Accepts either the legacy `task_id` shorthand or the polymorphic
+ * `commentable_type` + `commentable_id` pair. The PDF/proposal export pulls
+ * from the deal's `note` field — *comments* are internal-only.
  */
 export async function createComment(
   client: ProductiveClient,
   args: z.infer<typeof CreateCommentSchema>,
 ): Promise<string> {
   const htmlBody = markdownToHtml(args.body);
+
+  // Resolve the polymorphic parent. task_id is shorthand for ("task", task_id).
+  const commentableType = args.task_id ? "task" : args.commentable_type;
+  const commentableId = args.task_id ?? args.commentable_id;
+  if (!commentableType || !commentableId) {
+    throw new Error(
+      "createComment: provide task_id or both commentable_type + commentable_id",
+    );
+  }
+
+  const resourceType = COMMENTABLE_RESOURCE_TYPES[commentableType];
+  if (!resourceType) {
+    throw new Error(`Unknown commentable_type: ${commentableType}`);
+  }
 
   const payload: CreateCommentPayload = {
     data: {
@@ -218,10 +297,10 @@ export async function createComment(
         visible_to_clients: args.visible_to_clients,
       },
       relationships: {
-        task: {
+        [commentableType]: {
           data: {
-            type: "tasks",
-            id: args.task_id,
+            type: resourceType,
+            id: commentableId,
           },
         },
       },

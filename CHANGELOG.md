@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-05-11
+
+### Added
+
+- **Deal lifecycle support** — six new tools that fill the gaps a Pipedrive → Productive migration hit on 11 May 2026:
+  - `productive_create_deal` — full sales-deal create. Payload quirks baked in:
+    - `deal_value` is sent in **minor units** (pence/cents) — e.g. 60000 = £600.00 — and we auto-set `deal_value_source: "manual"` so the value sticks without needing services. Without `manual`, Productive silently zeroes the deal.
+    - The start date attribute is `date` on the API (not `start_date`); the tool translates.
+    - `deal_type_id` defaults to 2 (standard sales deal).
+    - Required custom fields surface via 422 with `(at data/attributes/custom_field_<id>)` thanks to the error reporter changes below.
+  - `productive_create_budget` — same `/deals` endpoint with `budget: true`.
+  - `productive_list_pipelines` — `GET /pipelines` (no sort param accepted).
+  - `productive_list_companies` + `productive_get_company` — `GET /companies` with optional `filter[query]`.
+  - `productive_list_custom_fields` — `GET /custom_fields?filter[customizable_type]=<plural>` (e.g. `deals`). For `select` / `multi_select` fields, also fetches option IDs and labels via `GET /custom_field_options?filter[custom_field_id]=<id>`. Surfaces `required`, friendly `data_type` labels (text/number/select/date/multi_select/etc), and skips archived fields by default.
+- **Deal value capability on read + update** — `FormattedDeal` and `productive_update_deal` now expose `deal_value`, `deal_value_source`, and `deal_value_total`. Setting `deal_value` on update auto-promotes `deal_value_source` to `"manual"` unless overridden. Markdown views show **Deal Value** with the source label.
+- **Polymorphic comments** — `productive_create_comment` accepts either the legacy `task_id` shorthand or a `commentable_type` + `commentable_id` pair (`task`, `deal`, `project`, `discussion`, `invoice`, `person`, `company`, `purchase_order`). Sent via the typed singular relationship key (e.g. `relationships.deal`), with the resource type as plural (`deals`) — matches what Productive returns. `FormattedComment` gains `commentable_type` and `commentable_id`.
+- **List comments by project** — `productive_list_comments` now accepts `project_id` as an alternative to `task_id`. (Productive's API only supports these two list filters; deal/invoice comments cannot be listed in bulk — fetch by known comment ID.)
+
+### Fixed
+
+- `productive_update_deal` `note: "null"` (string) no longer writes the literal four-character string. We now accept JSON null, empty string, or the literal `"null"` and translate all three to a real null for the API. Tool description updated to be unambiguous.
+- Error reporter surfaces the JSON:API `code` and `source.pointer` / `source.parameter` verbatim. Example: `Sort by 'position' is not supported on this endpoint. [sort_param_unsupported] (param sort)`. This makes `required_custom_field` 422s actionable for callers (the pointer names the missing field).
+
 ## [1.5.0] - 2026-05-08
 
 ### Added

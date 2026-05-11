@@ -94,8 +94,13 @@ import {
   GetDealSchema,
   SearchDealsSchema,
   UpdateDealSchema,
+  CreateDealSchema,
+  CreateBudgetSchema,
   ListDealStatusesSchema,
 } from "./schemas/deal.js";
+import { ListPipelinesSchema } from "./schemas/pipeline.js";
+import { ListCompaniesSchema, GetCompanySchema } from "./schemas/company.js";
+import { ListCustomFieldsSchema } from "./schemas/custom-field.js";
 import {
   ListRevenueDistributionsSchema,
   GetRevenueDistributionSchema,
@@ -199,8 +204,13 @@ import {
   getDeal,
   searchDeals,
   updateDeal,
+  createDeal,
+  createBudget,
   listDealStatuses,
 } from "./tools/deals.js";
+import { listPipelines } from "./tools/pipelines.js";
+import { listCompanies, getCompany } from "./tools/companies.js";
+import { listCustomFields } from "./tools/custom-fields.js";
 import {
   listRevenueDistributions,
   getRevenueDistribution,
@@ -390,10 +400,34 @@ export const toolRegistry: Record<string, ToolRegistryEntry> = {
   productive_list_deals: { schema: ListDealsSchema, handler: listDeals },
   productive_get_deal: { schema: GetDealSchema, handler: getDeal },
   productive_search_deals: { schema: SearchDealsSchema, handler: searchDeals },
+  productive_create_deal: { schema: CreateDealSchema, handler: createDeal },
   productive_update_deal: { schema: UpdateDealSchema, handler: updateDeal },
   productive_list_deal_statuses: {
     schema: ListDealStatusesSchema,
     handler: listDealStatuses,
+  },
+  productive_list_pipelines: {
+    schema: ListPipelinesSchema,
+    handler: listPipelines,
+  },
+
+  // Budget create (lives on the same /deals endpoint as deals — budget=true)
+  productive_create_budget: {
+    schema: CreateBudgetSchema,
+    handler: createBudget,
+  },
+
+  // Company tools
+  productive_list_companies: {
+    schema: ListCompaniesSchema,
+    handler: listCompanies,
+  },
+  productive_get_company: { schema: GetCompanySchema, handler: getCompany },
+
+  // Custom field discovery
+  productive_list_custom_fields: {
+    schema: ListCustomFieldsSchema,
+    handler: listCustomFields,
   },
 
   // Revenue distribution tools
