@@ -1511,6 +1511,7 @@ export function formatDeal(
   deal: Deal,
   orgId: string,
   includedData?: unknown[],
+  revenueDistributions?: FormattedRevenueDistribution[],
 ): FormattedDeal {
   const attributes = deal.attributes as DealAttributes;
 
@@ -1626,6 +1627,7 @@ export function formatDeal(
     ),
     created_at: attributes.created_at,
     url: deal.id ? `https://app.productive.io/${orgId}/deals/${deal.id}` : null,
+    revenue_distributions: revenueDistributions,
   };
 }
 
@@ -1757,13 +1759,33 @@ export function formatSingleDealMarkdown(deal: FormattedDeal): string {
   lines.push("");
   lines.push("## Dates");
   if (deal.start_date) {
-    lines.push(`**Start Date**: ${deal.start_date}`);
+    lines.push(`**Date Opened**: ${deal.start_date}`);
   }
   if (deal.end_date) {
     lines.push(`**End Date**: ${deal.end_date}`);
   }
   if (deal.sales_closed_on) {
     lines.push(`**Closed On**: ${deal.sales_closed_on}`);
+  }
+  lines.push(
+    "_Note: Date Opened is when the opportunity was first opened (Productive API attribute `date`). It is NOT a sales-close forecast — see Revenue Distributions for revenue attribution dates._",
+  );
+
+  if (deal.revenue_distributions !== undefined) {
+    lines.push("");
+    lines.push("## Revenue Distributions");
+    if (deal.revenue_distributions.length === 0) {
+      lines.push("_None attached to this deal._");
+    } else {
+      for (const dist of deal.revenue_distributions) {
+        lines.push(
+          `- **${dist.start_on} → ${dist.end_on}** — ${dist.amount_percent}% (ID: ${dist.id})`,
+        );
+      }
+      lines.push(
+        "_Revenue distribution periods drive when deal value is recognised as revenue. Manage with productive_create_revenue_distribution / productive_update_revenue_distribution._",
+      );
+    }
   }
 
   if (

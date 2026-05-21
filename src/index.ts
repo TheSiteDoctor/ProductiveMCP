@@ -1782,7 +1782,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_list_deals",
       description:
-        'List sales deals in Productive.io. Deals are sales opportunities tracked through a pipeline. Use filter[type]=1 internally (budgets are type=2).\n\nExample:\n{\n  "company_id": "123",\n  "stage_status": "open",\n  "limit": 20\n}',
+        'List sales deals in Productive.io. Deals are sales opportunities tracked through a pipeline. Use filter[type]=1 internally (budgets are type=2).\n\nNote on dates: the deal `date` attribute is "Date Opened" — when the opportunity was first opened. It is NOT a sales-close forecast. Revenue attribution lives on the deal\'s revenue_distributions (use productive_get_deal to see them).\n\nExample:\n{\n  "company_id": "123",\n  "stage_status": "open",\n  "limit": 20\n}',
       inputSchema: {
         type: "object",
         properties: {
@@ -1835,7 +1835,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_get_deal",
       description:
-        'Get details of a specific sales deal by ID. Returns full deal information including pipeline stage, probability, value, company, and activity metrics.\n\nExample:\n{\n  "deal_id": "12345"\n}',
+        'Get details of a specific sales deal by ID. Returns full deal information including pipeline stage, probability, value, company, activity metrics, AND attached revenue distributions (the periods over which the deal value is recognised as revenue).\n\nNote on dates: the "Date Opened" field corresponds to the API\'s `date` attribute and represents when the opportunity was first opened — NOT a sales-close forecast. The forecast / revenue-attribution dates are on each revenue_distribution\'s start_on / end_on.\n\nExample:\n{\n  "deal_id": "12345"\n}',
       inputSchema: {
         type: "object",
         properties: {
@@ -1856,7 +1856,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_search_deals",
       description:
-        'Search sales deals by text query. Searches deal names and other text fields.\n\nExample:\n{\n  "query": "website redesign",\n  "stage_status": "open"\n}',
+        'Search sales deals by text query. Searches deal names and other text fields.\n\nNote on dates: the deal `date` attribute (surfaced as "Date Opened") is when the opportunity was opened — not a close forecast. Revenue attribution lives on revenue_distributions.\n\nExample:\n{\n  "query": "website redesign",\n  "stage_status": "open"\n}',
       inputSchema: {
         type: "object",
         properties: {
@@ -1900,7 +1900,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_update_deal",
       description:
-        'Update a sales deal. Can change name, probability, pipeline stage, notes, tags, and deal value. Moving to a "won" stage auto-sets probability to 100. Set deal_value to assign a monetary amount without creating services — this auto-switches deal_value_source to "manual".\n\nExample (set manual deal value):\n{\n  "deal_id": "12345",\n  "deal_value": 250000\n}\n\nExample (move stage):\n{\n  "deal_id": "12345",\n  "probability": 75,\n  "deal_status_id": "5678"\n}',
+        'Update a sales deal. Can change name, probability, pipeline stage, notes, tags, deal value, dates, owner, currency, and custom fields. Moving to a "won" stage auto-sets probability to 100. Set deal_value to assign a monetary amount without creating services — this auto-switches deal_value_source to "manual".\n\nNote on dates: `start_date` here maps to the API\'s `date` attribute, which Productive surfaces as "Date Opened" (when the opportunity was first opened). It is NOT a sales-close forecast. Revenue attribution is managed separately via productive_create_revenue_distribution / productive_update_revenue_distribution.\n\nExample (set manual deal value):\n{\n  "deal_id": "12345",\n  "deal_value": 250000\n}\n\nExample (reassign owner + currency):\n{\n  "deal_id": "12345",\n  "responsible_id": "1037643",\n  "currency": "USD"\n}\n\nExample (move stage):\n{\n  "deal_id": "12345",\n  "probability": 75,\n  "deal_status_id": "5678"\n}',
       inputSchema: {
         type: "object",
         properties: {
@@ -1941,6 +1941,28 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             enum: ["manual", "from_services"],
             description:
               "How the deal value is determined. 'manual' uses deal_value directly; 'from_services' sums service values. Defaults to 'manual' when deal_value is supplied.",
+          },
+          start_date: {
+            type: "string",
+            description:
+              "Date Opened (YYYY-MM-DD). Maps to the API's `date` attribute — when the opportunity was first opened. NOT a sales-close forecast.",
+          },
+          end_date: {
+            type: "string",
+            description: "Deal end date (YYYY-MM-DD).",
+          },
+          responsible_id: {
+            type: "string",
+            description: "Reassign the deal owner. Person ID.",
+          },
+          currency: {
+            type: "string",
+            description: "ISO 4217 currency code (e.g. GBP, USD).",
+          },
+          custom_fields: {
+            type: "object",
+            description:
+              "Custom field values keyed by field ID string. Single-select: option ID string. Multi-select: array of option ID strings. Use productive_list_custom_fields (customizable_type='deals') to discover IDs.",
           },
           response_format: {
             type: "string",
@@ -2039,7 +2061,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           start_date: {
             type: "string",
             description:
-              "Deal start date (YYYY-MM-DD). Maps to API attribute 'date'.",
+              "Date Opened (YYYY-MM-DD). Maps to API attribute 'date' — when the opportunity was first opened. NOT a sales-close forecast; revenue attribution lives on revenue_distributions.",
           },
           end_date: {
             type: "string",

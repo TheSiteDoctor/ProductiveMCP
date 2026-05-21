@@ -90,6 +90,32 @@ export const UpdateDealSchema = z
     deal_value_source: DealValueSourceSchema.optional().describe(
       "How the deal value is determined. 'manual' uses deal_value directly; 'from_services' sums service values. Defaults to 'manual' when deal_value is supplied.",
     ),
+    start_date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Use ISO 8601 date (YYYY-MM-DD)")
+      .optional()
+      .describe(
+        "Date Opened (YYYY-MM-DD). Maps to API attribute 'date' — when the opportunity was first opened. NOT a sales-close forecast.",
+      ),
+    end_date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Use ISO 8601 date (YYYY-MM-DD)")
+      .optional()
+      .describe("Deal end date (YYYY-MM-DD)."),
+    responsible_id: z
+      .string()
+      .optional()
+      .describe("Reassign the deal owner. Person ID."),
+    currency: z
+      .string()
+      .optional()
+      .describe("ISO 4217 currency code (e.g. GBP, USD)."),
+    custom_fields: z
+      .record(z.string(), z.unknown())
+      .optional()
+      .describe(
+        "Custom field values keyed by field ID. Use productive_list_custom_fields with customizable_type='deals' to discover IDs and option values. Single-select: option ID string. Multi-select: array of option ID strings.",
+      ),
     response_format: ResponseFormatSchema,
   })
   .strict();

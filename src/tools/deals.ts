@@ -10,6 +10,7 @@ import type {
   FormattedDeal,
   UpdateDealPayload,
   DealStatus,
+  RevenueDistribution,
 } from "../types.js";
 import {
   formatDeal,
@@ -18,6 +19,7 @@ import {
   formatDealStatus,
   formatDealStatusListMarkdown,
   formatResponse,
+  formatRevenueDistribution,
   truncateResponse,
 } from "../utils/formatting.js";
 import {
@@ -91,20 +93,44 @@ export async function listDeals(
 }
 
 /**
- * Get a single deal by ID
+ * Get a single deal by ID. Also fetches the deal's revenue distributions
+ * (a separate endpoint — they don't ride along on the deal's `include`) so the
+ * caller can see when revenue is attributed across periods.
  */
 export async function getDeal(
   client: ProductiveClient,
   args: z.infer<typeof GetDealSchema>,
 ): Promise<string> {
-  const response = await client.get<JSONAPIResponse>(`/deals/${args.deal_id}`, {
-    include: DEAL_INCLUDES,
-  });
+  const [dealResponse, distResponse] = await Promise.all([
+    client.get<JSONAPIResponse>(`/deals/${args.deal_id}`, {
+      include: DEAL_INCLUDES,
+    }),
+    client
+      .get<JSONAPIResponse>("/revenue_distributions", {
+        "filter[deal_id]": args.deal_id,
+        "page[size]": 100,
+      })
+      .catch(() => ({ data: [], included: undefined }) as JSONAPIResponse),
+  ]);
+
+  const distributions = (
+    Array.isArray(distResponse.data)
+      ? distResponse.data
+      : distResponse.data
+        ? [distResponse.data]
+        : []
+  ).map((dist) =>
+    formatRevenueDistribution(
+      dist as RevenueDistribution,
+      distResponse.included,
+    ),
+  );
 
   const deal = formatDeal(
-    response.data as Deal,
+    dealResponse.data as Deal,
     client.getOrgId(),
-    response.included,
+    dealResponse.included,
+    distributions,
   );
 
   const result = formatResponse(deal, args.response_format, () =>
@@ -205,6 +231,26 @@ export async function updateDeal(
   }
   if (args.deal_value_source !== undefined) {
     payload.data.attributes!.deal_value_source = args.deal_value_source;
+  }
+  if (args.start_date !== undefined) {
+    payload.data.attributes!.date = args.start_date;
+  }
+  if (args.end_date !== undefined) {
+    payload.data.attributes!.end_date = args.end_date;
+  }
+  if (args.currency !== undefined) {
+    payload.data.attributes!.currency = args.currency;
+  }
+  if (args.custom_fields !== undefined) {
+    payload.data.attributes!.custom_fields = args.custom_fields;
+  }
+  if (args.responsible_id !== undefined) {
+    payload.data.relationships = {
+      ...(payload.data.relationships ?? {}),
+      responsible: {
+        data: { type: "people", id: args.responsible_id },
+      },
+    };
   }
 
   await client.patch<JSONAPIResponse>(`/deals/${args.deal_id}`, payload);

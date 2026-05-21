@@ -784,6 +784,13 @@ export interface FormattedDeal {
   contact_name: string | null;
   created_at: string;
   url: string | null;
+  /**
+   * Revenue distributions attached to this deal. Populated when the
+   * caller passes them through to `formatDeal` (e.g. getDeal fetches
+   * them via /revenue_distributions?filter[deal_id]=X). Empty when not
+   * fetched — not the same as "deal has no distributions".
+   */
+  revenue_distributions?: FormattedRevenueDistribution[];
 }
 
 export interface UpdateDealPayload {
@@ -799,6 +806,14 @@ export interface UpdateDealPayload {
       // deal_value is sent as integer minor units (cents/pence) per Productive API docs
       deal_value?: number;
       deal_value_source?: "manual" | "from_services";
+      // The deal's "Date Opened" surfaces as `date` on the API, not `start_date`.
+      date?: string;
+      end_date?: string;
+      currency?: string;
+      custom_fields?: Record<string, unknown>;
+    };
+    relationships?: {
+      responsible?: { data: { type: "people"; id: string } };
     };
   };
 }

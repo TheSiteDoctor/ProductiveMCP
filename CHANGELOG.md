@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] - 2026-05-13
+
+### Changed
+
+- **Deal `date` attribute is "Date Opened", not "Start Date"** — terminology corrected throughout. The Productive UI labels this field "Date Opened" and uses it for when the opportunity was first opened (or the Pipedrive first-recorded date for migrated deals). It is NOT a sales-close forecast — revenue attribution lives on separate `revenue_distributions` objects with their own `start_on`/`end_on` periods. Affects:
+  - `formatSingleDealMarkdown` — "Start Date" label → "Date Opened", with an inline note explaining the distinction.
+  - `productive_get_deal`, `productive_list_deals`, `productive_search_deals`, `productive_update_deal`, `productive_create_deal` tool descriptions — clarify that `date` / `start_date` is the opportunity open date and point readers at revenue distributions for forecast/attribution.
+  - `FormattedDeal.start_date` retains its field name for backward compatibility (it still maps to the API's `date` attribute).
+
+### Added
+
+- **`productive_get_deal` now surfaces revenue distributions** — fetches `/revenue_distributions?filter[deal_id]=<id>` alongside the deal and renders a "Revenue Distributions" section listing each distribution's `start_on → end_on` period and `amount_percent`. Empty when no distributions exist (rendered as "_None attached to this deal._"). `FormattedDeal` gains an optional `revenue_distributions` array; populated by `getDeal`, undefined elsewhere (so list/search responses stay slim).
+- **`productive_update_deal` accepts five additional fields** (closes the gaps with `productive_create_deal`):
+  - `start_date` — maps to the API's `date` attribute (Date Opened).
+  - `end_date` — deal end date.
+  - `responsible_id` — reassign the deal owner via a `relationships.responsible` write.
+  - `currency` — change the deal currency (ISO 4217).
+  - `custom_fields` — same `{ field_id: value }` shape as create. Use `productive_list_custom_fields` (`customizable_type='deals'`) to discover IDs.
+
+### Notes
+
+- The `productive_create_revenue_distribution` tool continues to send `start_on` / `end_on` as API attribute names (matching what the existing implementation has used since the initial 0.1.0 release). The Productive API docs use `started_on` / `ended_on` for similar resources (bookings, salaries), so this is worth re-verifying against the live API on the next round — but no functional change was made as the current names work in practice.
+
 ## [1.6.0] - 2026-05-11
 
 ### Added

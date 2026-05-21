@@ -141,6 +141,8 @@ The schema also exposes `deal_value` as a **number in minor units** at the tool 
 
 The deal start date is `date` on the API — not `start_date`. The MCP schema uses `start_date` and translates. (The end date is `end_date` on both sides.)
 
+The Productive UI labels `date` as **"Date Opened"** — when the opportunity was first opened (or the original first-recorded date for migrated deals). It is **not** a sales-close forecast. Revenue attribution is a separate resource: `revenue_distributions`, each with its own `start_on` / `end_on` and `amount_percent`. `getDeal` fetches and renders these in a "Revenue Distributions" section; the markdown output for `date` is labelled "Date Opened" with an inline note pointing readers at distributions.
+
 ### Required Custom Fields on Deals
 
 Most Productive orgs have required custom fields on deals. The API returns 422 with `code: "required_custom_field"` and `source.pointer: "data/attributes/custom_field_<id>"`. The error utility passes both through verbatim, so callers see the pointer in the message.
