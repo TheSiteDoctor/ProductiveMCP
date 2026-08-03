@@ -72,37 +72,16 @@ async function apiGet(path, token, orgId, params = {}) {
   return response.json();
 }
 
+/** Page through a collection, discarding JSON:API `included`. */
 async function fetchAllPages(path, token, orgId, params = {}) {
-  const results = [];
-  let page = 1;
-  let hasMore = true;
-
-  while (hasMore) {
-    const response = await apiGet(path, token, orgId, {
-      ...params,
-      "page[number]": page,
-      "page[size]": 100,
-    });
-
-    const data = Array.isArray(response.data) ? response.data : [response.data];
-    results.push(...data);
-
-    const totalCount = response.meta?.total_count;
-    if (totalCount && results.length >= totalCount) {
-      hasMore = false;
-    } else if (data.length < 100) {
-      hasMore = false;
-    } else {
-      page++;
-    }
-  }
-
-  return results;
+  const { data } = await fetchAllPagesWithIncluded(path, token, orgId, params);
+  return data;
 }
 
 /**
- * Like fetchAllPages, but also accumulates the JSON:API `included` array so
- * callers can resolve relationships (fetchAllPages discards it).
+ * Page through a collection, also accumulating the JSON:API `included` array so
+ * callers can resolve relationships. Relationship linkage is omitted by the API
+ * unless explicitly requested, so pass `include` for anything you intend to read.
  */
 async function fetchAllPagesWithIncluded(path, token, orgId, params = {}) {
   const data = [];
@@ -252,8 +231,12 @@ async function detectDominantWorkflow(token, orgId, statusWorkflow) {
         // every task looks like it has no status.
         include: "workflow_status",
       });
-    } catch {
-      break; // Sampling is best-effort; fall back to counting statuses.
+    } catch (err) {
+      // Sampling is best-effort, but say why it failed: a restricted token
+      // getting 403 here silently reverts to first-of-name resolution, which
+      // is the bug this whole mechanism exists to fix.
+      console.log(`  Warning: could not sample tasks (${err.message})`);
+      break;
     }
 
     const tasks = Array.isArray(response.data) ? response.data : [];
