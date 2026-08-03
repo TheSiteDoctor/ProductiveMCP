@@ -27,6 +27,10 @@ interface ProductiveConfig {
   label_options?: Record<string, string>;
   workflow_status_names?: string[];
   workflow_status_ids?: Record<string, string>;
+  /** Workflow each configured status belongs to, keyed by status name. */
+  workflow_status_workflows?: Record<string, string>;
+  /** The workflow most of this organisation's tasks actually use. */
+  dominant_workflow?: { id: string; name: string };
 }
 
 function loadConfig(): ProductiveConfig {
@@ -187,3 +191,38 @@ export const WORKFLOW_STATUSES = (
 
 export const WORKFLOW_STATUS_IDS: Record<string, string> =
   config.workflow_status_ids || {};
+
+/** Workflow each configured status belongs to, keyed by status name. */
+export const WORKFLOW_STATUS_WORKFLOWS: Record<string, string> =
+  config.workflow_status_workflows || {};
+
+/**
+ * Resolve a workflow status name to its Productive ID.
+ *
+ * Throws rather than silently skipping the field — a task created with the
+ * wrong status while the tool reports success is worse than a clear failure.
+ *
+ * Note that Productive scopes statuses to a workflow, so a status configured
+ * against one workflow is rejected by the API on tasks belonging to another.
+ * `npm run setup` resolves duplicate names in favour of the workflow your
+ * tasks actually use, and warns about the ones it cannot.
+ */
+export function resolveWorkflowStatusId(name: string): string {
+  const statusId = WORKFLOW_STATUS_IDS[name];
+  if (statusId) {
+    return statusId;
+  }
+
+  const available = Object.keys(WORKFLOW_STATUS_IDS);
+  if (available.length === 0) {
+    throw new Error(
+      `Workflow status "${name}" cannot be resolved because no statuses are configured. ` +
+        `Run \`npm run setup\` to discover your organisation's workflow statuses.`,
+    );
+  }
+
+  throw new Error(
+    `Workflow status "${name}" is not configured. Available statuses: ${available.join(", ")}. ` +
+      `If you expected "${name}" to exist, re-run \`npm run setup\` — it may have been added since the config was generated.`,
+  );
+}

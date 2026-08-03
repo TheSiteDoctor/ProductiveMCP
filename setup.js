@@ -100,6 +100,45 @@ async function fetchAllPages(path, token, orgId, params = {}) {
   return results;
 }
 
+/**
+ * Like fetchAllPages, but also accumulates the JSON:API `included` array so
+ * callers can resolve relationships (fetchAllPages discards it).
+ */
+async function fetchAllPagesWithIncluded(path, token, orgId, params = {}) {
+  const data = [];
+  const includedById = new Map();
+  let page = 1;
+  let hasMore = true;
+
+  while (hasMore) {
+    const response = await apiGet(path, token, orgId, {
+      ...params,
+      "page[number]": page,
+      "page[size]": 100,
+    });
+
+    const pageData = Array.isArray(response.data)
+      ? response.data
+      : [response.data];
+    data.push(...pageData);
+
+    for (const item of response.included || []) {
+      includedById.set(`${item.type}:${item.id}`, item);
+    }
+
+    const totalCount = response.meta?.total_count;
+    if (totalCount && data.length >= totalCount) {
+      hasMore = false;
+    } else if (pageData.length < 100) {
+      hasMore = false;
+    } else {
+      page++;
+    }
+  }
+
+  return { data, included: [...includedById.values()] };
+}
+
 // ---------------------------------------------------------------------------
 // Discovery
 // ---------------------------------------------------------------------------
@@ -190,25 +229,183 @@ async function discoverFieldOptions(fieldId, token, orgId) {
   return mapping;
 }
 
+/**
+ * Determine which workflow this organisation's tasks actually use, by sampling
+ * recent tasks and counting the workflow behind each one's status.
+ *
+ * Productive scopes statuses to a workflow, and organisations commonly leave an
+ * unused "Default workflow" in place alongside the one they really work in.
+ * Sampling tells us which is which.
+ */
+async function detectDominantWorkflow(token, orgId, statusWorkflow) {
+  const SAMPLE_PAGES = 2;
+  const counts = {};
+
+  for (let page = 1; page <= SAMPLE_PAGES; page++) {
+    let response;
+    try {
+      response = await apiGet("/tasks", token, orgId, {
+        "page[number]": page,
+        "page[size]": 100,
+        sort: "-created_at",
+        // Required: without it the API omits relationship linkage entirely and
+        // every task looks like it has no status.
+        include: "workflow_status",
+      });
+    } catch {
+      break; // Sampling is best-effort; fall back to counting statuses.
+    }
+
+    const tasks = Array.isArray(response.data) ? response.data : [];
+    for (const task of tasks) {
+      const statusId = task.relationships?.workflow_status?.data?.id;
+      const workflowId = statusId ? statusWorkflow[statusId] : undefined;
+      if (workflowId) {
+        counts[workflowId] = (counts[workflowId] || 0) + 1;
+      }
+    }
+
+    if (tasks.length < 100) break;
+  }
+
+  const ranked = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  if (ranked.length === 0) return { id: null, sampled: 0, counts };
+
+  const sampled = ranked.reduce((sum, [, n]) => sum + n, 0);
+  return { id: ranked[0][0], sampled, counts };
+}
+
 async function discoverWorkflowStatuses(token, orgId) {
   console.log("Fetching workflow statuses...");
 
-  const statuses = await fetchAllPages("/workflow_statuses", token, orgId);
+  const { data: statuses, included } = await fetchAllPagesWithIncluded(
+    "/workflow_statuses",
+    token,
+    orgId,
+    { include: "workflow" },
+  );
   console.log(`  Found ${statuses.length} workflow statuses`);
 
-  // Build mapping, keeping the first occurrence of each name
-  const mapping = {};
-  const names = [];
-
-  for (const status of statuses) {
-    const name = status.attributes?.name;
-    if (name && !mapping[name]) {
-      mapping[name] = status.id;
-      names.push(name);
+  const workflowNames = {};
+  for (const item of included) {
+    if (item.type === "workflows") {
+      workflowNames[item.id] = item.attributes?.name || item.id;
     }
   }
 
-  return { mapping, names };
+  // status id -> workflow id
+  const statusWorkflow = {};
+  for (const status of statuses) {
+    const workflowId = status.relationships?.workflow?.data?.id;
+    if (workflowId) statusWorkflow[status.id] = workflowId;
+  }
+
+  const workflowCount = new Set(Object.values(statusWorkflow)).size;
+  const dominant = await detectDominantWorkflow(token, orgId, statusWorkflow);
+  const dominantName = dominant.id ? workflowNames[dominant.id] : null;
+
+  if (workflowCount > 1) {
+    console.log(`  Detected ${workflowCount} workflows.`);
+    if (dominant.id) {
+      const used = dominant.counts[dominant.id];
+      console.log(
+        `  Your tasks mostly use "${dominantName}" (${used}/${dominant.sampled} of sampled tasks).`,
+      );
+    } else {
+      console.log(
+        `  Could not determine which workflow your tasks use; falling back to the first of each name.`,
+      );
+    }
+  }
+
+  // Group by name so duplicates across workflows can be resolved deliberately
+  // rather than by whichever the API happened to return first.
+  const byName = new Map();
+  for (const status of statuses) {
+    const name = status.attributes?.name;
+    if (!name) continue;
+    if (!byName.has(name)) byName.set(name, []);
+    byName.get(name).push(status);
+  }
+
+  const mapping = {};
+  const statusWorkflowNames = {};
+  const names = [];
+  const collisions = [];
+  const foreignOnly = [];
+
+  for (const [name, candidates] of byName) {
+    let chosen = candidates[0];
+
+    if (candidates.length > 1) {
+      const preferred = dominant.id
+        ? candidates.find((c) => statusWorkflow[c.id] === dominant.id)
+        : undefined;
+      if (preferred) chosen = preferred;
+
+      collisions.push({
+        name,
+        chosen,
+        dropped: candidates.filter((c) => c.id !== chosen.id),
+        resolved: Boolean(preferred),
+      });
+    } else if (
+      dominant.id &&
+      statusWorkflow[chosen.id] &&
+      statusWorkflow[chosen.id] !== dominant.id
+    ) {
+      // Unique name, but it lives in a workflow your tasks don't use — the API
+      // will reject it on those tasks.
+      foreignOnly.push({ name, chosen });
+    }
+
+    mapping[name] = chosen.id;
+    statusWorkflowNames[name] =
+      workflowNames[statusWorkflow[chosen.id]] || "unknown";
+    names.push(name);
+  }
+
+  if (collisions.length > 0) {
+    console.log(
+      `\n  ${collisions.length} status name(s) exist in more than one workflow:`,
+    );
+    for (const c of collisions) {
+      const chosenWf = workflowNames[statusWorkflow[c.chosen.id]] || "unknown";
+      const droppedDesc = c.dropped
+        .map(
+          (d) =>
+            `${d.id} (${workflowNames[statusWorkflow[d.id]] || "unknown"})`,
+        )
+        .join(", ");
+      console.log(
+        `    "${c.name}": using ${c.chosen.id} (${chosenWf})${
+          c.resolved ? "" : " [could not confirm — verify this]"
+        }; ignoring ${droppedDesc}`,
+      );
+    }
+  }
+
+  if (foreignOnly.length > 0) {
+    console.log(
+      `\n  Warning: ${foreignOnly.length} status(es) exist only in a workflow your tasks don't use.`,
+    );
+    console.log(
+      `  Setting these on a "${dominantName}" task will be rejected by the API:`,
+    );
+    for (const f of foreignOnly) {
+      const wf = workflowNames[statusWorkflow[f.chosen.id]] || "unknown";
+      console.log(`    "${f.name}" (only in ${wf})`);
+    }
+  }
+
+  return {
+    mapping,
+    names,
+    statusWorkflowNames,
+    dominantWorkflow: dominant.id
+      ? { id: dominant.id, name: dominantName }
+      : null,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -271,6 +468,7 @@ async function main() {
     label_options: {},
     workflow_status_names: [],
     workflow_status_ids: {},
+    workflow_status_workflows: {},
   };
 
   // Task type field
@@ -335,11 +533,19 @@ async function main() {
   }
 
   // Workflow statuses
-  const { mapping: statusMapping, names: statusNames } =
-    await discoverWorkflowStatuses(token, orgId);
+  const {
+    mapping: statusMapping,
+    names: statusNames,
+    statusWorkflowNames,
+    dominantWorkflow,
+  } = await discoverWorkflowStatuses(token, orgId);
 
   config.workflow_status_names = statusNames;
   config.workflow_status_ids = statusMapping;
+  config.workflow_status_workflows = statusWorkflowNames;
+  if (dominantWorkflow) {
+    config.dominant_workflow = dominantWorkflow;
+  }
 
   // Write config
   const configPath = join(__dirname, "productive.config.json");

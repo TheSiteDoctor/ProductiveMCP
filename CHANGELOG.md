@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.3] - 2026-08-03
+
+### Fixed
+
+- **Workflow status names resolved to the wrong workflow**: Productive scopes statuses to a workflow, and `npm run setup` built its name→ID map by keeping the first occurrence of each name. Since the API returns statuses in ascending ID order, an unused "Default workflow" won every collision. In an org with a Default and a real workflow, `To Do`, `In Progress`, and `To Be Discussed` all mapped to IDs the API rejects on real tasks.
+
+  Setup now samples recent tasks to detect which workflow the organisation actually uses, resolves duplicate names in its favour, and prints what it chose and what it ignored. It also warns about statuses that exist *only* in an unused workflow (e.g. `Closed`), which can never be applied to tasks in the workflow you work in.
+
+- **Statuses added after config generation were unreachable**: setup now picks these up on re-run; they were previously missing from the map and the tool enums entirely.
+
+### Changed
+
+- **Unknown workflow status names now error instead of being silently dropped.** `productive_create_task`, `productive_create_milestone`, `productive_update_task`, and `productive_create_tasks_batch` previously logged a warning to stderr, discarded the status field, and reported success — leaving the task at the wrong status. They now throw an error listing the available statuses. In batch creation the error is recorded against that task and the remaining tasks continue.
+- `productive.config.json` gains `workflow_status_workflows` (which workflow each status belongs to) and `dominant_workflow`, for transparency and to support per-workflow resolution later.
+- Corrected the `workflow_status` parameter description, which pointed at a `productive_list_workflow_statuses` tool that does not exist.
+
 ## [1.3.2] - 2026-03-24
 
 ### Fixed
