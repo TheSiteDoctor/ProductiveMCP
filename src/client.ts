@@ -12,6 +12,7 @@ export class ProductiveClient {
   private readonly axios: AxiosInstance;
   private readonly orgId: string;
   private readonly rateLimiter: RateLimiter;
+  private currentPersonId: string | null = null;
 
   constructor(apiToken: string, orgId: string) {
     this.orgId = orgId;
@@ -138,6 +139,53 @@ export class ProductiveClient {
    */
   getOrgId(): string {
     return this.orgId;
+  }
+
+  /**
+   * Resolve the person the API token belongs to.
+   *
+   * Productive has no `/people/me`, but `/organization_memberships` is scoped
+   * to the authenticated token and returns exactly one record — its `person`
+   * is the token owner. Cached for the lifetime of the client.
+   */
+  async getCurrentPersonId(): Promise<string> {
+    if (this.currentPersonId) {
+      return this.currentPersonId;
+    }
+
+    const response = await this.get<JSONAPIResponse>(
+      "/organization_memberships",
+      { include: "person", "page[size]": 1 },
+    );
+
+    const membership = Array.isArray(response.data)
+      ? response.data[0]
+      : response.data;
+    const personRef = (
+      membership as
+        | { relationships?: { person?: { data?: { id?: string } } } }
+        | undefined
+    )?.relationships?.person?.data;
+
+    // Fall back to the included person, since relationship linkage is only
+    // present because of the explicit `include` above.
+    const includedPerson = (response.included || []).find(
+      (item): item is { type: string; id: string } =>
+        typeof item === "object" &&
+        item !== null &&
+        (item as { type?: unknown }).type === "people",
+    );
+
+    const personId = personRef?.id || includedPerson?.id;
+    if (!personId) {
+      throw new ProductiveAPIError(
+        "Could not determine which person this API token belongs to. " +
+          "Pass person_id explicitly.",
+      );
+    }
+
+    this.currentPersonId = personId;
+    return personId;
   }
 
   /**

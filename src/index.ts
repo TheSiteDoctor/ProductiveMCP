@@ -68,6 +68,13 @@ import {
   DeleteTaskDependencySchema,
 } from "./schemas/dependency.js";
 import {
+  StartTimerSchema,
+  StopTimerSchema,
+  GetRunningTimerSchema,
+  LogTimeSchema,
+  ListTimeEntriesSchema,
+} from "./schemas/time.js";
+import {
   MarkAsBlockedBySchema,
   MarkAsDuplicateSchema,
 } from "./schemas/workflow.js";
@@ -158,6 +165,13 @@ import {
   updateTaskDependency,
   deleteTaskDependency,
 } from "./tools/dependencies.js";
+import {
+  startTimer,
+  stopTimer,
+  getRunningTimer,
+  logTime,
+  listTimeEntries,
+} from "./tools/time.js";
 import { markAsBlockedBy, markAsDuplicate } from "./tools/workflows.js";
 import { listAttachments, uploadAttachment } from "./tools/attachments.js";
 import {
@@ -2444,6 +2458,171 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ["service_type_id"],
       },
     },
+    {
+      name: "productive_start_timer",
+      description:
+        'Start a timer in Productive.io.\n\nProductive logs time against a SERVICE (a budget line), not directly against a task. Supply one of:\n- service_id — start timing that service\n- task_id — the task\'s service is resolved automatically\n- time_entry_id — resume timing an existing entry\n\nperson_id defaults to the person owning the API token. Fails if a timer is already running for that person.\n\nExample:\n{\n  "task_id": "19212216",\n  "note": "Investigating the release regression"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          service_id: {
+            type: "string",
+            description:
+              "Service (budget line) to log against. Use productive_list_services to find one",
+          },
+          task_id: {
+            type: "string",
+            description:
+              "Task to time. Its service is resolved automatically; errors if the task has no service",
+          },
+          time_entry_id: {
+            type: "string",
+            description: "Resume timing an existing time entry",
+          },
+          person_id: {
+            type: "string",
+            description:
+              "Person to start the timer for (default: the API token's own person)",
+          },
+          note: { type: "string", description: "Optional note (max 2000 chars)" },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+      },
+    },
+    {
+      name: "productive_stop_timer",
+      description:
+        'Stop a running timer in Productive.io. With no timer_id, stops the running timer belonging to the API token\'s own person.\n\nExample:\n{}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          timer_id: {
+            type: "string",
+            description:
+              "Specific timer to stop (default: the running timer for the person)",
+          },
+          person_id: {
+            type: "string",
+            description:
+              "Whose running timer to stop (default: the API token's own person)",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+      },
+    },
+    {
+      name: "productive_get_running_timer",
+      description:
+        "Show the currently running timer and what it is tracking (service, task, note). Returns a 'no running timer' result rather than an error when nothing is running.\n\nExample:\n{}",
+      inputSchema: {
+        type: "object",
+        properties: {
+          person_id: {
+            type: "string",
+            description:
+              "Whose timer to check (default: the API token's own person)",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+      },
+    },
+    {
+      name: "productive_log_time",
+      description:
+        'Log time manually in Productive.io without using a timer. Requires service_id or task_id (the task\'s service is resolved automatically).\n\nNOTE: logged time may be auto-approved by your organisation\'s settings, and the API does not document deletion of time entries — so treat this as hard to undo.\n\nExample:\n{\n  "task_id": "19212216",\n  "minutes": 45,\n  "date": "2026-08-03",\n  "note": "Release prep"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          service_id: {
+            type: "string",
+            description:
+              "Service (budget line) to log against. Use productive_list_services to find one",
+          },
+          task_id: {
+            type: "string",
+            description:
+              "Task to log against. Its service is resolved automatically",
+          },
+          minutes: {
+            type: "number",
+            description: "Minutes to log (1-1440)",
+          },
+          date: {
+            type: "string",
+            description: "Date in ISO 8601 format (YYYY-MM-DD, default: today)",
+          },
+          note: { type: "string", description: "Optional note (max 2000 chars)" },
+          person_id: {
+            type: "string",
+            description:
+              "Person to log for (default: the API token's own person)",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["minutes"],
+      },
+    },
+    {
+      name: "productive_list_time_entries",
+      description:
+        'List logged time in Productive.io, filtered by person, task, service, or date range. Returns a total for the matched entries.\n\nNote: this endpoint does not support sorting, so results come back in the API\'s own order.\n\nExample:\n{\n  "after": "2026-08-01",\n  "before": "2026-08-31"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          person_id: {
+            type: "string",
+            description:
+              "Filter by person. Use productive_list_people to find IDs",
+          },
+          task_id: { type: "string", description: "Filter by task" },
+          service_id: { type: "string", description: "Filter by service" },
+          after: {
+            type: "string",
+            description: "Only entries on or after this date (YYYY-MM-DD)",
+          },
+          before: {
+            type: "string",
+            description: "Only entries on or before this date (YYYY-MM-DD)",
+          },
+          limit: {
+            type: "number",
+            description: "Maximum results (1-100, default: 20)",
+            default: 20,
+          },
+          offset: {
+            type: "number",
+            description: "Number of results to skip (default: 0)",
+            default: 0,
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+      },
+    },
   ],
 }));
 
@@ -2490,6 +2669,42 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "productive_list_people": {
         const validated = ListPeopleSchema.parse(args);
         const result = await listPeople(client, validated);
+        safeLog("[MCP Tool Success]", { tool: name });
+        return { content: [{ type: "text", text: result }] };
+      }
+
+      // Time tracking tools
+      case "productive_start_timer": {
+        const validated = StartTimerSchema.parse(args);
+        const result = await startTimer(client, validated);
+        safeLog("[MCP Tool Success]", { tool: name });
+        return { content: [{ type: "text", text: result }] };
+      }
+
+      case "productive_stop_timer": {
+        const validated = StopTimerSchema.parse(args);
+        const result = await stopTimer(client, validated);
+        safeLog("[MCP Tool Success]", { tool: name });
+        return { content: [{ type: "text", text: result }] };
+      }
+
+      case "productive_get_running_timer": {
+        const validated = GetRunningTimerSchema.parse(args);
+        const result = await getRunningTimer(client, validated);
+        safeLog("[MCP Tool Success]", { tool: name });
+        return { content: [{ type: "text", text: result }] };
+      }
+
+      case "productive_log_time": {
+        const validated = LogTimeSchema.parse(args);
+        const result = await logTime(client, validated);
+        safeLog("[MCP Tool Success]", { tool: name });
+        return { content: [{ type: "text", text: result }] };
+      }
+
+      case "productive_list_time_entries": {
+        const validated = ListTimeEntriesSchema.parse(args);
+        const result = await listTimeEntries(client, validated);
         safeLog("[MCP Tool Success]", { tool: name });
         return { content: [{ type: "text", text: result }] };
       }
