@@ -32,7 +32,7 @@ import {
   TASK_TYPE_OPTIONS,
   PRIORITY_OPTIONS,
   LABEL_OPTIONS,
-  WORKFLOW_STATUS_IDS,
+  resolveWorkflowStatusId,
 } from "../constants.js";
 
 /**
@@ -285,23 +285,12 @@ export async function createTask(
 
   // Add optional workflow status relationship
   if (args.workflow_status && payload.data.relationships) {
-    const statusId = WORKFLOW_STATUS_IDS[args.workflow_status];
-    if (statusId) {
-      payload.data.relationships.workflow_status = {
-        data: {
-          type: "workflow_statuses",
-          id: statusId,
-        },
-      };
-    } else {
-      try {
-        console.error(
-          `Warning: Workflow status "${args.workflow_status}" is not configured. Skipping status field.`,
-        );
-      } catch {
-        // Ignore logging errors
-      }
-    }
+    payload.data.relationships.workflow_status = {
+      data: {
+        type: "workflow_statuses",
+        id: resolveWorkflowStatusId(args.workflow_status),
+      },
+    };
   }
 
   // Add custom fields (task_type, priority, labels)
@@ -480,20 +469,12 @@ export async function createMilestone(
     };
   }
   if (args.workflow_status) {
-    const statusId = WORKFLOW_STATUS_IDS[args.workflow_status];
-    if (statusId) {
-      payload.data.relationships.workflow_status = {
-        data: { type: "workflow_statuses", id: statusId },
-      };
-    } else {
-      try {
-        console.error(
-          `Warning: Workflow status "${args.workflow_status}" is not configured. Skipping status field.`,
-        );
-      } catch {
-        // Ignore logging errors
-      }
-    }
+    payload.data.relationships.workflow_status = {
+      data: {
+        type: "workflow_statuses",
+        id: resolveWorkflowStatusId(args.workflow_status),
+      },
+    };
   }
 
   const response = await client.post<JSONAPIResponse>("/tasks", payload, {
@@ -743,23 +724,12 @@ export async function updateTask(
     if (!payload.data.relationships) {
       payload.data.relationships = {};
     }
-    const statusId = WORKFLOW_STATUS_IDS[args.workflow_status];
-    if (statusId) {
-      payload.data.relationships.workflow_status = {
-        data: {
-          type: "workflow_statuses",
-          id: statusId,
-        },
-      };
-    } else {
-      try {
-        console.error(
-          `Warning: Workflow status "${args.workflow_status}" is not configured. Skipping status field.`,
-        );
-      } catch {
-        // Ignore logging errors
-      }
-    }
+    payload.data.relationships.workflow_status = {
+      data: {
+        type: "workflow_statuses",
+        id: resolveWorkflowStatusId(args.workflow_status),
+      },
+    };
   }
 
   // Handle task list relationship

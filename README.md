@@ -120,7 +120,9 @@ Productive.io uses custom fields for task type, priority, and estimates. These f
 
 If auto-detection doesn't find your fields (they may be named differently), you can edit `productive.config.json` manually. The setup script will list all available custom fields in your account to help you identify the right ones.
 
-The server works without custom field configuration - you just won't be able to set task types, priorities, or workflow statuses through Claude.
+The server works without custom field configuration - you just won't be able to set task types, priorities, or workflow statuses through Claude. With no config the `workflow_status` parameter is omitted from the tools entirely, so task creation still works; passing a status explicitly returns an error pointing at the setup script rather than being silently ignored.
+
+Productive scopes statuses to a **workflow**, and most organisations have an unused `Default workflow` alongside the one they work in - which means duplicate status names with different IDs. Setup detects which workflow your tasks actually use and resolves duplicates in its favour. See [docs/workflow-statuses.md](docs/workflow-statuses.md) for how this resolves, why a name may be refused, and the known limitation for organisations genuinely running two workflows.
 
 ## Available Tools
 

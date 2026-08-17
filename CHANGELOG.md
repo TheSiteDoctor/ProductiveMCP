@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.3] - 2026-08-03
+
+### Fixed
+
+- **Workflow status names resolved to the wrong workflow**: Productive scopes statuses to a workflow, and `npm run setup` built its name→ID map by keeping the first occurrence of each name. Since the API returns statuses in ascending ID order, an unused "Default workflow" won every collision. In an org with a Default and a real workflow, `To Do`, `In Progress`, and `To Be Discussed` all mapped to IDs the API rejects on real tasks.
+
+  Setup now samples recent tasks to detect which workflow the organisation actually uses, resolves duplicate names in its favour, and prints what it chose and what it ignored. It also warns about statuses that exist *only* in an unused workflow (e.g. `Closed`), which can never be applied to tasks in the workflow you work in.
+
+- **Statuses added after config generation were unreachable**: setup now picks these up on re-run; they were previously missing from the map and the tool enums entirely.
+
+### Changed
+
+- **Unknown workflow status names now error instead of being silently dropped.** `productive_create_task`, `productive_create_milestone`, `productive_update_task`, and `productive_create_tasks_batch` previously logged a warning to stderr, discarded the status field, and reported success — leaving the task at the wrong status. They now throw an error listing the usable statuses. In batch creation the error is recorded against that task and the remaining tasks continue.
+- **Statuses belonging to an unused workflow are now refused up front** with an actionable message naming the alternatives, instead of being sent and rejected opaquely by the API. `Closed`, which in many orgs exists only in the unused `Default workflow`, is the common case.
+- **The `workflow_status` enum now lists only statuses in the workflow your tasks use**, and is derived from the config rather than a hardcoded default list. Previously the enum fell back to 11 hardcoded names while `workflow_status_ids` was empty, so on an install without `productive.config.json` every advertised name would throw — failing the whole `create_task` call rather than just the status field. With no config the parameter is now **omitted from the tool schemas entirely**; task creation works, and passing a status explicitly errors pointing at `npm run setup`.
+- `productive.config.json` gains `workflow_status_workflow_ids` (workflow ID per status — what resolution compares), `workflow_status_workflows` (display names, for messages) and `dominant_workflow`. Comparison is by workflow ID rather than display name, so two workflows sharing a name don't collide, and resolution still works when the `include=workflow` side of the response is missing while the statuses' own relationships resolve. A status whose workflow cannot be resolved is omitted from the map rather than recorded with a placeholder — runtime reads an absent workflow as "allow", whereas a placeholder would read as a foreign workflow and refuse a usable status. `workflow_status_names` is retained as informational only and is no longer read.
+- Corrected the `workflow_status` parameter description at all four sites; one pointed at a `productive_list_workflow_statuses` tool that does not exist, and three were left un-updated.
+- `npm run setup` now reports why task sampling failed rather than swallowing the error — a restricted token getting 403 would otherwise silently revert to the buggy first-of-name resolution.
+
+### Documentation
+
+- `docs/workflow-statuses.md` — how resolution works, why a name may be refused, behaviour with no config, and the known limitation for organisations genuinely running two workflows across different projects.
+
 ## [1.3.2] - 2026-03-24
 
 ### Fixed
