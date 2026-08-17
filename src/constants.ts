@@ -32,12 +32,22 @@ interface ProductiveConfig {
   task_type_options?: Record<string, string>;
   priority_options?: Record<string, string>;
   label_options?: Record<string, string>;
+  /**
+   * Informational only: every status name discovered, including ones excluded
+   * from the tools. Nothing reads it — the advertised enum derives from
+   * `workflow_status_ids`.
+   */
   workflow_status_names?: string[];
   workflow_status_ids?: Record<string, string>;
-  /** Workflow each configured status belongs to, keyed by status name. */
+  /**
+   * Workflow ID each configured status belongs to, keyed by status name. This
+   * is what resolution compares; a name absent here means "could not resolve".
+   */
+  workflow_status_workflow_ids?: Record<string, string>;
+  /** Workflow display names, keyed by status name. Cosmetic — for messages. */
   workflow_status_workflows?: Record<string, string>;
   /** The workflow most of this organisation's tasks actually use. */
-  dominant_workflow?: { id: string; name: string };
+  dominant_workflow?: { id: string; name?: string };
 }
 
 function loadConfig(): ProductiveConfig {
@@ -179,25 +189,82 @@ export const DEPENDENCY_TYPE_NAMES: Record<
 export const WORKFLOW_STATUS_IDS: Record<string, string> =
   config.workflow_status_ids || {};
 
-/** Workflow each configured status belongs to, keyed by status name. */
+/**
+ * Workflow ID each configured status belongs to, keyed by status name.
+ * A status absent from this map has an unresolvable workflow.
+ */
+export const WORKFLOW_STATUS_WORKFLOW_IDS: Record<string, string> =
+  config.workflow_status_workflow_ids || {};
+
+/** Workflow display names, keyed by status name. Cosmetic — used in messages. */
 export const WORKFLOW_STATUS_WORKFLOWS: Record<string, string> =
   config.workflow_status_workflows || {};
 
 /** The workflow most of this organisation's tasks use, if setup could tell. */
-export const DOMINANT_WORKFLOW: { id: string; name: string } | null =
+export const DOMINANT_WORKFLOW: { id: string; name?: string } | null =
   config.dominant_workflow || null;
+
+/**
+ * Configs written before workflow IDs were recorded only stored display names,
+ * using this literal when resolution failed. Treated as unresolved, not as a
+ * workflow in its own right.
+ */
+const LEGACY_UNRESOLVED = "unknown";
+
+/**
+ * Whether the config records workflow IDs. Older configs only have display
+ * names, so comparison falls back to those — two workflows sharing a display
+ * name would collide there, which is exactly why IDs are now recorded.
+ */
+const HAS_WORKFLOW_IDS =
+  Object.keys(WORKFLOW_STATUS_WORKFLOW_IDS).length > 0;
+
+/**
+ * Comparable workflow key for a status, or undefined when it cannot be
+ * resolved. Undefined means "don't know" and is treated permissively — never
+ * as a distinct foreign workflow.
+ */
+function statusWorkflowKey(statusName: string): string | undefined {
+  if (HAS_WORKFLOW_IDS) {
+    return WORKFLOW_STATUS_WORKFLOW_IDS[statusName];
+  }
+  const legacy = WORKFLOW_STATUS_WORKFLOWS[statusName];
+  return legacy && legacy !== LEGACY_UNRESOLVED ? legacy : undefined;
+}
+
+/** The dominant workflow expressed in the same key space, or undefined. */
+const DOMINANT_WORKFLOW_KEY: string | undefined = DOMINANT_WORKFLOW
+  ? HAS_WORKFLOW_IDS
+    ? DOMINANT_WORKFLOW.id
+    : DOMINANT_WORKFLOW.name
+  : undefined;
+
+/** Human-readable label for the dominant workflow, falling back to its ID. */
+function dominantWorkflowLabel(): string {
+  if (!DOMINANT_WORKFLOW) return "an unresolved workflow";
+  return DOMINANT_WORKFLOW.name || `workflow ${DOMINANT_WORKFLOW.id}`;
+}
+
+/** Human-readable label for a status's workflow, falling back to its ID. */
+function statusWorkflowLabel(statusName: string): string {
+  const name = WORKFLOW_STATUS_WORKFLOWS[statusName];
+  if (name && name !== LEGACY_UNRESOLVED) return name;
+  const id = WORKFLOW_STATUS_WORKFLOW_IDS[statusName];
+  return id ? `workflow ${id}` : "an unresolved workflow";
+}
 
 /**
  * Status names belonging to the workflow this organisation actually uses.
  * Falls back to every configured name when the dominant workflow is unknown.
  */
 function statusesInDominantWorkflow(): string[] {
-  if (!DOMINANT_WORKFLOW) return Object.keys(WORKFLOW_STATUS_IDS);
-  return Object.keys(WORKFLOW_STATUS_IDS).filter(
-    (name) =>
-      !WORKFLOW_STATUS_WORKFLOWS[name] ||
-      WORKFLOW_STATUS_WORKFLOWS[name] === DOMINANT_WORKFLOW.name,
-  );
+  if (!DOMINANT_WORKFLOW_KEY) return Object.keys(WORKFLOW_STATUS_IDS);
+  return Object.keys(WORKFLOW_STATUS_IDS).filter((name) => {
+    const key = statusWorkflowKey(name);
+    // Unresolvable workflow => keep it. Refusing a status because setup could
+    // not name its workflow would make a real, applicable status unusable.
+    return !key || key === DOMINANT_WORKFLOW_KEY;
+  });
 }
 
 /**
@@ -251,18 +318,16 @@ export function resolveWorkflowStatusId(name: string): string {
 
   // Known name, but it lives in a workflow this organisation's tasks don't use,
   // so the API would reject it. Say so, and name the usable alternatives.
-  const statusWorkflow = WORKFLOW_STATUS_WORKFLOWS[name];
-  if (
-    DOMINANT_WORKFLOW &&
-    statusWorkflow &&
-    statusWorkflow !== DOMINANT_WORKFLOW.name
-  ) {
+  // An unresolvable workflow (no key) falls through and is allowed.
+  const statusKey = statusWorkflowKey(name);
+  if (DOMINANT_WORKFLOW_KEY && statusKey && statusKey !== DOMINANT_WORKFLOW_KEY) {
+    const dominantLabel = dominantWorkflowLabel();
     throw new Error(
-      `Workflow status "${name}" belongs to "${statusWorkflow}", but this organisation's tasks use ` +
-        `"${DOMINANT_WORKFLOW.name}" — the API rejects it. ` +
+      `Workflow status "${name}" belongs to "${statusWorkflowLabel(name)}", but this organisation's tasks use ` +
+        `"${dominantLabel}" — the API rejects it. ` +
         (WORKFLOW_STATUSES.length > 0
           ? `Use one of: ${WORKFLOW_STATUSES.join(", ")}.`
-          : `No statuses are configured for "${DOMINANT_WORKFLOW.name}"; re-run \`npm run setup\`.`),
+          : `No statuses are configured for "${dominantLabel}"; re-run \`npm run setup\`.`),
     );
   }
 

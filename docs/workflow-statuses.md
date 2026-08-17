@@ -33,7 +33,19 @@ Setting these on a "TSD workflow" task will be rejected by the API:
   "Closed" (only in Default workflow)
 ```
 
-The config records `workflow_status_ids`, `workflow_status_workflows` (which workflow each name resolved to) and `dominant_workflow`.
+The config records:
+
+| Key | Role |
+| --- | --- |
+| `workflow_status_ids` | name → status ID. Drives the advertised enum. |
+| `workflow_status_workflow_ids` | name → workflow ID. **What resolution compares.** |
+| `workflow_status_workflows` | name → workflow display name. Cosmetic, for messages. |
+| `dominant_workflow` | `{ id, name? }` — `name` is omitted if it could not be resolved. |
+| `workflow_status_names` | Informational only; nothing reads it. Includes names excluded from the tools. |
+
+Comparison is by **workflow ID**, not display name. Two workflows can share a display name, and the name comes from the `include=workflow` side of the response, which can be absent even when the statuses' own relationships resolve — a restricted token, or a permission-filtered include. In that case resolution still works correctly and messages fall back to `workflow <id>`.
+
+A status whose workflow cannot be resolved at all is **omitted** from `workflow_status_workflow_ids` rather than recorded with a placeholder. Runtime reads an absent workflow as "don't know" and allows the status. Recording a sentinel string instead would read as a foreign workflow and make a real, applicable status unusable.
 
 ## What the tools advertise
 
