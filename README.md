@@ -136,6 +136,16 @@ Productive scopes statuses to a **workflow**, and most organisations have an unu
 | `productive_get_task`           | Get full task details                  |
 | `productive_update_task`        | Update task properties                 |
 
+### Task Templates
+
+| Tool                              | Description                                        |
+| --------------------------------- | -------------------------------------------------- |
+| `productive_list_task_templates`  | List the reusable ticket templates                 |
+| `productive_get_task_template`    | Preview a template's structure and variables       |
+| `productive_apply_task_template`  | Create a template's task lists/tasks in a project  |
+
+Templates are JSON files in `templates/` describing a standard set of task lists, tasks and subtasks (e.g. the core delivery tickets for a new project), with `{{variable}}` placeholders filled in at apply time. See [docs/templates.md](docs/templates.md).
+
 ### Project & Organisation
 
 | Tool                         | Description                         |

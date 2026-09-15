@@ -218,6 +218,16 @@ import {
   updateServiceType,
   archiveServiceType,
 } from "./tools/services.js";
+import {
+  ListTaskTemplatesSchema,
+  GetTaskTemplateSchema,
+  ApplyTaskTemplateSchema,
+} from "./schemas/template.js";
+import {
+  listTaskTemplates,
+  getTaskTemplate,
+  applyTaskTemplate,
+} from "./tools/templates.js";
 
 // Validate environment variables
 try {
@@ -1044,6 +1054,101 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           },
         },
         required: ["tasks", "project_id"],
+      },
+    },
+
+    // Task template tools
+    {
+      name: "productive_list_task_templates",
+      description:
+        "List the available task templates. Templates are JSON files (in the templates/ directory, or PRODUCTIVE_TEMPLATES_DIR) describing a reusable set of task lists and tasks — e.g. the standard delivery tickets for a new project. Use productive_get_task_template to inspect one and productive_apply_task_template to create its tasks in a project.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: [],
+      },
+    },
+    {
+      name: "productive_get_task_template",
+      description:
+        "Show a task template's full structure: its task lists, tasks and subtasks, estimates, and the variables it needs (placeholders like {{domain_name}}). Use this to preview a template before applying it.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          template: {
+            type: "string",
+            description:
+              "Template name (from productive_list_task_templates), e.g. 'standard-delivery'",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["template"],
+      },
+    },
+    {
+      name: "productive_apply_task_template",
+      description:
+        'Apply a task template to a project: creates every task list, task and subtask the template defines, substituting {{variable}} placeholders with the supplied values. Task lists whose name already exists in the project are reused rather than duplicated. Set dry_run: true first to preview exactly what will be created.\n\nExample:\n{\n  "template": "standard-delivery",\n  "project_id": "1234",\n  "variables": {"domain_name": "example.com"},\n  "dry_run": true\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          template: {
+            type: "string",
+            description:
+              "Template name (from productive_list_task_templates), e.g. 'standard-delivery'",
+          },
+          project_id: {
+            type: "string",
+            description:
+              "Target project ID. Use productive_list_projects to find project IDs",
+          },
+          board_id: {
+            type: "string",
+            description:
+              "Optional board ID for newly created task lists. Defaults to the project's first board",
+          },
+          variables: {
+            type: "object",
+            additionalProperties: { type: "string" },
+            description:
+              'Values for the template\'s {{placeholders}}, e.g. {"domain_name": "example.com"}. Required variables without a default must be supplied',
+          },
+          default_assignee_id: {
+            type: "string",
+            description: "Optional assignee ID applied to every created task",
+          },
+          reuse_existing_task_lists: {
+            type: "boolean",
+            default: true,
+            description:
+              "Reuse a task list already in the project when its name matches (case-insensitive) instead of creating a duplicate (default: true)",
+          },
+          dry_run: {
+            type: "boolean",
+            default: false,
+            description:
+              "Preview what would be created without calling the Productive API (default: false)",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["template", "project_id"],
       },
     },
 
@@ -2688,6 +2793,28 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "productive_create_tasks_batch": {
         const validated = CreateTasksBatchSchema.parse(args);
         const result = await createTasksBatch(client, validated);
+        safeLog("[MCP Tool Success]", { tool: name });
+        return { content: [{ type: "text", text: result }] };
+      }
+
+      // Task template tools
+      case "productive_list_task_templates": {
+        const validated = ListTaskTemplatesSchema.parse(args);
+        const result = await listTaskTemplates(validated);
+        safeLog("[MCP Tool Success]", { tool: name });
+        return { content: [{ type: "text", text: result }] };
+      }
+
+      case "productive_get_task_template": {
+        const validated = GetTaskTemplateSchema.parse(args);
+        const result = await getTaskTemplate(validated);
+        safeLog("[MCP Tool Success]", { tool: name });
+        return { content: [{ type: "text", text: result }] };
+      }
+
+      case "productive_apply_task_template": {
+        const validated = ApplyTaskTemplateSchema.parse(args);
+        const result = await applyTaskTemplate(client, validated);
         safeLog("[MCP Tool Success]", { tool: name });
         return { content: [{ type: "text", text: result }] };
       }

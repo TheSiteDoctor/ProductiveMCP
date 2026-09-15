@@ -1,0 +1,121 @@
+{
+  "name": "standard-delivery",
+  "title": "Standard Project Delivery",
+  "description": "The core delivery tickets TSD creates for every new project: project management ceremonies, infrastructure setup, and go-live launch tasks.",
+  "variables": [
+    {
+      "name": "domain_name",
+      "description": "The project's primary domain name, e.g. example.com"
+    }
+  ],
+  "task_lists": [
+    {
+      "name": "Project Management",
+      "tasks": [
+        {
+          "title": "Ticket Management",
+          "description": "Ongoing triage, refinement and prioritisation of the project's tickets.",
+          "task_type": "Task"
+        },
+        {
+          "title": "DSU / Regular Check-in",
+          "description": "Daily stand-up or regular check-in cadence for the project team.",
+          "task_type": "Meeting"
+        },
+        {
+          "title": "Project Planning",
+          "description": "Sprint/iteration planning and roadmap maintenance.",
+          "task_type": "Meeting"
+        },
+        {
+          "title": "Show & Tell",
+          "description": "Regular demo of progress to the customer.",
+          "task_type": "Meeting"
+        },
+        {
+          "title": "Retrospective",
+          "description": "End-of-phase retrospective: what went well, what to improve.",
+          "task_type": "Meeting"
+        }
+      ]
+    },
+    {
+      "name": "Infrastructure setup ({{domain_name}})",
+      "tasks": [
+        {
+          "title": "Create GitHub repo ({{domain_name}})",
+          "task_type": "Task",
+          "estimate_minutes": 30
+        },
+        {
+          "title": "Set up AppVeyor CI/CD ({{domain_name}})",
+          "task_type": "Task",
+          "estimate_minutes": 60
+        },
+        {
+          "title": "Provision hosting on CMS box",
+          "task_type": "Task",
+          "estimate_minutes": 60
+        },
+        {
+          "title": "Provision database",
+          "task_type": "Task",
+          "estimate_minutes": 30
+        },
+        {
+          "title": "Create Azure blob storage for media (CDN)",
+          "task_type": "Task",
+          "estimate_minutes": 60
+        },
+        {
+          "title": "General project setup (Rider SLN files etc)",
+          "task_type": "Task",
+          "estimate_minutes": 60
+        },
+        {
+          "title": "Install Umbraco",
+          "task_type": "Task",
+          "estimate_minutes": 60
+        },
+        {
+          "title": "Install Igloo Theme",
+          "task_type": "Task",
+          "estimate_minutes": 60
+        },
+        {
+          "title": "Setup Seq API Keys",
+          "description": "Create per-site API keys in Seq and configure the site to log to them.",
+          "task_type": "Task",
+          "estimate_minutes": 30
+        },
+        {
+          "title": "Setup Stripe account",
+          "task_type": "Task",
+          "estimate_minutes": 60
+        },
+        {
+          "title": "Set up CreateSend mailing list account + API keys",
+          "task_type": "Task",
+          "estimate_minutes": 60
+        }
+      ]
+    },
+    {
+      "name": "Go-live Launch",
+      "tasks": [
+        {
+          "title": "Update DNS settings",
+          "description": "Point {{domain_name}} at the new hosting. Check both WWW and non-WWW variations are set up.",
+          "task_type": "Task",
+          "estimate_minutes": 60
+        },
+        {
+          "title": "Ensure data is logging to Seq",
+          "description": "Confirm application events for {{domain_name}} are arriving in Seq after go-live.",
+          "task_type": "Task",
+          "estimate_minutes": 30
+        }
+      ]
+    }
+  ]
+}

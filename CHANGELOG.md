@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-09-15
+
+### Added
+
+- **Task templates** — a reusable ticket template system for spinning up a project's standard tickets in one call:
+  - `productive_list_task_templates` — list the templates found in `templates/` (or `PRODUCTIVE_TEMPLATES_DIR`), with task counts, total estimates and required variables. Invalid template files are reported individually without hiding valid ones.
+  - `productive_get_task_template` — preview a template's full task list/task/subtask tree and its variables before applying.
+  - `productive_apply_task_template` — create everything the template defines in a target project: task lists (reusing same-named active lists case-insensitively rather than duplicating, unless `reuse_existing_task_lists: false`), tasks and arbitrarily nested subtasks via `parent_task` relationships, with `{{variable}}` placeholder substitution in list names, titles and descriptions. Supports `dry_run` preview, `default_assignee_id`, `board_id` (defaults to the project's first board), per-task labels (auto-created), `estimate_minutes` (sets `initial_estimate`), `due_in_days`, and task type/priority (skipped when the org hasn't configured the custom field, so templates stay portable). Failures are recorded and the run continues; subtasks of a failed parent are reported as skipped.
+- Two starter templates: `standard-delivery` (TSD's standard Project Management / Infrastructure setup / Go-live Launch breakdown, parameterised by `domain_name`) and `site-go-live` (the full 174-task go-live checklist, converted from the legacy JIRA-era checklist with its wiki markup translated to Markdown).
+- `docs/templates.md` — template format reference, apply behaviour, and how to write new templates.
+
 ## [1.3.3] - 2026-08-03
 
 ### Fixed
