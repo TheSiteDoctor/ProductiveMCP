@@ -24,7 +24,7 @@ import {
   CUSTOM_FIELD_IDS,
   TASK_TYPE_OPTIONS,
   PRIORITY_OPTIONS,
-  WORKFLOW_STATUS_IDS,
+  resolveWorkflowStatusId,
 } from "../constants.js";
 
 /**
@@ -81,23 +81,14 @@ export async function createTasksBatch(
 
       // Add optional workflow status relationship
       if (taskInput.workflow_status && payload.data.relationships) {
-        const statusId = WORKFLOW_STATUS_IDS[taskInput.workflow_status];
-        if (statusId) {
-          payload.data.relationships.workflow_status = {
-            data: {
-              type: "workflow_statuses",
-              id: statusId,
-            },
-          };
-        } else {
-          try {
-            console.error(
-              `Warning: Workflow status "${taskInput.workflow_status}" is not configured. Skipping status field.`,
-            );
-          } catch {
-            // Ignore logging errors
-          }
-        }
+        // Throws on an unknown status; the surrounding try/catch records it as
+        // this task's failure and the batch continues with the rest.
+        payload.data.relationships.workflow_status = {
+          data: {
+            type: "workflow_statuses",
+            id: resolveWorkflowStatusId(taskInput.workflow_status),
+          },
+        };
       }
 
       // Add custom fields (task_type, priority, labels)
