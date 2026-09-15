@@ -136,6 +136,7 @@
         },
         {
           "title": "Setup Stripe account",
+          "description": "If the project takes payments, apply the `stripe-integration` template for the full sandbox-to-live sequence (account creation, per-environment keys and webhook secrets, client activation, live smoke test).",
           "task_type": "Task",
           "estimate_minutes": 60
         },
