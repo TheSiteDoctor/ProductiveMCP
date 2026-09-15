@@ -24,8 +24,8 @@ JSON files in the `templates/` directory at the project root. Set the `PRODUCTIV
 
 Two templates ship with this repository:
 
-- **`standard-delivery`** - TSD's standard Feature/Task breakdown for a new project: Project Management ceremonies, Infrastructure setup, and Go-live Launch.
-- **`site-go-live`** - the full go-live checklist (174 tasks) covering DNS, server setup, source code changes, third-party services, content, SEO, testing, security, performance and post-launch tasks.
+- **`standard-delivery`** - TSD's standard Feature/Task breakdown for a new project: Project Management (kick-offs, ceremonies, budget and RAID tracking, UAT, handover, close-down), Infrastructure setup, and Go-live Launch.
+- **`site-go-live`** - the full go-live checklist (175 tasks) covering DNS, server setup, source code changes, third-party services, content, SEO, testing, security, performance and post-launch tasks. The transactional email tasks are provider-neutral: the `email_provider` variable (default `Mailgun`) names the provider, and the checklist steps - unique API key per customer, sending domain/sub-account, SPF/DKIM records - apply to Mailgun, SendGrid or any equivalent.
 
 ## Template format
 

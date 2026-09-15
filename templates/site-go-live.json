@@ -6,6 +6,11 @@
     {
       "name": "domain_name",
       "description": "The domain being launched, e.g. example.com"
+    },
+    {
+      "name": "email_provider",
+      "description": "Transactional email provider, e.g. Mailgun or SendGrid",
+      "default": "Mailgun"
     }
   ],
   "task_lists": [
@@ -78,6 +83,15 @@
             {
               "title": "Check the MX records are correct on all domains",
               "description": "1. mx1.emailsrvr.com - Priority 10\n1. mx2.emailsrvr.com - Priority 20\nTest the site at both of the links below:\n\n* http://mxtoolbox.com/SuperTool.aspx?action=txt%3a{{domain_name}}&run=toolpage\n* http://mxtoolbox.com/SuperTool.aspx?action=mx%3a{{domain_name}}&run=toolpage",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check SPF and DKIM records are set up for {{email_provider}}",
+              "description": "The transactional email sending domain needs verified SPF and DKIM records (and DMARC where the customer has a policy) or mail will land in spam. {{email_provider}} shows the exact records to add under the domain's settings; verify them there once DNS has propagated.",
               "task_type": "Task",
               "labels": [
                 "GoLive"
@@ -498,8 +512,8 @@
                   ]
                 },
                 {
-                  "title": "Check the Mandrill API keys are unique to the customer",
-                  "description": "Each customer should have it's own API key setup in Mandrill (https://mandrillapp.com/). If you've not already been setup with the Google Authenticator you'll need to do that to get access.\n\nYou can create a new API key here: https://mandrillapp.com/settings, there's no need to restrict it when creating it.",
+                  "title": "Check the {{email_provider}} API key is unique to the customer",
+                  "description": "Each customer must have their own API key (and sending domain) in {{email_provider}} - never the shared agency-wide key, so one customer's sending reputation or a revoked key can't affect the others.\n\n* Mailgun: create a separate sending domain for the site and use its domain-specific sending key\n* SendGrid: create a per-customer API key (Settings > API Keys) with Mail Send permission only\n\nCredentials are in LastPass.",
                   "task_type": "Task",
                   "labels": [
                     "GoLive"
@@ -507,8 +521,8 @@
                   "estimate_minutes": 60
                 },
                 {
-                  "title": "Ensure Mandrill sub-account has been set",
-                  "description": "To further help identifying the various accounts sending through Mandrill -and to act as a backup as the API key, we need to add a header for the subaccount when sending an email. This is as simple as adding this before the usual \"Send\" logic:\n\n```\nvar msg = new MailMessage();\n\n// This adds a new header with the subaccount in (needs to be set/called/added after creating the MailMessage object)\nmsg.Headers.Add(\"X-MC-Subaccount\", \"domain.com\");\n\n// This is your usual sending logic (no need to change)\nvar smtpClient = new SmtpClient();\nsmtpClient.Send(msg);\n```\n\nIf using the more recent versions of our contact us form you need to set the web.config key `Mandrill.Subaccount`",
+                  "title": "Ensure the {{email_provider}} sending domain / sub-account is set",
+                  "description": "Outbound mail must be attributable to the site so senders are identifiable in the provider's dashboard and sending reputation is isolated per customer:\n\n* Mailgun: send via the site's own sending domain (e.g. mg.domain.com)\n* SendGrid: use a per-customer subuser, or at minimum a category per site\n\nCheck the site's mail settings (e.g. the SMTP credentials or API key in web.config/appsettings) point at the customer-specific domain/sub-account, not a shared one.",
                   "task_type": "Task",
                   "labels": [
                     "GoLive"
@@ -1139,7 +1153,7 @@
             },
             {
               "title": "Perform browser testing",
-              "description": "Desktop browsers: IE8+, Latest Edge, Latest Chrome/Firefox/Operai\nMobile: iPhone 6/S+, iPad, Android, Windows Mobile",
+              "description": "Desktop browsers: latest Chrome, Firefox, Edge and Safari.\nMobile: iOS Safari (iPhone and iPad) and Android Chrome, at a range of viewport widths.",
               "task_type": "Task",
               "labels": [
                 "GoLive"
@@ -1165,12 +1179,13 @@
               "estimate_minutes": 60
             },
             {
-              "title": "Test without JS, Flash etc",
+              "title": "Test core journeys with JavaScript disabled",
               "task_type": "Task",
               "labels": [
                 "GoLive"
               ],
-              "estimate_minutes": 60
+              "estimate_minutes": 60,
+              "description": "Key content, navigation and forms should degrade gracefully without JavaScript (progressive enhancement). Also check nothing depends on dead plugin tech (Flash, Silverlight)."
             },
             {
               "title": "Check all external links are valid",

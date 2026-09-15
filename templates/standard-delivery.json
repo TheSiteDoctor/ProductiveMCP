@@ -13,6 +13,16 @@
       "name": "Project Management",
       "tasks": [
         {
+          "title": "Project Kick-off (internal)",
+          "description": "Brief the delivery team: scope, approach, roles, key dates, budget and known risks before any client-facing work starts.",
+          "task_type": "Meeting"
+        },
+        {
+          "title": "Project Kick-off (client)",
+          "description": "Align with the customer on goals, timeline, comms cadence, who signs off what, and how feedback/tickets flow.",
+          "task_type": "Meeting"
+        },
+        {
           "title": "Ticket Management",
           "description": "Ongoing triage, refinement and prioritisation of the project's tickets.",
           "task_type": "Task"
@@ -28,14 +38,50 @@
           "task_type": "Meeting"
         },
         {
+          "title": "Weekly client status update",
+          "description": "Short weekly summary to the customer: progress, what's next, decisions needed, and anything at risk. Keeps surprises out of invoicing conversations.",
+          "task_type": "Task"
+        },
+        {
+          "title": "Budget & burn-rate review",
+          "description": "Weekly check of logged time against budget in Productive. Flag early if the burn rate points at an overrun rather than discovering it at invoicing.",
+          "task_type": "Task"
+        },
+        {
+          "title": "Risks, assumptions & dependencies log",
+          "description": "Maintain a RAID log: risks, assumptions, issues and dependencies (customer content, third-party access, DNS control etc). Review it at planning sessions.",
+          "task_type": "Task"
+        },
+        {
           "title": "Show & Tell",
           "description": "Regular demo of progress to the customer.",
+          "task_type": "Meeting"
+        },
+        {
+          "title": "UAT coordination",
+          "description": "Agree the UAT window with the customer, provide a test plan/checklist, and capture their feedback as tickets rather than emails.",
+          "task_type": "Task"
+        },
+        {
+          "title": "Client CMS training & handover",
+          "description": "Train the customer's editors on Umbraco, hand over credentials and documentation, and confirm who to contact for support.",
           "task_type": "Meeting"
         },
         {
           "title": "Retrospective",
           "description": "End-of-phase retrospective: what went well, what to improve.",
           "task_type": "Meeting"
+        },
+        {
+          "title": "Project close-down",
+          "description": "Archive the project properly: final invoice check, remove temporary access/test accounts, ensure documentation and credentials are stored, move the project to support/retainer status.",
+          "task_type": "Task"
+        },
+        {
+          "title": "Post-launch review (30 days)",
+          "description": "Review the site with the customer a month after launch: analytics and search rankings, Seq errors, outstanding snags, and upsell/next-phase opportunities.",
+          "task_type": "Meeting",
+          "due_in_days": 30
         }
       ]
     },
