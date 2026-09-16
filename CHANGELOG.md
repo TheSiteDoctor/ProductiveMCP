@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.2] - 2026-09-16
+
+Merges the workflow-status scoping fix from PR #3 (published upstream as 1.3.3 on 2026-08-03) into the 1.4–1.6 line. Both branches had fixed the same underlying bug — status names resolving to IDs from an unused `Default workflow` — in different ways. This release combines them: the per-project runtime lookup (1.4.1/1.4.3) stays the primary path, and the dominant-workflow config resolution from PR #3 becomes the fallback.
+
+### Fixed
+
+- **Workflow status names resolved to the wrong workflow** (PR #3): Productive scopes statuses to a workflow, and `npm run setup` built its name→ID map by keeping the first occurrence of each name. Since the API returns statuses in ascending ID order, an unused "Default workflow" won every collision. Setup now samples recent tasks to detect which workflow the organisation actually uses, resolves duplicate names in its favour, and prints what it chose and what it ignored. It also warns about statuses that exist _only_ in an unused workflow (e.g. `Closed`).
+- **Statuses added after config generation were unreachable** (PR #3): setup now picks these up on re-run.
+
+### Changed
+
+- **Workflow status resolution now combines both strategies.** `productive_create_task`, `productive_create_milestone`, `productive_update_task` and `productive_create_tasks_batch` first resolve the name against the workflow the target project actually uses (`resolveWorkflowStatusIdForProject` in `src/tools/tasks.ts`, cached 5 minutes). Only when the project's workflow cannot be determined — a project with no tasks yet, or an API error — does resolution fall back to `productive.config.json` via `resolveWorkflowStatusId` in `src/constants.ts`, which prefers the dominant workflow. This resolves the "known limitation" PR #3 documented: an organisation running two workflows across different projects now gets the right ID for each project. `productive_create_tasks_batch` previously used the static config map only; it now uses the per-project lookup too.
+- **Unknown workflow status names now error instead of being silently dropped** (PR #3). All four tools previously logged a warning to stderr, discarded the status field, and reported success — leaving the task at the wrong status. They now throw, listing the usable statuses (the project's own workflow when it could be determined, otherwise the configured dominant workflow). In batch creation the error is recorded against that task and the remaining tasks continue.
+- **Statuses belonging to an unused workflow are refused up front** (PR #3) with an actionable message naming the alternatives, instead of being sent and rejected opaquely by the API.
+- **The `workflow_status` enum lists only statuses in the workflow your tasks use** (PR #3), derived from the config rather than a hardcoded default list. With no config the parameter is omitted from the tool schemas entirely; passing it explicitly errors pointing at `npm run setup`.
+- `productive.config.json` gains `workflow_status_workflow_ids`, `workflow_status_workflows` and `dominant_workflow` (PR #3). **Re-run `npm run setup` after upgrading.**
+- Corrected the `workflow_status` parameter descriptions at all four sites (PR #3); `npm run setup` now reports why task sampling failed rather than swallowing the error.
+
+### Documentation
+
+- `docs/workflow-statuses.md` (PR #3) — how resolution works and why a name may be refused, updated here to describe the per-project lookup.
+
 ## [1.6.1] - 2026-05-13
 
 ### Changed

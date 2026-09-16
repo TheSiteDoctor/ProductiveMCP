@@ -109,13 +109,13 @@ This has been tested empirically. Do not revisit — the string vs object questi
 
 Workflow status IDs are **per-project** in Productive. `GET /workflow_statuses?filter[project_id]=X` returns **400 Unsupported filter** — do not use it.
 
-`resolveWorkflowStatusId()` in `src/tools/tasks.ts` uses a 3-step lookup instead:
+`resolveWorkflowStatusIdForProject()` in `src/tools/tasks.ts` uses a 3-step lookup instead:
 
 1. `GET /tasks?filter[project_id]=X&page[size]=1&include=workflow_status` — fetch any task to get a status ID
 2. `GET /workflow_statuses/{id}?include=workflow` — get the workflow ID from that status
 3. `GET /workflow_statuses?filter[workflow_id]=Y` — fetch all statuses for that workflow
 
-Results are cached per project for 5 minutes. Static config (`productive.config.json`) is the final fallback.
+Results are cached per project for 5 minutes. When the project's workflow cannot be determined (no tasks yet, or an API error), `resolveWorkflowStatusId()` in `src/constants.ts` resolves against `productive.config.json`, which `npm run setup` scopes to the organisation's dominant workflow. Both paths **throw** on an unknown name rather than silently dropping the status. See `docs/workflow-statuses.md`.
 
 ### Estimate Gotcha
 
