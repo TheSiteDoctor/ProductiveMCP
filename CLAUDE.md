@@ -159,6 +159,10 @@ Comments can attach to `task`, `deal`, `project`, `discussion`, `invoice`, `pers
 
 The error message points at `data/attributes/commentable` when missing, but the relationship form is what works. `createComment` accepts either the legacy `task_id` shorthand or a `commentable_type` + `commentable_id` pair.
 
+**Comment visibility uses `hidden`, not `visible_to_clients`.** The MCP-facing parameter stays `visible_to_clients`, but on the wire it maps to `hidden: !visible_to_clients`. The API silently drops unknown attributes, so sending `visible_to_clients` returns 201 and creates a public comment. Reads derive `visible_to_clients` from `attrs.hidden` and `pinned` from `attrs.pinned_at` (a timestamp or null). `productive_update_comment` accepts `visible_to_clients` on its own to fix wrongly-public comments without touching the body.
+
+**Only a comment's author can edit it.** PATCH `/comments/{id}` on someone else's comment returns 403 `access_denied`, regardless of token permissions.
+
 **Listing comments is not polymorphic.** The /comments endpoint only supports `filter[task_id]` and `filter[project_id]`. Deal/invoice/etc comments cannot be listed in bulk — fetch by known comment ID via `productive_get_comment`.
 
 ### Sort Param Unsupported on Some Endpoints
