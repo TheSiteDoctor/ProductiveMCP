@@ -1,0 +1,38 @@
+{
+  "name": "umbraco-setup",
+  "title": "Umbraco Setup (add-on)",
+  "description": "Umbraco-specific tasks layered on top of standard-delivery. Its task lists share the same names, so applying it after standard-delivery adds these tasks to the existing lists rather than creating duplicates.",
+  "variables": [
+    {
+      "name": "domain_name",
+      "description": "The project's primary domain name, e.g. example.com"
+    }
+  ],
+  "task_lists": [
+    {
+      "name": "Infrastructure setup ({{domain_name}})",
+      "tasks": [
+        {
+          "title": "Install Umbraco",
+          "task_type": "Task",
+          "estimate_minutes": 60
+        },
+        {
+          "title": "Install Igloo Theme",
+          "task_type": "Task",
+          "estimate_minutes": 60
+        }
+      ]
+    },
+    {
+      "name": "Project Management",
+      "tasks": [
+        {
+          "title": "Client CMS training & handover",
+          "description": "Train the customer's editors on Umbraco, hand over credentials and documentation, and confirm who to contact for support.",
+          "task_type": "Meeting"
+        }
+      ]
+    }
+  ]
+}

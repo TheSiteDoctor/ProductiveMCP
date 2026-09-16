@@ -1,7 +1,7 @@
 {
   "name": "standard-delivery",
   "title": "Standard Project Delivery",
-  "description": "The core delivery tickets TSD creates for every new project: project management ceremonies, infrastructure setup, and go-live launch tasks.",
+  "description": "The core delivery tickets TSD creates for every new project: project management ceremonies, infrastructure setup, and go-live launch tasks. Platform-neutral - apply umbraco-setup on top for Umbraco projects, and stripe-integration where the site takes payments.",
   "variables": [
     {
       "name": "domain_name",
@@ -63,11 +63,6 @@
           "task_type": "Task"
         },
         {
-          "title": "Client CMS training & handover",
-          "description": "Train the customer's editors on Umbraco, hand over credentials and documentation, and confirm who to contact for support.",
-          "task_type": "Meeting"
-        },
-        {
           "title": "Retrospective",
           "description": "End-of-phase retrospective: what went well, what to improve.",
           "task_type": "Meeting"
@@ -94,12 +89,12 @@
           "estimate_minutes": 30
         },
         {
-          "title": "Set up AppVeyor CI/CD ({{domain_name}})",
+          "title": "Set up CI/CD (AppVeyor/GitHub) ({{domain_name}})",
           "task_type": "Task",
           "estimate_minutes": 60
         },
         {
-          "title": "Provision hosting on CMS box",
+          "title": "Provision hosting",
           "task_type": "Task",
           "estimate_minutes": 60
         },
@@ -119,26 +114,28 @@
           "estimate_minutes": 60
         },
         {
-          "title": "Install Umbraco",
+          "title": "Setup Seq API Keys for UAT",
+          "description": "Create a UAT-specific API key in Seq and configure the test environment to log to it. Keys are per environment so noisy UAT logging can be filtered or throttled without touching production.",
           "task_type": "Task",
-          "estimate_minutes": 60
+          "estimate_minutes": 15
         },
         {
-          "title": "Install Igloo Theme",
+          "title": "Setup Seq API Keys for PROD",
+          "description": "Create a production API key in Seq and configure the live environment to log to it.",
           "task_type": "Task",
-          "estimate_minutes": 60
+          "estimate_minutes": 15
         },
         {
-          "title": "Setup Seq API Keys",
-          "description": "Create per-site API keys in Seq and configure the site to log to them.",
+          "title": "Setup StatusCake monitoring against the test site",
+          "description": "Uptime check against the UAT/staging URL so hosting or deployment breakage shows up during the build, not at demo time. Remember UAT is often behind basic auth - allow the StatusCake check through or monitor a public health endpoint.",
           "task_type": "Task",
-          "estimate_minutes": 30
+          "estimate_minutes": 15
         },
         {
-          "title": "Setup Stripe account",
-          "description": "If the project takes payments, apply the `stripe-integration` template for the full sandbox-to-live sequence (account creation, per-environment keys and webhook secrets, client activation, live smoke test).",
+          "title": "Setup StatusCake monitoring against the live site",
+          "description": "Uptime and SSL certificate checks against https://{{domain_name}} with alerts to the support channel. Set up ahead of go-live so it's watching from the moment DNS switches.",
           "task_type": "Task",
-          "estimate_minutes": 60
+          "estimate_minutes": 15
         },
         {
           "title": "Set up CreateSend mailing list account + API keys",
