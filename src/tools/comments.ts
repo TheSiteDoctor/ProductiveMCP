@@ -110,8 +110,8 @@ function formatComment(
     body: attrs.body || "",
     created_at: attrs.created_at,
     updated_at: attrs.updated_at,
-    pinned: attrs.pinned || false,
-    visible_to_clients: attrs.visible_to_clients !== false,
+    pinned: attrs.pinned_at != null,
+    visible_to_clients: attrs.hidden !== true,
     author_id: authorId,
     author_name: authorName,
     task_id: taskId,
@@ -224,11 +224,16 @@ function formatCommentMarkdown(comment: FormattedComment): string {
     minute: "2-digit",
   });
 
+  const visibilityLine = !comment.visible_to_clients
+    ? "**Visibility**: Internal — hidden from clients"
+    : "**Visibility**: Visible to clients";
+
   const lines = [
     `# Comment${pinnedBadge}${privateBadge}`,
     "",
     `**Author**: ${author}`,
     `**Date**: ${date}`,
+    visibilityLine,
     `**ID**: ${comment.id}`,
   ];
 
@@ -294,7 +299,7 @@ export async function createComment(
       type: "comments",
       attributes: {
         body: htmlBody,
-        visible_to_clients: args.visible_to_clients,
+        hidden: !args.visible_to_clients,
       },
       relationships: {
         [commentableType]: {
@@ -355,15 +360,21 @@ export async function updateComment(
   client: ProductiveClient,
   args: z.infer<typeof UpdateCommentSchema>,
 ): Promise<string> {
-  const htmlBody = markdownToHtml(args.body);
+  const attributes: NonNullable<UpdateCommentPayload["data"]["attributes"]> =
+    {};
+
+  if (args.body !== undefined) {
+    attributes.body = markdownToHtml(args.body);
+  }
+  if (args.visible_to_clients !== undefined) {
+    attributes.hidden = !args.visible_to_clients;
+  }
 
   const payload: UpdateCommentPayload = {
     data: {
       type: "comments",
       id: args.comment_id,
-      attributes: {
-        body: htmlBody,
-      },
+      attributes,
     },
   };
 

@@ -110,10 +110,15 @@ export const UpdateCommentSchema = z
     body: z
       .string()
       .min(1, "Comment body must not be empty")
-      .max(10000, "Comment body must be 10000 characters or less"),
+      .max(10000, "Comment body must be 10000 characters or less")
+      .optional(),
+    visible_to_clients: z.boolean().optional(),
     response_format: ResponseFormatSchema,
   })
-  .strict();
+  .strict()
+  .refine((data) => data.body !== undefined || data.visible_to_clients !== undefined, {
+    message: "At least one of body or visible_to_clients must be provided",
+  });
 
 /**
  * Schema for deleting a comment

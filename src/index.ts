@@ -1465,7 +1465,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_create_comment",
       description:
-        'Create a comment on a task, deal, project, or other commentable resource. Comments are internal-only — the PDF/proposal export pulls from the deal\'s `note` field, not comments. Provide either `task_id` (shorthand for commentable_type="task") or the polymorphic `commentable_type` + `commentable_id` pair.\n\nSupported commentable types: task, deal, project, discussion, invoice, person, company, purchase_order.\n\nExample (deal):\n{\n  "commentable_type": "deal",\n  "commentable_id": "3871711",\n  "body": "Migrated from Pipedrive. Original ref: WVB-1073."\n}\n\nExample (task — legacy):\n{\n  "task_id": "12345",\n  "body": "Ready for review.",\n  "visible_to_clients": false\n}',
+        'Create a comment on a task, deal, project, or other commentable resource. The body accepts Markdown, converted to HTML. Provide either `task_id` (shorthand for commentable_type="task") or the polymorphic `commentable_type` + `commentable_id` pair.\n\nSet `visible_to_clients: false` to post an internal comment (Productive\'s `hidden` flag), which client contacts cannot see. Defaults to true (visible to clients). Deal comments are never exported — the PDF/proposal export pulls from the deal\'s `note` field, not comments.\n\nSupported commentable types: task, deal, project, discussion, invoice, person, company, purchase_order.\n\nExample (deal):\n{\n  "commentable_type": "deal",\n  "commentable_id": "3871711",\n  "body": "Migrated from Pipedrive. Original ref: WVB-1073."\n}\n\nExample (task, internal):\n{\n  "task_id": "12345",\n  "body": "Ready for review.",\n  "visible_to_clients": false\n}',
       inputSchema: {
         type: "object",
         properties: {
@@ -1502,7 +1502,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           visible_to_clients: {
             type: "boolean",
             description:
-              "Whether the comment is visible to clients (default: true). Set to false for internal/private comments.",
+              "Set to false to post an internal comment (Productive's `hidden` flag), which client contacts cannot see. Defaults to true (visible to clients).",
             default: true,
           },
           response_format: {
@@ -1539,7 +1539,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_update_comment",
       description:
-        'Update the body of an existing comment. The body accepts Markdown formatting which will be converted to HTML.\n\nExample:\n{\n  "comment_id": "12345",\n  "body": "Updated comment text"\n}',
+        'Update an existing comment\'s body and/or visibility. At least one of `body` or `visible_to_clients` must be provided. The body accepts Markdown formatting which will be converted to HTML.\n\nExample:\n{\n  "comment_id": "12345",\n  "body": "Updated comment text"\n}',
       inputSchema: {
         type: "object",
         properties: {
@@ -1550,7 +1550,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           body: {
             type: "string",
             description:
-              "New comment body in Markdown format (required, max 10000 characters)",
+              "New comment body in Markdown format (max 10000 characters). Omit to leave the body unchanged.",
+          },
+          visible_to_clients: {
+            type: "boolean",
+            description:
+              "Set to false to make the comment internal (Productive's `hidden` flag), which client contacts cannot see. Omitting it leaves the comment's current visibility unchanged.",
           },
           response_format: {
             type: "string",
@@ -1559,7 +1564,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             default: "markdown",
           },
         },
-        required: ["comment_id", "body"],
+        required: ["comment_id"],
       },
     },
     {

@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.3] - 2026-09-16
+
+Merges PR #5 (`fix/comment-internal-visibility`, authored upstream as 1.3.4) into the 1.6 line. Verified against the live API: the comment resource exposes `hidden` and `pinned_at`; `visible_to_clients` and `pinned` do not exist.
+
+### Fixed
+
+- **Internal comments were always created public**: `productive_create_comment` sent `visible_to_clients` as an attribute that does not exist on Productive's comment resource. The API silently dropped it, so every comment was created visible to clients regardless of the flag, while the tool reported success. Comments are now sent with Productive's real `hidden` attribute (`hidden: !visible_to_clients`). This applies to every commentable type (task, deal, project, …).
+- **Comment reads always reported client-visible and never showed pinned status**: `formatComment()` read the nonexistent `visible_to_clients` and `pinned` attributes, so `visible_to_clients` was always `true` and `pinned` always `false`. It now derives them from `hidden` and `pinned_at`. Single-comment views gained an explicit `**Visibility**` line.
+
+### Added
+
+- **`productive_update_comment` can toggle visibility**: optional `visible_to_clients` parameter, mapped to `hidden` on the wire, so comments incorrectly posted as public can be corrected without rewriting their body. `body` is now optional; at least one of `body` or `visible_to_clients` must be supplied, and omitting either leaves that aspect untouched.
+
+### Notes
+
+- This is a behaviour fix, not a data fix. Every comment previously posted through this server as "internal" is still `hidden: false` in Productive. The new update parameter is the route to correcting them, but the intent was never recorded, so they have to be found by hand.
+
 ## [1.6.2] - 2026-09-16
 
 Merges the workflow-status scoping fix from PR #3 (published upstream as 1.3.3 on 2026-08-03) into the 1.4–1.6 line. Both branches had fixed the same underlying bug — status names resolving to IDs from an unused `Default workflow` — in different ways. This release combines them: the per-project runtime lookup (1.4.1/1.4.3) stays the primary path, and the dominant-workflow config resolution from PR #3 becomes the fallback.

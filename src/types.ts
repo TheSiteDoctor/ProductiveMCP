@@ -567,8 +567,8 @@ export interface CommentAttributes {
   body: string;
   created_at: string;
   updated_at: string;
-  pinned: boolean;
-  visible_to_clients: boolean;
+  hidden: boolean;
+  pinned_at: string | null;
   commentable_type?: string | null;
   commentable_id?: string | null;
 }
@@ -611,7 +611,7 @@ export interface CreateCommentPayload {
     type: "comments";
     attributes: {
       body: string;
-      visible_to_clients?: boolean;
+      hidden?: boolean;
     };
     // Polymorphic: exactly one of these is set based on the commentable_type.
     // The relationship key uses the singular form ("deal", "task", etc.) and the
@@ -634,6 +634,7 @@ export interface UpdateCommentPayload {
     id: string;
     attributes?: {
       body?: string;
+      hidden?: boolean;
     };
   };
 }
