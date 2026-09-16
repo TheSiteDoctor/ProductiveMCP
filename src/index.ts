@@ -1135,6 +1135,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             description:
               "Reuse a task list already in the project when its name matches (case-insensitive) instead of creating a duplicate (default: true)",
           },
+          skip_existing_tasks: {
+            type: "boolean",
+            default: true,
+            description:
+              "In a reused task list, skip top-level tasks whose title already exists (case-insensitive), so re-applying a template or stacking add-on templates doesn't create duplicates (default: true)",
+          },
           dry_run: {
             type: "boolean",
             default: false,

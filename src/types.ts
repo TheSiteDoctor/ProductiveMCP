@@ -272,6 +272,8 @@ export interface CreateTaskPayload {
       due_date?: string;
       start_date?: string;
       initial_estimate?: number;
+      /** 3 = milestone (as used by productive_create_milestone) */
+      type_id?: number;
       custom_fields?: Record<string, string | string[]>;
     };
     relationships?: {

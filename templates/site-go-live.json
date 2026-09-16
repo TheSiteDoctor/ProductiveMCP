@@ -55,8 +55,8 @@
           "estimate_minutes": 60,
           "subtasks": [
             {
-              "title": "Check domain is added to domain list (file:///Z:/TSD Documenation/Domain List.xlsx)",
-              "description": "Make note of the IP as you'll need it later",
+              "title": "Check domain is added to the TSD domain list",
+              "description": "Make note of the IP as you'll need it for the IIS bindings later.",
               "task_type": "Task",
               "labels": [
                 "GoLive"
@@ -82,7 +82,7 @@
             },
             {
               "title": "Check the MX records are correct on all domains",
-              "description": "1. mx1.emailsrvr.com - Priority 10\n1. mx2.emailsrvr.com - Priority 20\nTest the site at both of the links below:\n\n* http://mxtoolbox.com/SuperTool.aspx?action=txt%3a{{domain_name}}&run=toolpage\n* http://mxtoolbox.com/SuperTool.aspx?action=mx%3a{{domain_name}}&run=toolpage",
+              "description": "Confirm the MX records match the client's email provider (don't guess - a wrong MX change takes their email down). Verify with http://mxtoolbox.com/ (MX and TXT lookups) once DNS has propagated.",
               "task_type": "Task",
               "labels": [
                 "GoLive"
@@ -125,16 +125,8 @@
               "estimate_minutes": 60
             },
             {
-              "title": "Delete the install folder if Umbraco version is less than 7",
-              "task_type": "Task",
-              "labels": [
-                "GoLive"
-              ],
-              "estimate_minutes": 60
-            },
-            {
               "title": "Ensure permissions are correct on the Umbraco folder",
-              "description": "Ensure permissions are correct on the Umbraco folder (they should be). Here's my PowerShell script I use: https://gist.github.com/timgaunt/9933156\n\n**Powershell script to set permissions**\n```\n$PhysicalPath = \"[Path to Website]\"\n$appPoolAccount = \"IIS_IUSRS\"\n$readExecute = $appPoolAccount,\"ReadAndExecute\",\"ContainerInherit, ObjectInherit\",\"InheritOnly\",\"Allow\"\n$read = $appPoolAccount,\"Read\",\"ContainerInherit, ObjectInherit\",\"InheritOnly\",\"Allow\"\n$modify = $appPoolAccount,\"Modify\",\"ContainerInherit, ObjectInherit\",\"InheritOnly\",\"Allow\"\n$fileModify = $appPoolAccount,\"Modify\",\"Allow\"\n$objects = @{}\n$objects[\"app_browsers\"] = $readExecute\n$objects[\"app_code\"] = $readExecute\n$objects[\"app_data\"] = $modify\n$objects[\"bin\"] = $read\n$objects[\"config\"] = $modify\n$objects[\"css\"] = $modify\n$objects[\"macroscripts\"] = $modify\n$objects[\"masterpages\"] = $modify\n$objects[\"media\"] = $modify\n$objects[\"scripts\"] = $modify\n$objects[\"umbraco\"] = $modify\n$objects[\"usercontrols\"] = $modify\n$objects[\"views\"] = $modify\n$objects[\"xslt\"] = $modify\n$objects[\"web.config\"] = $fileModify\nforeach($object in $objects.Keys) {\n    $path = Join-Path $PhysicalPath $object\n    $acl = Get-ACL $path\n    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($objects[$object])\n    $acl.AddAccessRule($rule)\n    Set-Acl $path $acl\n    Get-Acl $path | Format-List\n}\n```",
+              "description": "Ensure file system permissions are correct on the site folders (they should be). PowerShell script: https://gist.github.com/timgaunt/9933156",
               "task_type": "Task",
               "labels": [
                 "GoLive"
@@ -152,8 +144,8 @@
           "estimate_minutes": 60,
           "subtasks": [
             {
-              "title": "Check website is setup in Google Analytics",
-              "description": "See [Setting up google analytics](http://waluigi.cloudapp.net/wiki/index.php?title=Setting_up_google_analytics) if required",
+              "title": "Check the GA4 property is set up",
+              "description": "A GA4 property should exist for the site (in the client's Google account where possible) with the data stream pointing at the live domain, and the GA4 tag firing via GTM - not a hard-coded gtag snippet.",
               "task_type": "Task",
               "labels": [
                 "GoLive"
@@ -161,8 +153,8 @@
               "estimate_minutes": 60
             },
             {
-              "title": "Exclude IPs from Google Analytics",
-              "description": "You'll need to add them under the account administration area under \"All Filters\". You'll want to create a \"Predefined\" filter: \"Exclude\", \"traffic from the IP addresses\", \"that are equal to\" and then one rule for each of the following IPs:\n TSD Office: 217.10.136.198\nTSD VPN: 40.68.175.248\nIf the customer is a corporate and has an internal IP it would be worth adding theirs as well.",
+              "title": "Exclude internal IPs from GA4",
+              "description": "In GA4: Admin > Data streams > Configure tag settings > Define internal traffic - add rules for the TSD office and VPN IPs (and the client's office IP for corporates). Then activate the filter under Admin > Data settings > Data filters (filters start in Testing mode and exclude nothing until activated).",
               "task_type": "Task",
               "labels": [
                 "GoLive"
@@ -170,8 +162,8 @@
               "estimate_minutes": 60
             },
             {
-              "title": "Check website is setup and verified in Google Webmaster Tools",
-              "description": "https://www.google.com/webmasters/tools/home?hl=en\nUsername/Password is in LastPass.",
+              "title": "Verify the site in Google Search Console and submit the XML sitemap",
+              "description": "Create/verify a **domain property** for the site (covers www/non-www and both protocols), submit the XML sitemap, and check back for coverage errors once it starts processing. Credentials are in LastPass.",
               "task_type": "Task",
               "labels": [
                 "GoLive"
@@ -179,25 +171,8 @@
               "estimate_minutes": 60
             },
             {
-              "title": "Add sitemap to Google Webmaster Tools",
-              "task_type": "Task",
-              "labels": [
-                "GoLive"
-              ],
-              "estimate_minutes": 60
-            },
-            {
-              "title": "Check website is setup and verified in Bing's Webmaster Tools",
-              "description": "http://www.bing.com/webmaster\nUsername/Password is in LastPass",
-              "task_type": "Task",
-              "labels": [
-                "GoLive"
-              ],
-              "estimate_minutes": 60
-            },
-            {
-              "title": "Add sitemap to Bing's Webmaster Tools",
-              "description": "http://www.bing.com/webmaster\nUsername/Password is in LastPass",
+              "title": "Set up Bing Webmaster Tools and submit the sitemap",
+              "description": "https://www.bing.com/webmasters - quickest is importing the verified site straight from Google Search Console. Submit the XML sitemap.",
               "task_type": "Task",
               "labels": [
                 "GoLive"
@@ -243,54 +218,13 @@
             },
             {
               "title": "Add caching to web.config for the static content folders",
-              "description": "We need to leverage the browser caching on the folders that contain static content i.e. images, fonts, css and scripts.\n\nIf there's already a web.config, we need to add staticContent to the system.webServer node, if not, create a new web.config file:\n\n```\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<configuration>\n\t<system.webServer>\n\t\t<staticContent>\n\t\t\t<clientCache cacheControlMode=\"UseMaxAge\" cacheControlMaxAge=\"30.00:00:00\" />\n\t\t</staticContent>\n\t</system.webServer>\n</configuration>\n```",
+              "description": "We need to leverage the browser caching on the folders that contain static content i.e. images, fonts, css and scripts.\n\nIf there's already a web.config, we need to add staticContent to the system.webServer node, if not, create a new web.config file:\n\n```\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<configuration>\n\t<system.webServer>\n\t\t<staticContent>\n\t\t\t<clientCache cacheControlMode=\"UseMaxAge\" cacheControlMaxAge=\"30.00:00:00\" />\n\t\t</staticContent>\n\t</system.webServer>\n</configuration>\n```\n\nApply to each static folder: css, img, fonts (if hosted locally), media, scripts.",
               "task_type": "Task",
               "labels": [
                 "GoLive"
               ],
               "estimate_minutes": 240,
               "subtasks": [
-                {
-                  "title": "Add caching to web.config to the css folder",
-                  "task_type": "Task",
-                  "labels": [
-                    "GoLive"
-                  ],
-                  "estimate_minutes": 60
-                },
-                {
-                  "title": "Add caching to web.config to the img folder",
-                  "task_type": "Task",
-                  "labels": [
-                    "GoLive"
-                  ],
-                  "estimate_minutes": 60
-                },
-                {
-                  "title": "Add caching to web.config to the fonts folder",
-                  "description": "(This may not exist if it's hosted elsewhere)",
-                  "task_type": "Task",
-                  "labels": [
-                    "GoLive"
-                  ],
-                  "estimate_minutes": 60
-                },
-                {
-                  "title": "Add caching to web.config to the Media folder",
-                  "task_type": "Task",
-                  "labels": [
-                    "GoLive"
-                  ],
-                  "estimate_minutes": 60
-                },
-                {
-                  "title": "Add caching to web.config to the scripts folder",
-                  "task_type": "Task",
-                  "labels": [
-                    "GoLive"
-                  ],
-                  "estimate_minutes": 60
-                },
                 {
                   "title": "Add httpCompression and urlCompression to web.config",
                   "description": "httpCompression and urlCompression nodes will need to be added to the end of the system.webServer node in the web.config if they're not already there\n\n**web.config**\n```\n<httpCompression directory=\"%SystemDrive%\\inetpub\\temp\\IIS Temporary Compressed Files\">\n    <scheme name=\"gzip\" dll=\"%Windir%\\system32\\inetsrv\\gzip.dll\" />\n    <dynamicTypes>\n        <add mimeType=\"text/*\" enabled=\"true\" />\n        <add mimeType=\"message/*\" enabled=\"true\" />\n        <add mimeType=\"application/javascript\" enabled=\"true\" />\n        <add mimeType=\"*/*\" enabled=\"false\" />\n    </dynamicTypes>\n    <staticTypes>\n        <add mimeType=\"text/*\" enabled=\"true\" />\n        <add mimeType=\"message/*\" enabled=\"true\" />\n        <add mimeType=\"application/javascript\" enabled=\"true\" />\n        <add mimeType=\"*/*\" enabled=\"false\" />\n    </staticTypes>\n</httpCompression>\n<urlCompression doStaticCompression=\"true\" doDynamicCompression=\"true\" />\n```",
@@ -303,8 +237,8 @@
               ]
             },
             {
-              "title": "Update the log4net.config settings",
-              "description": "This may change depending on the site we're running but this is our standard log4net.config setup:\n\n```\n<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<log4net>\n\t<root>\n\t\t<priority value=\"Info\"/>\n\t\t<appender-ref ref=\"AsynchronousLog4NetAppender\" />\n\t</root>\n\n\t<appender name=\"AsynchronousLog4NetAppender\" type=\"Umbraco.Core.Logging.AsynchronousRollingFileAppender, Umbraco.Core\">\n\t\t<file value=\"App_Data\\Logs\\UmbracoTraceLog.txt\" />\n\t\t<lockingModel type=\"log4net.Appender.FileAppender+MinimalLock\" />\n\t\t<appendToFile value=\"true\" />\n\t\t<rollingStyle value=\"Date\" />\n\t\t<maximumFileSize value=\"5MB\" />\n\t\t<layout type=\"log4net.Layout.PatternLayout\">\n\t\t\t<conversionPattern value=\"%date [%thread] %-5level %logger - %message%newline\" />\n\t\t</layout>\n\t\t<encoding value=\"utf-8\" />\n\t</appender>\n\n\t<logger name=\"System.Object\">\n\t\t<level value=\"Warn\" />\n\t</logger>\n\t<logger name=\"SeqAppender\">\n\t\t<level value=\"Debug\" />\n\t\t<appender-ref ref=\"Umbraco\" />\n\t</logger>\n\t<logger name=\"umbraco.macro\">\n\t\t<level value=\"Info\" />\n\t</logger>\n\t<logger name=\"Umbraco.Web.UmbracoModule\">\n\t\t<level value=\"Info\" />\n\t</logger>\n\t<logger name=\"Umbraco.Core\">\n\t\t<level value=\"Info\" />\n\t</logger>\n\t<logger name=\"Umbraco.Web.Routing\">\n\t\t<level value=\"Info\" />\n\t</logger>\n\t<logger name=\"Raven\">\n\t\t<level value=\"ERROR\" />\n\t</logger>\n\t<logger name=\"NHibernate\">\n\t\t<level value=\"ERROR\" />\n\t</logger>\n\t<logger name=\"NHibernate.SQL\">\n\t\t<level value=\"ERROR\" />\n\t</logger>\n</log4net>\n```",
+              "title": "Check the production logging configuration",
+              "description": "Logging (Serilog on modern Umbraco) should be at Information/Warning minimum level in production - no Debug/Verbose noise - and writing to Seq with the PROD API key. Confirm log files aren't growing unbounded on disk.",
               "task_type": "Task",
               "labels": [
                 "GoLive"
@@ -312,26 +246,8 @@
               "estimate_minutes": 60
             },
             {
-              "title": "Update the email address in umbracoSettings.config",
-              "description": "Although we don't generally use it notifications>email needs to be changed to support@thesitedoctor.co.uk",
-              "task_type": "Task",
-              "labels": [
-                "GoLive"
-              ],
-              "estimate_minutes": 60
-            },
-            {
-              "title": "Add and upload Google Webmaster Tools verification file (google8e4b13f2522344aa.html)",
-              "description": "File should be available in any of our recent projects (it's the same for all)",
-              "task_type": "Task",
-              "labels": [
-                "GoLive"
-              ],
-              "estimate_minutes": 60
-            },
-            {
-              "title": "Add and upload Bing verification file (BingSiteAuth.xml)",
-              "description": "File should be available in any of our recent projects (it's the same for all)",
+              "title": "Check the CMS notification email address",
+              "description": "Any CMS notification email address should be set to support@thesitedoctor.co.uk rather than a developer's address.",
               "task_type": "Task",
               "labels": [
                 "GoLive"
@@ -348,20 +264,13 @@
               "estimate_minutes": 60
             },
             {
-              "title": "Check site has a favicon",
+              "title": "Check site has a favicon and touch icons",
               "task_type": "Task",
               "labels": [
                 "GoLive"
               ],
-              "estimate_minutes": 60
-            },
-            {
-              "title": "Add touch icons",
-              "task_type": "Task",
-              "labels": [
-                "GoLive"
-              ],
-              "estimate_minutes": 60
+              "estimate_minutes": 60,
+              "description": "Favicon (including SVG where possible) plus Apple touch icon and web app manifest icons."
             },
             {
               "title": "Check site map has been added to Robots.txt",
@@ -373,12 +282,13 @@
               "estimate_minutes": 60
             },
             {
-              "title": "Check Google Analytics is installed (and is correct id)",
+              "title": "Check GTM is installed with the correct container ID",
               "task_type": "Task",
               "labels": [
                 "GoLive"
               ],
-              "estimate_minutes": 60
+              "estimate_minutes": 60,
+              "description": "The GTM snippet should be on every page template with the correct container ID (check against the client's GTM account, not a copy-paste from another project)."
             },
             {
               "title": "Deactivate debug mode throughout site",
@@ -390,8 +300,8 @@
               "estimate_minutes": 60
             },
             {
-              "title": "Switch to locally hosted icon font",
-              "description": "If the icon font uses a remote dev URL, this should be downloaded and hosted locally for better performance.",
+              "title": "Self-host web fonts",
+              "description": "Fonts should be served from the site (or its CDN), not a dev/third-party URL - better performance and no GDPR wobble over Google Fonts. Preload the primary font files.",
               "task_type": "Task",
               "labels": [
                 "GoLive"
@@ -478,38 +388,12 @@
                 },
                 {
                   "title": "Ensure emails are correctly sent",
-                  "description": "We need to make sure that the emails are correctly sent to the specified recipient. It's probably easier if you use a test TSD account (or your own):\n1. Update the contact us form(s) \"To\" address\n1. Submit the form(s)\n1. Check the inbox for the email and verify that they're received/formatted correctly\n1. Revert the \"To\" address back to the client's address",
+                  "description": "We need to make sure that the emails are correctly sent to the specified recipient. It's probably easier if you use a test TSD account (or your own):\n1. Update the contact us form(s) \"To\" address\n1. Submit the form(s)\n1. Check the inbox for the email and verify that they're received/formatted correctly\n1. Revert the \"To\" address back to the client's address\n\nCheck each of:\n* Contact us page\n* Order confirmation (if e-commerce)\n* Abandoned basket (if e-commerce)",
                   "task_type": "Task",
                   "labels": [
                     "GoLive"
                   ],
-                  "estimate_minutes": 60,
-                  "subtasks": [
-                    {
-                      "title": "Contact Us Page",
-                      "task_type": "Task",
-                      "labels": [
-                        "GoLive"
-                      ],
-                      "estimate_minutes": 60
-                    },
-                    {
-                      "title": "Order Confirmation (if e-commerce)",
-                      "task_type": "Task",
-                      "labels": [
-                        "GoLive"
-                      ],
-                      "estimate_minutes": 60
-                    },
-                    {
-                      "title": "Abanonded basket (if e-commerce)",
-                      "task_type": "Task",
-                      "labels": [
-                        "GoLive"
-                      ],
-                      "estimate_minutes": 60
-                    }
-                  ]
+                  "estimate_minutes": 60
                 },
                 {
                   "title": "Check the {{email_provider}} API key is unique to the customer",
@@ -550,50 +434,12 @@
               "subtasks": [
                 {
                   "title": "Registration forms",
-                  "description": "Ensure that all contact us/forms respond with a \"Thank You\" page (or similar message confirming that the form was successfully sent)",
+                  "description": "Check each of:\n* **Registration forms show thank you message on sign up** - Ensure that any registration forms respond with a \"Thank You\" page (or similar message confirming that the user was successfully registered)\n* **Registration forms show helpful error message on existing user** - Ensure that any registration forms respond with a helpful message when the username already exists\n* **Registration forms show helpful error message on poor password** - Ensure that any registration forms respond with a helpful message when the password isn't secure enough\n* **Registration forms send welcome email** - Ensure that any registration forms send a welcome email to the user on registration",
                   "task_type": "Task",
                   "labels": [
                     "GoLive"
                   ],
-                  "estimate_minutes": 60,
-                  "subtasks": [
-                    {
-                      "title": "Registration forms show thank you message on sign up",
-                      "description": "Ensure that any registration forms respond with a \"Thank You\" page (or similar message confirming that the user was successfully registered)",
-                      "task_type": "Task",
-                      "labels": [
-                        "GoLive"
-                      ],
-                      "estimate_minutes": 60
-                    },
-                    {
-                      "title": "Registration forms show helpful error message on existing user",
-                      "description": "Ensure that any registration forms respond with a helpful message when the username already exists",
-                      "task_type": "Task",
-                      "labels": [
-                        "GoLive"
-                      ],
-                      "estimate_minutes": 60
-                    },
-                    {
-                      "title": "Registration forms show helpful error message on poor password",
-                      "description": "Ensure that any registration forms respond with a helpful message when the password isn't secure enough",
-                      "task_type": "Task",
-                      "labels": [
-                        "GoLive"
-                      ],
-                      "estimate_minutes": 60
-                    },
-                    {
-                      "title": "Registration forms send welcome email",
-                      "description": "Ensure that any registration forms send a welcome email to the user on registration",
-                      "task_type": "Task",
-                      "labels": [
-                        "GoLive"
-                      ],
-                      "estimate_minutes": 60
-                    }
-                  ]
+                  "estimate_minutes": 60
                 },
                 {
                   "title": "Login forms",
@@ -604,168 +450,25 @@
                   "estimate_minutes": 60,
                   "subtasks": [
                     {
-                      "title": "Login form logs in",
-                      "description": "Check that given a valid username/password the form logs the user in correctly",
-                      "task_type": "Task",
-                      "labels": [
-                        "GoLive"
-                      ],
-                      "estimate_minutes": 60
-                    },
-                    {
-                      "title": "Ensure user is correctly redirected to the previous page",
-                      "description": "When a querystring parameter for `returnUrl` is supplied, after logging in it should redirect the user to the specified page on login.",
-                      "task_type": "Task",
-                      "labels": [
-                        "GoLive"
-                      ],
-                      "estimate_minutes": 60
-                    },
-                    {
-                      "title": "Ensure remote returnurl is blocked",
-                      "description": "When a querystring parameter for `returnUrl` is external i.e. http://thesitedoctor.co.uk then it return the user to the homepage instead to avoid us being used as a pass-through site.",
-                      "task_type": "Task",
-                      "labels": [
-                        "GoLive"
-                      ],
-                      "estimate_minutes": 60
-                    },
-                    {
-                      "title": "Social Logins",
+                      "title": "Social logins work (if applicable)",
                       "task_type": "Task",
                       "labels": [
                         "GoLive"
                       ],
                       "estimate_minutes": 60,
-                      "subtasks": [
-                        {
-                          "title": "Twitter social login logs in",
-                          "description": "Ensure that the social login button works in incognito mode.",
-                          "task_type": "Task",
-                          "labels": [
-                            "GoLive"
-                          ],
-                          "estimate_minutes": 60
-                        },
-                        {
-                          "title": "Facebook social login logs in",
-                          "description": "Ensure that the social login button works in incognito mode.",
-                          "task_type": "Task",
-                          "labels": [
-                            "GoLive"
-                          ],
-                          "estimate_minutes": 60
-                        },
-                        {
-                          "title": "Google social login logs in",
-                          "description": "Ensure that the social login button works in incognito mode.",
-                          "task_type": "Task",
-                          "labels": [
-                            "GoLive"
-                          ],
-                          "estimate_minutes": 60
-                        }
-                      ]
+                      "description": "Check each configured provider logs in from an incognito window:\n* **X (Twitter) social login logs in** - Ensure that the social login button works in incognito mode.\n* **Facebook social login logs in** - Ensure that the social login button works in incognito mode.\n* **Google social login logs in** - Ensure that the social login button works in incognito mode."
                     },
                     {
-                      "title": "Forgotten password form works",
+                      "title": "Forgotten password flow works",
                       "task_type": "Task",
                       "labels": [
                         "GoLive"
                       ],
                       "estimate_minutes": 60,
-                      "subtasks": [
-                        {
-                          "title": "Forgotten Password form show thank you message",
-                          "description": "Ensure that any Forgotten Password form respond with a \"Thank You\" page (or similar message confirming that the process was successful)",
-                          "task_type": "Task",
-                          "labels": [
-                            "GoLive"
-                          ],
-                          "estimate_minutes": 60
-                        },
-                        {
-                          "title": "Forgotten Password form show helpful error message when no user is found",
-                          "description": "Ensure that any Forgotten Password form respond with a helpful message when the user doesn't exist. It shouldn't say the user doesn't exist but instead just that if it's found we'll email them (so it doesn't identify valid usernames).",
-                          "task_type": "Task",
-                          "labels": [
-                            "GoLive"
-                          ],
-                          "estimate_minutes": 60
-                        },
-                        {
-                          "title": "Forgotten Password form send email",
-                          "description": "Ensure that any Forgotten Password form send an email to the user with a link to reset their password",
-                          "task_type": "Task",
-                          "labels": [
-                            "GoLive"
-                          ],
-                          "estimate_minutes": 60
-                        },
-                        {
-                          "title": "Forgotten Password reset form show helpful message on successful reset",
-                          "task_type": "Task",
-                          "labels": [
-                            "GoLive"
-                          ],
-                          "estimate_minutes": 60
-                        },
-                        {
-                          "title": "Forgotten Password reset form show helpful message on invalid token",
-                          "description": "When an invalid token has been supplied it should show some form of helpful error message asking them to go through the process again.",
-                          "task_type": "Task",
-                          "labels": [
-                            "GoLive"
-                          ],
-                          "estimate_minutes": 60
-                        },
-                        {
-                          "title": "Forgotten Password reset form show helpful message on expired token",
-                          "description": "The token to reset the password should expire after 24 hours. When using an expired token it should ask them to go through the process again.",
-                          "task_type": "Task",
-                          "labels": [
-                            "GoLive"
-                          ],
-                          "estimate_minutes": 60
-                        },
-                        {
-                          "title": "Forgotten Password reset form should correctly reset the user's password",
-                          "task_type": "Task",
-                          "labels": [
-                            "GoLive"
-                          ],
-                          "estimate_minutes": 60
-                        },
-                        {
-                          "title": "Forgotten Password reset form should unlock the user",
-                          "description": "When resetting the password the user may be locked (IsApproved = false in umbraco) so it should unlock the user and allow them to log in.",
-                          "task_type": "Task",
-                          "labels": [
-                            "GoLive"
-                          ],
-                          "estimate_minutes": 60
-                        }
-                      ]
-                    },
-                    {
-                      "title": "Login form shows nice message when a wrong username is entered",
-                      "description": "When entering an invalid username, the form should alert the user with a nice error message however the error message shouldn't specify whether it was either the username or the password i.e. something ambigous is best: `Sorry, no user could be found with that username or password. Please check your details and try again.`",
-                      "task_type": "Task",
-                      "labels": [
-                        "GoLive"
-                      ],
-                      "estimate_minutes": 60
-                    },
-                    {
-                      "title": "Login form shows nice message when a wrong password is entered",
-                      "description": "When entering an invalid password, the form should alert the user with a nice error message however the error message shouldn't specify whether it was either the username or the password i.e. something ambigous is best: `Sorry, no user could be found with that username or password. Please check your details and try again.`",
-                      "task_type": "Task",
-                      "labels": [
-                        "GoLive"
-                      ],
-                      "estimate_minutes": 60
+                      "description": "Check each of:\n* **Forgotten Password form show thank you message** - Ensure that any Forgotten Password form respond with a \"Thank You\" page (or similar message confirming that the process was successful)\n* **Forgotten Password form show helpful error message when no user is found** - Ensure that any Forgotten Password form respond with a helpful message when the user doesn't exist. It shouldn't say the user doesn't exist but instead just that if it's found we'll email them (so it doesn't identify valid usernames).\n* **Forgotten Password form send email** - Ensure that any Forgotten Password form send an email to the user with a link to reset their password\n* **Forgotten Password reset form show helpful message on successful reset**\n* **Forgotten Password reset form show helpful message on invalid token** - When an invalid token has been supplied it should show some form of helpful error message asking them to go through the process again.\n* **Forgotten Password reset form show helpful message on expired token** - The token to reset the password should expire after 24 hours. When using an expired token it should ask them to go through the process again.\n* **Forgotten Password reset form should correctly reset the user's password**\n* **Forgotten Password reset form should unlock the user** - When resetting the password the user may be locked (IsApproved = false in umbraco) so it should unlock the user and allow them to log in."
                     }
-                  ]
+                  ],
+                  "description": "Check each of:\n* **Login form logs in** - Check that given a valid username/password the form logs the user in correctly\n* **Ensure user is correctly redirected to the previous page** - When a querystring parameter for `returnUrl` is supplied, after logging in it should redirect the user to the specified page on login.\n* **Ensure remote returnurl is blocked** - When a querystring parameter for `returnUrl` is external i.e. http://thesitedoctor.co.uk then it return the user to the homepage instead to avoid us being used as a pass-through site.\n* **Login form shows nice message when a wrong username is entered** - When entering an invalid username, the form should alert the user with a nice error message however the error message shouldn't specify whether it was either the username or the password i.e. something ambigous is best: `Sorry, no user could be found with that username or password. Please check your details and try again.`\n* **Login form shows nice message when a wrong password is entered** - When entering an invalid password, the form should alert the user with a nice error message however the error message shouldn't specify whether it was either the username or the password i.e. something ambigous is best: `Sorry, no user could be found with that username or password. Please check your details and try again.`"
                 }
               ]
             },
@@ -815,20 +518,22 @@
               "estimate_minutes": 60
             },
             {
-              "title": "Check visits are being sent to Google Analytics (Chrome plugin can help: [http://bit.ly/PCKsB0])",
+              "title": "Check visits appear in GA4 Realtime",
               "task_type": "Task",
               "labels": [
                 "GoLive"
               ],
-              "estimate_minutes": 60
+              "estimate_minutes": 60,
+              "description": "Use GTM preview mode / Tag Assistant against the live site and confirm your visit appears in the GA4 Realtime report."
             },
             {
-              "title": "If e-commerce, check sales are being sent to Google Analytics",
+              "title": "If e-commerce, check purchase events reach GA4",
               "task_type": "Task",
               "labels": [
                 "GoLive"
               ],
-              "estimate_minutes": 60
+              "estimate_minutes": 60,
+              "description": "Confirm the purchase event fires on the order confirmation page via the dataLayer with the correct transaction ID and value, and that it appears in GA4 (Realtime, then the Ecommerce purchases report)."
             },
             {
               "title": "Check that the open graph image is updated to the site logo rather than TSD logo",
@@ -904,16 +609,8 @@
               "estimate_minutes": 60
             },
             {
-              "title": "Check that the Querystring parameter \"umbDebugShowTrace=true\" doesn't show trace output",
-              "task_type": "Task",
-              "labels": [
-                "GoLive"
-              ],
-              "estimate_minutes": 60
-            },
-            {
-              "title": "Check site speed using Google's PageSpeed tests",
-              "description": "Run through Google's PageSpeed tests (https://developers.google.com/speed/pagespeed/).\n\nIt will highlight the main issues (if any) that we need to resolve. It's a judgement call so address the ones that make send and overview why you haven't on the ones that you don't resolve i.e. \"reducing the image by 1kb will have taken too long\".",
+              "title": "Run PageSpeed Insights and address Core Web Vitals",
+              "description": "Run the key templates through https://pagespeed.web.dev/ (or Lighthouse in devtools). Address what's sensible - LCP, CLS and INP first - and note why for anything deliberately left.",
               "task_type": "Task",
               "labels": [
                 "GoLive"
@@ -931,7 +628,7 @@
             },
             {
               "title": "Validate Open Graph settings",
-              "description": "Easiest thing to do is to run through Facebook's Open Graph Object Debugger (https://developers.facebook.com/tools/debug/og/object/).\n\nIt will highlight many of the issues you may have. Best to Fetch new scrape information in case someone has run it before.",
+              "description": "Run the key pages through Facebook's Sharing Debugger (https://developers.facebook.com/tools/debug/) - scrape again in case someone has fetched it before. Check title, description and image.",
               "task_type": "Task",
               "labels": [
                 "GoLive"
@@ -956,17 +653,7 @@
                 "GoLive"
               ],
               "estimate_minutes": 120,
-              "subtasks": [
-                {
-                  "title": "Incorrect punctuation, headings etc",
-                  "description": "* Check for incorrect punctuation marks, particularly apostrophes, quotation marks and hyphens/dashes\n* Check headings for where you could potentially use ligatures\n* Check for widow/orphan terms in important paragraphs",
-                  "task_type": "Task",
-                  "labels": [
-                    "GoLive"
-                  ],
-                  "estimate_minutes": 120
-                }
-              ]
+              "description": "* Check for incorrect punctuation marks, particularly apostrophes, quotation marks and hyphens/dashes\n* Check headings for where you could potentially use ligatures\n* Check for widow/orphan terms in important paragraphs"
             },
             {
               "title": "Spelling and grammar",
@@ -1051,17 +738,8 @@
               "estimate_minutes": 120
             },
             {
-              "title": "JavaScript validation",
-              "description": "JSHint is available at http://jshint.com/",
-              "task_type": "Task",
-              "labels": [
-                "GoLive"
-              ],
-              "estimate_minutes": 120
-            },
-            {
-              "title": "CSS validation",
-              "description": "W3C CSS validator is available at https://jigsaw.w3.org/css-validator/",
+              "title": "Check for JavaScript console errors",
+              "description": "Browse the key pages and journeys with devtools open: no console errors, no failed network requests, no mixed-content warnings.",
               "task_type": "Task",
               "labels": [
                 "GoLive"
@@ -1337,7 +1015,7 @@
               ]
             },
             {
-              "title": "uCommerce checks",
+              "title": "Umbraco Commerce checks",
               "task_type": "Task",
               "labels": [
                 "GoLive"
@@ -1346,7 +1024,7 @@
               "subtasks": [
                 {
                   "title": "Check the emails are going from the right account",
-                  "description": "uCommerce > Settings > E-mail > Profiles > domain.com - each of these should be being sent from the client",
+                  "description": "Umbraco Commerce > Settings > E-mail > Profiles > domain.com - each of these should be being sent from the client",
                   "task_type": "Task",
                   "labels": [
                     "GoLive"
@@ -1355,7 +1033,7 @@
                 },
                 {
                   "title": "Check the emails have a sensible subject line",
-                  "description": "uCommerce > Settings > E-mail > Profiles > domain.com - each of these should have a sensible subject line i.e. Company Name Order #[Order.Number]",
+                  "description": "Umbraco Commerce > Settings > E-mail > Profiles > domain.com - each of these should have a sensible subject line i.e. Company Name Order #[Order.Number]",
                   "task_type": "Task",
                   "labels": [
                     "GoLive"
@@ -1363,7 +1041,7 @@
                   "estimate_minutes": 60
                 },
                 {
-                  "title": "uCommerce root (Catalog Group) should be the domain name i.e. thesitedoctor.co.uk",
+                  "title": "Umbraco Commerce root (Catalog Group) should be the domain name i.e. thesitedoctor.co.uk",
                   "task_type": "Task",
                   "labels": [
                     "GoLive"
@@ -1372,15 +1050,6 @@
                 },
                 {
                   "title": "Remove any irrelevant currencies",
-                  "task_type": "Task",
-                  "labels": [
-                    "GoLive"
-                  ],
-                  "estimate_minutes": 60
-                },
-                {
-                  "title": "Name the uCommerce email profile",
-                  "description": "Should be the domain name i.e. thesitedoctor.co.uk",
                   "task_type": "Task",
                   "labels": [
                     "GoLive"
@@ -1397,24 +1066,8 @@
                   "estimate_minutes": 60
                 },
                 {
-                  "title": "If relevant, ensure Create Customers As Members is ticked",
-                  "task_type": "Task",
-                  "labels": [
-                    "GoLive"
-                  ],
-                  "estimate_minutes": 60
-                },
-                {
-                  "title": "Ensure Member Group and Member Type are set on the catalog",
-                  "task_type": "Task",
-                  "labels": [
-                    "GoLive"
-                  ],
-                  "estimate_minutes": 60
-                },
-                {
                   "title": "Make sure the countries are set correctly",
-                  "description": "It should list all countries, a script can be found here: http://thesitedoctor.co.uk/blog/add-every-country-to-ucommerce/ by default it has some odd list of countries that make no sense.",
+                  "description": "The country list should be complete and relevant to where the client actually ships/sells - the default list is rarely right.",
                   "task_type": "Task",
                   "labels": [
                     "GoLive"
@@ -1456,15 +1109,6 @@
                       "estimate_minutes": 60
                     },
                     {
-                      "title": "Ensure the shipping methods are enabled for every country and payment method",
-                      "description": "This script should help: http://thesitedoctor.co.uk/blog/add-every-country-to-ucommerce/",
-                      "task_type": "Task",
-                      "labels": [
-                        "GoLive"
-                      ],
-                      "estimate_minutes": 60
-                    },
-                    {
                       "title": "Ensure the Pricing tab is configured",
                       "task_type": "Task",
                       "labels": [
@@ -1489,15 +1133,6 @@
                     "GoLive"
                   ],
                   "estimate_minutes": 60
-                },
-                {
-                  "title": "Install TrendSeam",
-                  "description": "http://apps.ucommerce.net/#!/apps/TrendSeam",
-                  "task_type": "Task",
-                  "labels": [
-                    "GoLive"
-                  ],
-                  "estimate_minutes": 60
                 }
               ]
             }
@@ -1512,8 +1147,8 @@
           "estimate_minutes": 60,
           "subtasks": [
             {
-              "title": "Schedule a tweet",
-              "description": "Don't forget to tag the url using the [Google URL builder](https://support.google.com/analytics/answer/1033867?hl=en) i.e. http://domain.com?utm_source=twitter&utm_medium=social&utm_term=tsd&utm_content=buffer&utm_campaign=launch%20tweet",
+              "title": "Schedule launch social posts",
+              "description": "Schedule the launch announcement on the relevant channels (X, LinkedIn, Facebook). Tag the links using the GA campaign URL builder (https://ga-dev-tools.google/campaign-url-builder/) so launch traffic is attributable.",
               "task_type": "Task",
               "labels": [
                 "GoLive"
@@ -1538,30 +1173,12 @@
                 },
                 {
                   "title": "Take screenshot of new website",
-                  "description": "Need to take screenshots of the key pages that have been designed/specifically styled e.g. timelines, about us pages etc, at a minimum it needs to be the homepage and content.",
+                  "description": "Need to take screenshots of the key pages that have been designed/specifically styled e.g. timelines, about us pages etc, at a minimum it needs to be the homepage and content.\n\nAt minimum: the homepage and an internal/content page, plus any specifically designed pages (timelines, about us etc).",
                   "task_type": "Task",
                   "labels": [
                     "GoLive"
                   ],
-                  "estimate_minutes": 120,
-                  "subtasks": [
-                    {
-                      "title": "Homepage",
-                      "task_type": "Task",
-                      "labels": [
-                        "GoLive"
-                      ],
-                      "estimate_minutes": 120
-                    },
-                    {
-                      "title": "Internal/content page",
-                      "task_type": "Task",
-                      "labels": [
-                        "GoLive"
-                      ],
-                      "estimate_minutes": 120
-                    }
-                  ]
+                  "estimate_minutes": 120
                 }
               ]
             },

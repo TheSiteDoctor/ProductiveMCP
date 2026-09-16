@@ -142,6 +142,7 @@ export async function getTaskTemplate(
     const renderTask = (task: TemplateTask, depth: number): void => {
       const indent = "  ".repeat(depth);
       const extras: string[] = [];
+      if (task.milestone) extras.push("Milestone");
       if (task.estimate_minutes) {
         extras.push(formatMinutes(task.estimate_minutes));
       }
@@ -270,6 +271,9 @@ export async function applyTaskTemplate(
         due.setDate(due.getDate() + task.due_in_days);
         payload.data.attributes.due_date = due.toISOString().slice(0, 10);
       }
+      if (task.milestone) {
+        payload.data.attributes.type_id = 3;
+      }
 
       if (parentTaskId && payload.data.relationships) {
         payload.data.relationships.parent_task = {
@@ -335,7 +339,7 @@ export async function applyTaskTemplate(
       if (createdId) {
         await createOneTask(sub, taskListId, taskListName, createdId, depth + 1);
       } else {
-        markSkipped(sub, taskListName, depth + 1);
+        markSkipped(sub, taskListName, depth + 1, "Parent task was not created");
       }
     }
   };
@@ -344,17 +348,49 @@ export async function applyTaskTemplate(
     task: TemplateTask,
     taskListName: string,
     depth: number,
+    reason: string,
   ): void => {
     taskResults.push({
       title: task.title,
       task_list: taskListName,
       depth,
       status: "skipped",
-      error: "Parent task was not created",
+      error: reason,
     });
     for (const sub of task.subtasks || []) {
-      markSkipped(sub, taskListName, depth + 1);
+      markSkipped(sub, taskListName, depth + 1, reason);
     }
+  };
+
+  // Titles already present in a reused list, so re-applying a template (or
+  // stacking add-on templates that share a task) doesn't create duplicates.
+  const fetchExistingTaskTitles = async (
+    taskListId: string,
+  ): Promise<Set<string>> => {
+    const titles = new Set<string>();
+    let pageNumber = 1;
+    const pageSize = 200;
+    while (true) {
+      const response = await client.get<JSONAPIResponse>("/tasks", {
+        "filter[task_list_id]": taskListId,
+        "page[number]": pageNumber,
+        "page[size]": pageSize,
+      });
+      const items = Array.isArray(response.data)
+        ? response.data
+        : [response.data];
+      for (const item of items) {
+        const title = (item as Task)?.attributes?.title;
+        if (title) titles.add(title.toLowerCase());
+      }
+      const totalCount = response.meta?.total_count;
+      if (totalCount && pageNumber * pageSize < totalCount) {
+        pageNumber++;
+      } else {
+        break;
+      }
+    }
+    return titles;
   };
 
   for (const list of template.task_lists) {
@@ -390,14 +426,26 @@ export async function applyTaskTemplate(
           error instanceof Error ? error.message : "Unknown error";
         listResults.push({ name: list.name, reused: false, error: message });
         console.error(`✗ Failed task list: ${list.name} - ${message}`);
-        for (const task of list.tasks) markSkipped(task, list.name, 0);
+        for (const task of list.tasks)
+          markSkipped(task, list.name, 0, "Task list was not created");
         continue;
       }
     }
 
     listResults.push({ name: list.name, task_list_id: taskListId, reused });
 
+    // In a reused list, skip top-level tasks that already exist by title so
+    // re-applying a template or stacking add-ons stays idempotent.
+    const existingTitles =
+      reused && args.skip_existing_tasks
+        ? await fetchExistingTaskTitles(taskListId)
+        : null;
+
     for (const task of list.tasks) {
+      if (existingTitles?.has(task.title.toLowerCase())) {
+        markSkipped(task, list.name, 0, "Task already exists in this list");
+        continue;
+      }
       await createOneTask(task, taskListId, list.name, undefined, 0);
     }
   }
@@ -448,9 +496,9 @@ export async function applyTaskTemplate(
     }
     if (skipped.length > 0) {
       lines.push(
-        `## Skipped (parent not created)`,
+        `## Skipped`,
         "",
-        ...skipped.map((t) => `- [${t.task_list}] ${t.title}`),
+        ...skipped.map((t) => `- [${t.task_list}] ${t.title} — ${t.error}`),
         "",
       );
     }

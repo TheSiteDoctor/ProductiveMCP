@@ -23,6 +23,8 @@ export interface TemplateTask {
   labels?: string[];
   estimate_minutes?: number;
   due_in_days?: number;
+  /** Create as a Productive milestone (type_id 3) instead of a normal task */
+  milestone?: boolean;
   subtasks?: TemplateTask[];
 }
 
@@ -50,6 +52,7 @@ export const TemplateTaskSchema: z.ZodType<TemplateTask> = z.lazy(() =>
         .int()
         .min(0, "due_in_days must be zero or more days from the apply date")
         .optional(),
+      milestone: z.boolean().optional(),
       subtasks: z.array(TemplateTaskSchema).optional(),
     })
     .strict(),
@@ -139,6 +142,7 @@ export const ApplyTaskTemplateSchema = z
     variables: z.record(z.string(), z.string()).optional(),
     default_assignee_id: z.string().optional(),
     reuse_existing_task_lists: z.boolean().default(true),
+    skip_existing_tasks: z.boolean().default(true),
     dry_run: z.boolean().default(false),
     response_format: ResponseFormatSchema,
   })

@@ -22,11 +22,13 @@ Use `dry_run: true` to preview exactly what would be created (with variables sub
 
 JSON files in the `templates/` directory at the project root. Set the `PRODUCTIVE_TEMPLATES_DIR` environment variable to load them from somewhere else - useful if you keep templates in a shared folder or a separate repository.
 
-Four templates ship with this repository:
+Six templates ship with this repository:
 
 - **`standard-delivery`** - TSD's standard Feature/Task breakdown for a new project: Project Management (kick-offs, ceremonies, budget and RAID tracking, UAT, close-down), Infrastructure setup (repo, CI/CD, hosting, database, blob storage, per-environment Seq keys, StatusCake monitoring for test and live, CreateSend), and Go-live Launch - a deliberately lean gate of the must-pass launch checks: production licences, DNS, HTTPS and www redirects, canonical URLs, GTM/GA4/Clarity firing, Search Console, StatusCake on the live URL, Seq logging, and a live test transaction for e-commerce. Deliberately platform-neutral - CMS-specific work lives in add-on templates. (`site-go-live` is the exhaustive reference checklist; Go-live Launch is the short list every project must actually pass.)
 - **`umbraco-setup`** - Umbraco add-on for standard-delivery: Umbraco and Igloo Theme installation plus client CMS training and handover. Its task lists share standard-delivery's names, so applying it afterwards adds the tasks to the existing lists rather than duplicating them.
-- **`site-go-live`** - the full go-live checklist (175 tasks) covering DNS, server setup, source code changes, third-party services, content, SEO, testing, security, performance and post-launch tasks. The transactional email tasks are provider-neutral: the `email_provider` variable (default `Mailgun`) names the provider, and the checklist steps - unique API key per customer, sending domain/sub-account, SPF/DKIM records - apply to Mailgun, SendGrid or any equivalent.
+- **`website-build`** - build scaffolding for a standard www site: site-wide design/front-end, a Design / Front-end / Back-end / QA / QC breakdown for the Homepage and Content Page types, canonical URL enforcement, and a "Site go-live" release milestone. Apply alongside standard-delivery; shared list names merge and duplicate task titles are skipped.
+- **`ecommerce-build`** - e-commerce add-on to website-build: PLP, PDP and the four checkout steps (Basket, Shipping, Billing, Order Complete), each with the same five-role breakdown. Pair with stripe-integration for the payment provider work.
+- **`site-go-live`** - the exhaustive go-live checklist (131 tasks) covering DNS, server setup, source code changes, third-party services, content, SEO, testing, security, performance and post-launch tasks - modernised for GA4/GTM, Search Console and Umbraco Commerce. The transactional email tasks are provider-neutral: the `email_provider` variable (default `Mailgun`) names the provider, and the checklist steps - unique API key per customer, sending domain/sub-account, SPF/DKIM records - apply to Mailgun, SendGrid or any equivalent.
 - **`stripe-integration`** - the sandbox-to-live sequence for Stripe on Umbraco Commerce: account creation (in the client's name), test keys, per-environment webhooks and signing secrets, end-to-end sandbox payment tests (success, decline, 3DS, refund), client account activation, statement descriptor, live keys/webhook, wallet domain verification and a live smoke test.
 
 ## Template format
@@ -84,6 +86,7 @@ Four templates ship with this repository:
 - `labels` - label names; missing labels are created automatically.
 - `estimate_minutes` - sets `initial_estimate` (Productive auto-sets "Time to complete" to match on creation).
 - `due_in_days` - due date set to N days after the apply date.
+- `milestone` - `true` creates the task as a Productive milestone (`type_id: 3`) rather than a normal task.
 - `subtasks` - nested tasks, arbitrarily deep. Each level is created with a `parent_task` relationship.
 
 Placeholders (`{{variable_name}}`) work in task list names, task titles and descriptions.
@@ -91,6 +94,7 @@ Placeholders (`{{variable_name}}`) work in task list names, task titles and desc
 ## Apply behaviour
 
 - **Task list reuse**: if the project already has an active task list with the same name (case-insensitive), tasks are added to it rather than a duplicate being created. Set `reuse_existing_task_lists: false` to always create new lists.
+- **Duplicate task skipping**: within a reused list, a top-level task whose title already exists (case-insensitive) is skipped along with its subtasks and reported as such - so re-applying a template, or stacking add-on templates that share a task, is idempotent. Set `skip_existing_tasks: false` to disable.
 - **Board**: newly created task lists go on the board given by `board_id`, or the project's first board.
 - **Assignee**: `default_assignee_id` assigns every created task to one person; otherwise tasks are unassigned.
 - **Ordering**: tasks are created sequentially in template order, so Productive displays them in the order written.
