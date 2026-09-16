@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.4] - 2026-09-16
+
+### Added
+
+- **`productive_update_comment` can now toggle visibility**: added an optional `visible_to_clients` parameter, mapped to Productive's `hidden` attribute on the wire, so comments incorrectly posted as public (see the `productive_create_comment` fix below) can be corrected without rewriting their body. `body` is now optional too, and at least one of `body` or `visible_to_clients` must be supplied; omitting `visible_to_clients` leaves a comment's existing visibility untouched, and omitting `body` leaves its existing text untouched.
+
+### Fixed
+
+- **Internal comments were always created public**: `productive_create_comment` sent `visible_to_clients` as `data.attributes.visible_to_clients`, an attribute that does not exist on Productive's comment resource. The API silently dropped it, so every comment was created visible to clients regardless of the flag passed in, while the tool reported success as if the internal flag had taken effect. Comments are now sent with Productive's real `hidden` attribute (`hidden: !visible_to_clients`).
+- **Comment reads always reported client-visible and never showed pinned status**: `formatComment()` read the nonexistent `visible_to_clients` and `pinned` attributes from the API response, which are never present, so `visible_to_clients` was always computed as `true` and `pinned` as `false`. It now derives `visible_to_clients` from the real `hidden` attribute and `pinned` from `pinned_at`. Single-comment views (create/get/update) also gained an explicit `**Visibility**` line so the actual state is visible alongside the existing badges.
+
 ## [1.3.3] - 2026-08-03
 
 ### Fixed

@@ -560,8 +560,8 @@ export interface CommentAttributes {
   body: string;
   created_at: string;
   updated_at: string;
-  pinned: boolean;
-  visible_to_clients: boolean;
+  hidden: boolean;
+  pinned_at: string | null;
 }
 
 export interface Comment extends JSONAPIData<CommentAttributes> {
@@ -586,7 +586,7 @@ export interface CreateCommentPayload {
     type: "comments";
     attributes: {
       body: string;
-      visible_to_clients?: boolean;
+      hidden?: boolean;
     };
     relationships: {
       task: {
@@ -605,6 +605,7 @@ export interface UpdateCommentPayload {
     id: string;
     attributes?: {
       body?: string;
+      hidden?: boolean;
     };
   };
 }

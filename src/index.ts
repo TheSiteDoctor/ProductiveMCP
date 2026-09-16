@@ -1629,7 +1629,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_create_comment",
       description:
-        'Create a comment on a task. The body accepts Markdown formatting which will be converted to HTML. Set visible_to_clients to false to create an internal/private comment.\n\nExample:\n{\n  "task_id": "12345",\n  "body": "This looks good, ready for review.",\n  "visible_to_clients": false\n}',
+        'Create a comment on a task. The body accepts Markdown formatting which will be converted to HTML. Set `visible_to_clients: false` to post an internal comment (Productive\'s `hidden` flag), which client contacts cannot see. Defaults to true (visible to clients).\n\nExample:\n{\n  "task_id": "12345",\n  "body": "This looks good, ready for review.",\n  "visible_to_clients": false\n}',
       inputSchema: {
         type: "object",
         properties: {
@@ -1645,7 +1645,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           visible_to_clients: {
             type: "boolean",
             description:
-              "Whether the comment is visible to clients (default: true). Set to false for internal/private comments.",
+              "Set to false to post an internal comment (Productive's `hidden` flag), which client contacts cannot see. Defaults to true (visible to clients).",
             default: true,
           },
           response_format: {
@@ -1682,7 +1682,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_update_comment",
       description:
-        'Update the body of an existing comment. The body accepts Markdown formatting which will be converted to HTML.\n\nExample:\n{\n  "comment_id": "12345",\n  "body": "Updated comment text"\n}',
+        'Update an existing comment\'s body and/or visibility. At least one of `body` or `visible_to_clients` must be provided. The body accepts Markdown formatting which will be converted to HTML.\n\nExample:\n{\n  "comment_id": "12345",\n  "body": "Updated comment text"\n}',
       inputSchema: {
         type: "object",
         properties: {
@@ -1693,7 +1693,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           body: {
             type: "string",
             description:
-              "New comment body in Markdown format (required, max 10000 characters)",
+              "New comment body in Markdown format (max 10000 characters). Omit to leave the body unchanged.",
+          },
+          visible_to_clients: {
+            type: "boolean",
+            description:
+              "Set to false to make the comment internal (Productive's `hidden` flag), which client contacts cannot see. Omitting it leaves the comment's current visibility unchanged.",
           },
           response_format: {
             type: "string",
@@ -1702,7 +1707,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             default: "markdown",
           },
         },
-        required: ["comment_id", "body"],
+        required: ["comment_id"],
       },
     },
     {
