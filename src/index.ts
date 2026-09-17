@@ -1100,14 +1100,27 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_apply_task_template",
       description:
-        'Apply a task template to a project: creates every task list, task and subtask the template defines, substituting {{variable}} placeholders with the supplied values. Task lists whose name already exists in the project are reused rather than duplicated. Set dry_run: true first to preview exactly what will be created.\n\nExample:\n{\n  "template": "standard-delivery",\n  "project_id": "1234",\n  "variables": {"domain_name": "example.com"},\n  "dry_run": true\n}',
+        'Apply a task template to a project: creates every task list, task and subtask the template defines, substituting {{variable}} placeholders with the supplied values. Task lists whose name already exists in the project are reused rather than duplicated, and within a reused list tasks whose title already exists are skipped. Set dry_run: true first to preview exactly what will be created.\n\nPass either a stored template by name, or an inline template_definition composed for the occasion (e.g. scaffolding Design/Front-end/Back-end/QA/QC tasks for a project-specific list of pages).\n\nExample:\n{\n  "template": "standard-delivery",\n  "project_id": "1234",\n  "variables": {"domain_name": "example.com"},\n  "dry_run": true\n}',
       inputSchema: {
         type: "object",
         properties: {
           template: {
             type: "string",
             description:
-              "Template name (from productive_list_task_templates), e.g. 'standard-delivery'",
+              "Template name (from productive_list_task_templates), e.g. 'standard-delivery'. Provide either this or template_definition, not both",
+          },
+          template_definition: {
+            type: "object",
+            description:
+              'Inline template object, same shape as a template file: {"name": "kebab-case-id", "title": "...", "variables": [{"name", "description", "default"}]?, "task_lists": [{"name": "...", "tasks": [{"title", "description"?, "task_type"? (Bug|Task|Feature|Question|Meeting|Test Case), "priority"?, "labels"?, "estimate_minutes"?, "due_in_days"?, "milestone"?, "subtasks"?}]}]}. Provide either this or template',
+            properties: {
+              name: { type: "string" },
+              title: { type: "string" },
+              description: { type: "string" },
+              variables: { type: "array" },
+              task_lists: { type: "array" },
+            },
+            required: ["name", "title", "task_lists"],
           },
           project_id: {
             type: "string",
@@ -1154,7 +1167,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             default: "markdown",
           },
         },
-        required: ["template", "project_id"],
+        required: ["project_id"],
       },
     },
 

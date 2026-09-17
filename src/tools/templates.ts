@@ -190,7 +190,12 @@ export async function applyTaskTemplate(
   client: ProductiveClient,
   args: z.infer<typeof ApplyTaskTemplateSchema>,
 ): Promise<string> {
-  const { template: rawTemplate } = loadTemplate(args.template);
+  // Schema validation guarantees exactly one of the two is present. An inline
+  // definition lets callers (e.g. a page-scaffolding skill) compose a
+  // one-off structure without a file existing on the server.
+  const rawTemplate = args.template_definition
+    ? args.template_definition
+    : loadTemplate(args.template!).template;
   const values = resolveVariables(rawTemplate, args.variables);
   const template = substituteTemplate(rawTemplate, values);
 

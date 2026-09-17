@@ -136,7 +136,8 @@ export const GetTaskTemplateSchema = z
 
 export const ApplyTaskTemplateSchema = z
   .object({
-    template: z.string().min(1, "Template name is required"),
+    template: z.string().min(1, "Template name must not be empty").optional(),
+    template_definition: TaskTemplateSchema.optional(),
     project_id: z.string().min(1, "Project ID is required"),
     board_id: z.string().optional(),
     variables: z.record(z.string(), z.string()).optional(),
@@ -146,4 +147,8 @@ export const ApplyTaskTemplateSchema = z
     dry_run: z.boolean().default(false),
     response_format: ResponseFormatSchema,
   })
-  .strict();
+  .strict()
+  .refine((args) => !!args.template !== !!args.template_definition, {
+    message:
+      "Provide exactly one of 'template' (a template name from productive_list_task_templates) or 'template_definition' (an inline template object)",
+  });

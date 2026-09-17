@@ -101,6 +101,12 @@ Placeholders (`{{variable_name}}`) work in task list names, task titles and desc
 - **Failures don't abort the run**: a failed task is recorded and the run continues; its subtasks are skipped (they'd have no parent) and reported as such. The summary lists every failure with its error.
 - **Rate limiting** is handled by the shared client (100 requests per 10 seconds), so large templates like `site-go-live` simply take a couple of minutes.
 
+## Inline templates and page scaffolding
+
+`productive_apply_task_template` also accepts a `template_definition` - a full template object passed inline instead of a stored template name. This is for structures composed on the fly, where no file exists (or should exist) on the server.
+
+The main consumer is the **`tsd-site-scaffold` skill** (in `skills/tsd-site-scaffold/`): it asks which page types a new site needs ("Homepage, Case Study List, Case Study Details, Contact Us"), spots entity types that may need separate list and detail pages (Case Studies, Products, News - but not FAQs or Contact Us), then composes an inline template creating one task list per page with the standard Design / Front-end / Back-end / QA / QC tasks. Install it by copying the folder into `~/.claude/skills/` (Claude Code) or uploading it as a skill on claude.ai.
+
 ## Writing a new template
 
 1. Copy an existing file in `templates/` and edit it.
