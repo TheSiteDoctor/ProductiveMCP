@@ -16,6 +16,7 @@ import { createRequire } from "module";
 import { ProductiveClient } from "./client.js";
 import { validateEnvironment } from "./utils/errors.js";
 import { TASK_TYPES, PRIORITIES, WORKFLOW_STATUSES } from "./constants.js";
+import { toolRegistry } from "./registry.js";
 
 /**
  * Build the `workflow_status` property for a tool's input schema.
@@ -42,192 +43,6 @@ function workflowStatusProperty(intro: string): Record<string, unknown> {
 // Read version from package.json
 const require = createRequire(import.meta.url);
 const { version: SERVER_VERSION } = require("../package.json");
-
-// Import schemas
-import {
-  ListProjectsSchema,
-  ListTaskListsSchema,
-  ListPeopleSchema,
-  ListBoardsSchema,
-  GetTaskListSchema,
-  CreateTaskListSchema,
-  UpdateTaskListSchema,
-  ArchiveTaskListSchema,
-  RestoreTaskListSchema,
-  DeleteTaskListSchema,
-  RepositionTaskListSchema,
-  MoveTaskListSchema,
-  CopyTaskListSchema,
-} from "./schemas/project.js";
-import {
-  CreateTaskSchema,
-  CreateMilestoneSchema,
-  SearchTasksSchema,
-  GetTaskSchema,
-  UpdateTaskSchema,
-  CreateTasksBatchSchema,
-} from "./schemas/task.js";
-import {
-  CreateTodoSchema,
-  ListTodosSchema,
-  GetTodoSchema,
-  UpdateTodoSchema,
-  DeleteTodoSchema,
-} from "./schemas/todo.js";
-import {
-  ListPagesSchema,
-  GetPageSchema,
-  CreatePageSchema,
-  UpdatePageSchema,
-  DeletePageSchema,
-  SearchPagesSchema,
-} from "./schemas/page.js";
-import {
-  CreateTaskDependencySchema,
-  ListTaskDependenciesSchema,
-  GetTaskDependencySchema,
-  UpdateTaskDependencySchema,
-  DeleteTaskDependencySchema,
-} from "./schemas/dependency.js";
-import {
-  MarkAsBlockedBySchema,
-  MarkAsDuplicateSchema,
-} from "./schemas/workflow.js";
-import {
-  ListAttachmentsSchema,
-  UploadAttachmentSchema,
-} from "./schemas/attachment.js";
-import {
-  ListCommentsSchema,
-  CreateCommentSchema,
-  GetCommentSchema,
-  UpdateCommentSchema,
-  DeleteCommentSchema,
-} from "./schemas/comment.js";
-import { ListSubtasksSchema } from "./schemas/subtask.js";
-import {
-  ListBudgetsSchema,
-  GetBudgetSchema,
-  UpdateBudgetSchema,
-  MarkBudgetDeliveredSchema,
-  CloseBudgetSchema,
-  AuditProjectBudgetsSchema,
-} from "./schemas/budget.js";
-import {
-  ListRevenueDistributionsSchema,
-  GetRevenueDistributionSchema,
-  CreateRevenueDistributionSchema,
-  UpdateRevenueDistributionSchema,
-  DeleteRevenueDistributionSchema,
-  ExtendRevenueDistributionSchema,
-  ReportOverdueDistributionsSchema,
-} from "./schemas/revenue-distribution.js";
-import {
-  ListServicesSchema,
-  GetServiceSchema,
-  CreateServiceSchema,
-  UpdateServiceSchema,
-  ListServiceTypesSchema,
-  GetServiceTypeSchema,
-  CreateServiceTypeSchema,
-  UpdateServiceTypeSchema,
-  ArchiveServiceTypeSchema,
-} from "./schemas/service.js";
-
-// Import tool implementations
-import {
-  listProjects,
-  listTaskLists,
-  listPeople,
-  listBoards,
-  getTaskList,
-  createTaskList,
-  updateTaskList,
-  archiveTaskList,
-  restoreTaskList,
-  deleteTaskList,
-  repositionTaskList,
-  moveTaskList,
-  copyTaskList,
-} from "./tools/projects.js";
-import {
-  createTask,
-  createMilestone,
-  searchTasks,
-  getTask,
-  updateTask,
-} from "./tools/tasks.js";
-import { createTasksBatch } from "./tools/batch.js";
-import {
-  createTodo,
-  listTodos,
-  getTodo,
-  updateTodo,
-  deleteTodo,
-} from "./tools/todos.js";
-import {
-  listPages,
-  getPage,
-  createPage,
-  updatePage,
-  deletePage,
-  searchPages,
-} from "./tools/pages.js";
-import {
-  createTaskDependency,
-  listTaskDependencies,
-  getTaskDependency,
-  updateTaskDependency,
-  deleteTaskDependency,
-} from "./tools/dependencies.js";
-import { markAsBlockedBy, markAsDuplicate } from "./tools/workflows.js";
-import { listAttachments, uploadAttachment } from "./tools/attachments.js";
-import {
-  listComments,
-  createComment,
-  getComment,
-  updateComment,
-  deleteComment,
-} from "./tools/comments.js";
-import { listSubtasks } from "./tools/subtasks.js";
-import {
-  listBudgets,
-  getBudget,
-  updateBudget,
-  markBudgetDelivered,
-  closeBudget,
-  auditProjectBudgets,
-} from "./tools/budgets.js";
-import {
-  listRevenueDistributions,
-  getRevenueDistribution,
-  createRevenueDistribution,
-  updateRevenueDistribution,
-  deleteRevenueDistribution,
-  extendRevenueDistribution,
-  reportOverdueDistributions,
-} from "./tools/revenue-distributions.js";
-import {
-  listServices,
-  getService,
-  createService,
-  updateService,
-  listServiceTypes,
-  getServiceType,
-  createServiceType,
-  updateServiceType,
-  archiveServiceType,
-} from "./tools/services.js";
-import {
-  ListTaskTemplatesSchema,
-  GetTaskTemplateSchema,
-  ApplyTaskTemplateSchema,
-} from "./schemas/template.js";
-import {
-  listTaskTemplates,
-  getTaskTemplate,
-  applyTaskTemplate,
-} from "./tools/templates.js";
 
 // Validate environment variables
 try {
@@ -1235,6 +1050,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             type: "boolean",
             description: "Mark task as closed (true) or open (false)",
           },
+          parent_task_id: {
+            type: "string",
+            description:
+              "Set or change the parent task ID to make this a sub-task, or null to remove the parent (make it a top-level task)",
+            nullable: true,
+          },
           labels: {
             type: "array",
             items: { type: "string" },
@@ -1722,13 +1543,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_list_comments",
       description:
-        'List all comments for a specific task. Returns comments with author information, sorted by most recent first.\n\nExample:\n{\n  "task_id": "12345"\n}',
+        'List comments by task or project. The Productive API only supports filtering this endpoint by task_id or project_id — other commentable types (deals, invoices, etc.) cannot be listed in bulk; use productive_get_comment with a known comment ID instead.\n\nExample:\n{\n  "task_id": "12345"\n}',
       inputSchema: {
         type: "object",
         properties: {
           task_id: {
             type: "string",
-            description: "Task ID to list comments for (required)",
+            description:
+              "Task ID to list comments for. Either task_id or project_id must be provided.",
+          },
+          project_id: {
+            type: "string",
+            description:
+              "Project ID to list comments for. Either task_id or project_id must be provided.",
           },
           limit: {
             type: "number",
@@ -1747,19 +1574,39 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             default: "markdown",
           },
         },
-        required: ["task_id"],
       },
     },
     {
       name: "productive_create_comment",
       description:
-        'Create a comment on a task. The body accepts Markdown formatting which will be converted to HTML. Set visible_to_clients to false to create an internal/private comment.\n\nExample:\n{\n  "task_id": "12345",\n  "body": "This looks good, ready for review.",\n  "visible_to_clients": false\n}',
+        'Create a comment on a task, deal, project, or other commentable resource. The body accepts Markdown, converted to HTML. Provide either `task_id` (shorthand for commentable_type="task") or the polymorphic `commentable_type` + `commentable_id` pair.\n\nSet `visible_to_clients: false` to post an internal comment (Productive\'s `hidden` flag), which client contacts cannot see. Defaults to true (visible to clients). Deal comments are never exported — the PDF/proposal export pulls from the deal\'s `note` field, not comments.\n\nSupported commentable types: task, deal, project, discussion, invoice, person, company, purchase_order.\n\nExample (deal):\n{\n  "commentable_type": "deal",\n  "commentable_id": "3871711",\n  "body": "Migrated from Pipedrive. Original ref: WVB-1073."\n}\n\nExample (task, internal):\n{\n  "task_id": "12345",\n  "body": "Ready for review.",\n  "visible_to_clients": false\n}',
       inputSchema: {
         type: "object",
         properties: {
           task_id: {
             type: "string",
-            description: "Task ID to comment on (required)",
+            description:
+              "Shortcut for commenting on a task. Equivalent to commentable_type='task' + commentable_id=<task_id>.",
+          },
+          commentable_type: {
+            type: "string",
+            enum: [
+              "task",
+              "deal",
+              "project",
+              "discussion",
+              "invoice",
+              "person",
+              "company",
+              "purchase_order",
+            ],
+            description:
+              "Type of resource to attach the comment to. Required (with commentable_id) unless task_id is provided.",
+          },
+          commentable_id: {
+            type: "string",
+            description:
+              "ID of the resource to attach the comment to. Must be paired with commentable_type.",
           },
           body: {
             type: "string",
@@ -1769,7 +1616,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           visible_to_clients: {
             type: "boolean",
             description:
-              "Whether the comment is visible to clients (default: true). Set to false for internal/private comments.",
+              "Set to false to post an internal comment (Productive's `hidden` flag), which client contacts cannot see. Defaults to true (visible to clients).",
             default: true,
           },
           response_format: {
@@ -1779,7 +1626,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             default: "markdown",
           },
         },
-        required: ["task_id", "body"],
+        required: ["body"],
       },
     },
     {
@@ -1806,7 +1653,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_update_comment",
       description:
-        'Update the body of an existing comment. The body accepts Markdown formatting which will be converted to HTML.\n\nExample:\n{\n  "comment_id": "12345",\n  "body": "Updated comment text"\n}',
+        'Update an existing comment\'s body and/or visibility. At least one of `body` or `visible_to_clients` must be provided. The body accepts Markdown formatting which will be converted to HTML.\n\nExample:\n{\n  "comment_id": "12345",\n  "body": "Updated comment text"\n}',
       inputSchema: {
         type: "object",
         properties: {
@@ -1817,7 +1664,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           body: {
             type: "string",
             description:
-              "New comment body in Markdown format (required, max 10000 characters)",
+              "New comment body in Markdown format (max 10000 characters). Omit to leave the body unchanged.",
+          },
+          visible_to_clients: {
+            type: "boolean",
+            description:
+              "Set to false to make the comment internal (Productive's `hidden` flag), which client contacts cannot see. Omitting it leaves the comment's current visibility unchanged.",
           },
           response_format: {
             type: "string",
@@ -1826,7 +1678,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             default: "markdown",
           },
         },
-        required: ["comment_id", "body"],
+        required: ["comment_id"],
       },
     },
     {
@@ -2044,6 +1896,509 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             type: "string",
             description:
               "Optional project ID to audit. If not provided, audits all open budgets.",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+      },
+    },
+
+    // Deal tools (sales deals, not budgets)
+    {
+      name: "productive_list_deals",
+      description:
+        'List sales deals in Productive.io. Deals are sales opportunities tracked through a pipeline. Use filter[type]=1 internally (budgets are type=2).\n\nNote on dates: the deal `date` attribute is "Date Opened" — when the opportunity was first opened. It is NOT a sales-close forecast. Revenue attribution lives on the deal\'s revenue_distributions (use productive_get_deal to see them).\n\nExample:\n{\n  "company_id": "123",\n  "stage_status": "open",\n  "limit": 20\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          company_id: {
+            type: "string",
+            description: "Filter by company/client ID",
+          },
+          responsible_id: {
+            type: "string",
+            description: "Filter by responsible person ID",
+          },
+          pipeline_id: {
+            type: "string",
+            description: "Filter by pipeline ID",
+          },
+          stage_status: {
+            type: "string",
+            enum: ["open", "won", "lost"],
+            description: "Filter by deal stage status",
+          },
+          status_id: {
+            type: "string",
+            description:
+              "Filter by specific deal status/pipeline stage ID. Use productive_list_deal_statuses to find IDs.",
+          },
+          sort: {
+            type: "string",
+            description:
+              "Sort field. Prefix with - for descending. Examples: -last_activity_at, name, -created_at, -deal_value_total. Default: -last_activity_at",
+          },
+          limit: {
+            type: "number",
+            description: "Number of results to return (1-100, default: 20)",
+            default: 20,
+          },
+          offset: {
+            type: "number",
+            description: "Offset for pagination (default: 0)",
+            default: 0,
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+      },
+    },
+    {
+      name: "productive_get_deal",
+      description:
+        'Get details of a specific sales deal by ID. Returns full deal information including pipeline stage, probability, value, company, activity metrics, AND attached revenue distributions (the periods over which the deal value is recognised as revenue).\n\nNote on dates: the "Date Opened" field corresponds to the API\'s `date` attribute and represents when the opportunity was first opened — NOT a sales-close forecast. The forecast / revenue-attribution dates are on each revenue_distribution\'s start_on / end_on.\n\nExample:\n{\n  "deal_id": "12345"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          deal_id: {
+            type: "string",
+            description: "The deal ID to retrieve",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["deal_id"],
+      },
+    },
+    {
+      name: "productive_search_deals",
+      description:
+        'Search sales deals by text query. Searches deal names and other text fields.\n\nNote on dates: the deal `date` attribute (surfaced as "Date Opened") is when the opportunity was opened — not a close forecast. Revenue attribution lives on revenue_distributions.\n\nExample:\n{\n  "query": "website redesign",\n  "stage_status": "open"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Text to search for in deal names",
+          },
+          company_id: {
+            type: "string",
+            description: "Filter by company/client ID",
+          },
+          stage_status: {
+            type: "string",
+            enum: ["open", "won", "lost"],
+            description: "Filter by deal stage status",
+          },
+          pipeline_id: {
+            type: "string",
+            description: "Filter by pipeline ID",
+          },
+          limit: {
+            type: "number",
+            description: "Number of results to return (1-100, default: 20)",
+            default: 20,
+          },
+          offset: {
+            type: "number",
+            description: "Offset for pagination (default: 0)",
+            default: 0,
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["query"],
+      },
+    },
+    {
+      name: "productive_update_deal",
+      description:
+        'Update a sales deal. Can change name, probability, pipeline stage, notes, tags, deal value, dates, owner, currency, and custom fields. Moving to a "won" stage auto-sets probability to 100. Set deal_value to assign a monetary amount without creating services — this auto-switches deal_value_source to "manual".\n\nNote on dates: `start_date` here maps to the API\'s `date` attribute, which Productive surfaces as "Date Opened" (when the opportunity was first opened). It is NOT a sales-close forecast. Revenue attribution is managed separately via productive_create_revenue_distribution / productive_update_revenue_distribution.\n\nExample (set manual deal value):\n{\n  "deal_id": "12345",\n  "deal_value": 250000\n}\n\nExample (reassign owner + currency):\n{\n  "deal_id": "12345",\n  "responsible_id": "1037643",\n  "currency": "USD"\n}\n\nExample (move stage):\n{\n  "deal_id": "12345",\n  "probability": 75,\n  "deal_status_id": "5678"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          deal_id: {
+            type: "string",
+            description: "The deal ID to update",
+          },
+          name: {
+            type: "string",
+            description: "New deal name (max 200 chars)",
+          },
+          probability: {
+            type: "number",
+            description: "Win probability percentage (0-100)",
+          },
+          note: {
+            type: ["string", "null"],
+            description:
+              'Deal notes (HTML). To clear the note, send JSON null, an empty string, or the literal string "null" — all three are accepted and converted to a real null on the API.',
+          },
+          tag_list: {
+            type: "array",
+            items: { type: "string" },
+            description: "Tags for the deal (replaces existing tags)",
+          },
+          deal_status_id: {
+            type: "string",
+            description:
+              "Pipeline stage ID to move the deal to. Use productive_list_deal_statuses to find IDs.",
+          },
+          deal_value: {
+            type: "number",
+            description:
+              "Deal value in minor units (cents/pence). E.g. 250000 = £2,500.00. Setting this auto-sets deal_value_source to 'manual' unless overridden — letting you assign a deal value without creating services.",
+          },
+          deal_value_source: {
+            type: "string",
+            enum: ["manual", "from_services"],
+            description:
+              "How the deal value is determined. 'manual' uses deal_value directly; 'from_services' sums service values. Defaults to 'manual' when deal_value is supplied.",
+          },
+          start_date: {
+            type: "string",
+            description:
+              "Date Opened (YYYY-MM-DD). Maps to the API's `date` attribute — when the opportunity was first opened. NOT a sales-close forecast.",
+          },
+          end_date: {
+            type: "string",
+            description: "Deal end date (YYYY-MM-DD).",
+          },
+          responsible_id: {
+            type: "string",
+            description: "Reassign the deal owner. Person ID.",
+          },
+          currency: {
+            type: "string",
+            description: "ISO 4217 currency code (e.g. GBP, USD).",
+          },
+          custom_fields: {
+            type: "object",
+            description:
+              "Custom field values keyed by field ID string. Single-select: option ID string. Multi-select: array of option ID strings. Use productive_list_custom_fields (customizable_type='deals') to discover IDs.",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["deal_id"],
+      },
+    },
+    {
+      name: "productive_list_deal_statuses",
+      description:
+        'List deal statuses (pipeline stages). Each status has a stage type: open, won, or lost. Use this to find status IDs for filtering or updating deals.\n\nExample:\n{\n  "pipeline_id": "123"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          pipeline_id: {
+            type: "string",
+            description: "Filter by pipeline ID",
+          },
+          limit: {
+            type: "number",
+            description: "Number of results to return (1-100, default: 20)",
+            default: 20,
+          },
+          offset: {
+            type: "number",
+            description: "Offset for pagination (default: 0)",
+            default: 0,
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+      },
+    },
+    {
+      name: "productive_create_deal",
+      description:
+        'Create a sales deal (budget=false). Required: name, company_id. Strongly recommended: pipeline_id + deal_status_id (use productive_list_pipelines and productive_list_deal_statuses), responsible_id.\n\nDeal value: pass `deal_value` in MINOR units (pence/cents) — e.g. 60000 for £600.00. We auto-set `deal_value_source: "manual"` so the value sticks without you needing to create services. The start date attribute is named `date` on the API; pass it here as `start_date` (we translate).\n\nRequired custom fields: discover with productive_list_custom_fields (customizable_type=\'deals\'). When the API rejects with 422 the error message includes the missing pointer, e.g. `(at data/attributes/custom_field_160113)`.\n\nExample:\n{\n  "name": "WVB-1073 Auto-clear customer baskets",\n  "company_id": "1123910",\n  "pipeline_id": "83190",\n  "deal_status_id": "635163",\n  "responsible_id": "1037643",\n  "currency": "GBP",\n  "deal_value": 60000,\n  "start_date": "2020-05-01",\n  "custom_fields": { "160113": "359031", "161358": ["360654"] }\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          name: {
+            type: "string",
+            description: "Deal name (max 200 chars).",
+          },
+          company_id: {
+            type: "string",
+            description:
+              "Productive company ID (required). Use productive_list_companies to find IDs.",
+          },
+          pipeline_id: {
+            type: "string",
+            description:
+              "Pipeline ID. Use productive_list_pipelines to enumerate.",
+          },
+          deal_status_id: {
+            type: "string",
+            description:
+              "Pipeline stage ID. Use productive_list_deal_statuses filtered by pipeline_id.",
+          },
+          responsible_id: {
+            type: "string",
+            description: "Owner person ID. Defaults to API token's user.",
+          },
+          project_id: {
+            type: "string",
+            description: "Optional project to link.",
+          },
+          contact_id: {
+            type: "string",
+            description: "Optional contact person ID.",
+          },
+          currency: {
+            type: "string",
+            description:
+              "ISO 4217 currency code (e.g. GBP). Defaults to the company's default_currency.",
+          },
+          deal_value: {
+            type: "number",
+            description:
+              "Deal value in minor units (cents/pence). E.g. 60000 = £600.00. Auto-sets deal_value_source='manual' unless overridden.",
+          },
+          deal_value_source: {
+            type: "string",
+            enum: ["manual", "from_services"],
+            description:
+              "How the deal value is determined. Defaults to 'manual' when deal_value is supplied.",
+          },
+          start_date: {
+            type: "string",
+            description:
+              "Date Opened (YYYY-MM-DD). Maps to API attribute 'date' — when the opportunity was first opened. NOT a sales-close forecast; revenue attribution lives on revenue_distributions.",
+          },
+          end_date: {
+            type: "string",
+            description: "Deal end date (YYYY-MM-DD).",
+          },
+          probability: {
+            type: "number",
+            description:
+              "Win probability percentage (0-100). If omitted, Productive uses the stage default.",
+          },
+          deal_type_id: {
+            type: "number",
+            description: "Deal type ID. Defaults to 2 (standard sales deal).",
+          },
+          note: {
+            type: "string",
+            description: "Deal note (HTML accepted).",
+          },
+          tag_list: {
+            type: "array",
+            items: { type: "string" },
+            description: "Tags to apply.",
+          },
+          custom_fields: {
+            type: "object",
+            description:
+              "Custom field values keyed by field ID string. Single-select: option ID string. Multi-select: array of option ID strings. Use productive_list_custom_fields to discover required fields.",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["name", "company_id"],
+      },
+    },
+    {
+      name: "productive_create_budget",
+      description:
+        'Create a budget (budget=true on the /deals endpoint). Use this when sales is closed-won and you want to track delivery. For sales pipeline deals, use productive_create_deal instead.\n\nExample:\n{\n  "name": "WVB Q2 Retainer",\n  "company_id": "1123910",\n  "currency": "GBP",\n  "start_date": "2026-04-01",\n  "end_date": "2026-06-30"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Budget name (max 200 chars)." },
+          company_id: {
+            type: "string",
+            description: "Productive company ID (required).",
+          },
+          project_id: {
+            type: "string",
+            description: "Optional project to link.",
+          },
+          responsible_id: {
+            type: "string",
+            description: "Owner person ID.",
+          },
+          currency: { type: "string", description: "ISO 4217 currency code." },
+          start_date: {
+            type: "string",
+            description:
+              "Start date (YYYY-MM-DD). Maps to API attribute 'date'.",
+          },
+          end_date: { type: "string", description: "End date (YYYY-MM-DD)." },
+          note: { type: "string", description: "Budget note (HTML accepted)." },
+          tag_list: {
+            type: "array",
+            items: { type: "string" },
+            description: "Tags to apply.",
+          },
+          custom_fields: {
+            type: "object",
+            description:
+              "Custom field values keyed by field ID. Use productive_list_custom_fields with customizable_type='deals' to discover required fields.",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["name", "company_id"],
+      },
+    },
+    {
+      name: "productive_list_pipelines",
+      description:
+        "List sales pipelines. Each pipeline contains multiple deal_statuses (stages). Use this to discover pipeline IDs for productive_create_deal and productive_list_deal_statuses.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          limit: {
+            type: "number",
+            description: "Number of results to return (1-100, default: 20)",
+            default: 20,
+          },
+          offset: {
+            type: "number",
+            description: "Offset for pagination (default: 0)",
+            default: 0,
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+      },
+    },
+    {
+      name: "productive_list_companies",
+      description:
+        'List companies. Supports a free-text query filter for quickly finding a company by name.\n\nExample:\n{\n  "query": "Wye Valley",\n  "limit": 5\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Free-text search across company name.",
+          },
+          limit: {
+            type: "number",
+            description: "Number of results to return (1-100, default: 20)",
+            default: 20,
+          },
+          offset: {
+            type: "number",
+            description: "Offset for pagination (default: 0)",
+            default: 0,
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+      },
+    },
+    {
+      name: "productive_get_company",
+      description:
+        'Get a specific company by ID. Useful when you have the ID but need details like default_currency for productive_create_deal.\n\nExample:\n{\n  "company_id": "1123910"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          company_id: {
+            type: "string",
+            description: "Company ID to retrieve",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["company_id"],
+      },
+    },
+    {
+      name: "productive_list_custom_fields",
+      description:
+        'List custom fields, optionally filtered by which resource they\'re attached to. Call this BEFORE productive_create_deal / productive_update_deal — orgs commonly have required custom fields that will 422 the create without them.\n\nFor select / multi-select fields, the response includes the available option IDs and labels (set include_options=false to skip).\n\nExample:\n{\n  "customizable_type": "deals"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          customizable_type: {
+            type: "string",
+            enum: [
+              "deals",
+              "tasks",
+              "projects",
+              "people",
+              "companies",
+              "employees",
+              "invoices",
+              "time_entries",
+              "expenses",
+              "services",
+              "documents",
+            ],
+            description:
+              "Filter by resource type (plural form, as used by the API).",
+          },
+          include_archived: {
+            type: "boolean",
+            description: "Include archived custom fields (default: false).",
+            default: false,
+          },
+          include_options: {
+            type: "boolean",
+            description:
+              "For select / multi-select fields, fetch option IDs and labels (default: true).",
+            default: true,
+          },
+          limit: {
+            type: "number",
+            description: "Number of results to return (1-100, default: 20)",
+            default: 20,
+          },
+          offset: {
+            type: "number",
+            description: "Offset for pagination (default: 0)",
+            default: 0,
           },
           response_format: {
             type: "string",
@@ -2578,6 +2933,332 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ["service_type_id"],
       },
     },
+
+    // Time tracking — running timers
+    {
+      name: "productive_start_timer",
+      description:
+        'Start a running timer for the authenticated user against a service (and optionally a task). Productive allows only one running timer per user — call productive_get_running_timer first if you\'re unsure.\n\nExample:\n{\n  "service_id": "1234",\n  "task_id": "56789",\n  "note": "Investigating reported bug",\n  "started_at": "2026-05-08T13:30:00Z"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          service_id: {
+            type: "string",
+            description: "Service to track time against (required)",
+          },
+          task_id: {
+            type: "string",
+            description: "Optional task to link the timer to",
+          },
+          note: {
+            type: "string",
+            description: "Optional note describing what you're working on",
+          },
+          started_at: {
+            type: "string",
+            description:
+              "ISO 8601 datetime to back-date the start to (e.g. 2026-05-08T13:30:00Z). Defaults to now.",
+          },
+          person_id: {
+            type: "string",
+            description:
+              "Person to start the timer for. Defaults to the authenticated user (PRODUCTIVE_PERSON_ID env or /people/me).",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["service_id"],
+      },
+    },
+    {
+      name: "productive_stop_timer",
+      description:
+        'Stop a running timer. Internally calls PATCH /timers/{id}/stop; Productive converts the timer into a finalised time_entry. To back-date a stop (e.g. for idle detection), stop now and then call productive_update_time_entry on the resulting entry to adjust `time_minutes` and `started_at`.\n\nExample:\n{\n  "timer_id": "987654",\n  "note": "Wrapping up"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          timer_id: {
+            type: "string",
+            description: "Timer ID to stop (required)",
+          },
+          note: {
+            type: "string",
+            description:
+              "Optional note applied to the linked time_entry just before stopping",
+          },
+          billable_time_minutes: {
+            type: "number",
+            description:
+              "Override the billable time (in minutes) on the linked entry just before stopping. Defaults to the tracked time.",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["timer_id"],
+      },
+    },
+    {
+      name: "productive_get_running_timer",
+      description:
+        "Return the current user's active timer (if any). Returns 'No running timer' when nothing is active.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          person_id: {
+            type: "string",
+            description:
+              "Person whose running timer to fetch. Defaults to the authenticated user.",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+      },
+    },
+    {
+      name: "productive_update_timer",
+      description:
+        'Update a running timer\'s metadata: note, linked task, service, or billable time. Internally routes through PATCH /time_entries/{linked} since Productive timers themselves are not directly patchable. Pass task_id: null to unlink the task. Pass note: null to clear the note.\n\nNOTE: Productive\'s API has no public verb to backdate a running timer\'s started_at. To anchor the start time, stop the timer and start a new one with `started_at` in the past via productive_start_timer.\n\nExample (link a task and add a note):\n{\n  "timer_id": "987654",\n  "task_id": "56789",\n  "note": "Reviewing PR feedback"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          timer_id: {
+            type: "string",
+            description: "Timer ID to update (required)",
+          },
+          service_id: {
+            type: "string",
+            description: "Change the service the timer is tracking against",
+          },
+          task_id: {
+            type: ["string", "null"],
+            description:
+              "Link to a task (string), or pass null to unlink the current task",
+          },
+          note: {
+            type: ["string", "null"],
+            description: "Update or clear the note",
+          },
+          billable_time_minutes: {
+            type: "number",
+            description:
+              "Override the billable time on the linked entry (in minutes)",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["timer_id"],
+      },
+    },
+
+    // Time tracking — time entries (manual / past-tense)
+    {
+      name: "productive_create_time_entry",
+      description:
+        'Create a manual time entry. `time_minutes` is the duration in MINUTES (not hours). If `started_at` is provided it must fall on the same UTC date as `date`.\n\nExample:\n{\n  "service_id": "1234",\n  "task_id": "56789",\n  "date": "2026-05-08",\n  "time_minutes": 90,\n  "note": "Initial code review"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          service_id: {
+            type: "string",
+            description: "Service to log time against (required)",
+          },
+          task_id: {
+            type: "string",
+            description: "Optional task to link the time entry to",
+          },
+          date: {
+            type: "string",
+            description: "Entry date in ISO 8601 format YYYY-MM-DD (required)",
+          },
+          time_minutes: {
+            type: "number",
+            description: "Duration in MINUTES (required, must be ≥ 1)",
+          },
+          billable_time_minutes: {
+            type: "number",
+            description: "Billable time in minutes (defaults to time_minutes)",
+          },
+          note: {
+            type: "string",
+            description: "Optional note describing the work",
+          },
+          started_at: {
+            type: "string",
+            description:
+              "Optional ISO 8601 datetime — must fall on the same UTC date as `date`",
+          },
+          person_id: {
+            type: "string",
+            description:
+              "Person to log time for. Defaults to the authenticated user.",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["service_id", "date", "time_minutes"],
+      },
+    },
+    {
+      name: "productive_update_time_entry",
+      description:
+        "Update an existing time entry — date, duration, billable time, note, started_at, or its linked service/task. Pass task_id: null to unlink. Closed budgets reject updates.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          time_entry_id: {
+            type: "string",
+            description: "Time entry ID (required)",
+          },
+          date: { type: "string", description: "ISO 8601 date YYYY-MM-DD" },
+          time_minutes: {
+            type: "number",
+            description: "Duration in minutes (≥ 1)",
+          },
+          billable_time_minutes: {
+            type: "number",
+            description: "Billable time in minutes",
+          },
+          note: {
+            type: ["string", "null"],
+            description: "Note (null to clear)",
+          },
+          started_at: {
+            type: ["string", "null"],
+            description: "ISO 8601 datetime (null to clear)",
+          },
+          service_id: {
+            type: "string",
+            description: "Change the linked service",
+          },
+          task_id: {
+            type: ["string", "null"],
+            description: "Change the linked task (string) or unlink (null)",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["time_entry_id"],
+      },
+    },
+    {
+      name: "productive_delete_time_entry",
+      description: "Permanently delete a time entry. This is irreversible.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          time_entry_id: {
+            type: "string",
+            description: "Time entry ID to delete (required)",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["time_entry_id"],
+      },
+    },
+    {
+      name: "productive_list_time_entries",
+      description:
+        'List time entries for a person and date range. Defaults to the last 7 days for the authenticated user. Optionally filter by service, task, or project.\n\nExample (last week, one project):\n{\n  "project_id": "1234",\n  "date_from": "2026-05-01",\n  "date_to": "2026-05-08"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          person_id: {
+            type: "string",
+            description:
+              "Person whose entries to fetch. Defaults to the authenticated user.",
+          },
+          date_from: {
+            type: "string",
+            description:
+              "Start date inclusive (YYYY-MM-DD). Defaults to 7 days ago.",
+          },
+          date_to: {
+            type: "string",
+            description: "End date inclusive (YYYY-MM-DD). Defaults to today.",
+          },
+          service_id: { type: "string", description: "Filter by service ID" },
+          task_id: { type: "string", description: "Filter by task ID" },
+          project_id: { type: "string", description: "Filter by project ID" },
+          limit: {
+            type: "number",
+            description: "Number of results to return (1-100, default: 20)",
+            default: 20,
+          },
+          offset: {
+            type: "number",
+            description: "Offset for pagination (default: 0)",
+            default: 0,
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+      },
+    },
+    {
+      name: "productive_list_my_tasks_due_today",
+      description:
+        "List the authenticated user's open tasks that are due today or earlier. Tasks are split into Today / Overdue (and Undated) sections. Today first, overdue date-ascending.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          include_overdue: {
+            type: "boolean",
+            description: "Include overdue tasks (default: true)",
+            default: true,
+          },
+          person_id: {
+            type: "string",
+            description:
+              "Person whose tasks to fetch. Defaults to the authenticated user.",
+          },
+          limit: {
+            type: "number",
+            description:
+              "Maximum tasks to fetch from the API before splitting (1-100, default: 100)",
+            default: 100,
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+      },
+    },
   ],
 }));
 
@@ -2605,511 +3286,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   });
 
   try {
-    switch (name) {
-      // Project tools
-      case "productive_list_projects": {
-        const validated = ListProjectsSchema.parse(args);
-        const result = await listProjects(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_list_task_lists": {
-        const validated = ListTaskListsSchema.parse(args);
-        const result = await listTaskLists(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_list_people": {
-        const validated = ListPeopleSchema.parse(args);
-        const result = await listPeople(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Board tools
-      case "productive_list_boards": {
-        const validated = ListBoardsSchema.parse(args);
-        const result = await listBoards(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Task list tools
-      case "productive_get_task_list": {
-        const validated = GetTaskListSchema.parse(args);
-        const result = await getTaskList(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_create_task_list": {
-        const validated = CreateTaskListSchema.parse(args);
-        const result = await createTaskList(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_update_task_list": {
-        const validated = UpdateTaskListSchema.parse(args);
-        const result = await updateTaskList(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_archive_task_list": {
-        const validated = ArchiveTaskListSchema.parse(args);
-        const result = await archiveTaskList(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_restore_task_list": {
-        const validated = RestoreTaskListSchema.parse(args);
-        const result = await restoreTaskList(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_delete_task_list": {
-        const validated = DeleteTaskListSchema.parse(args);
-        const result = await deleteTaskList(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_reposition_task_list": {
-        const validated = RepositionTaskListSchema.parse(args);
-        const result = await repositionTaskList(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_move_task_list": {
-        const validated = MoveTaskListSchema.parse(args);
-        const result = await moveTaskList(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_copy_task_list": {
-        const validated = CopyTaskListSchema.parse(args);
-        const result = await copyTaskList(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Task tools
-      case "productive_create_task": {
-        const validated = CreateTaskSchema.parse(args);
-        const result = await createTask(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_create_milestone": {
-        const validated = CreateMilestoneSchema.parse(args);
-        const result = await createMilestone(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_search_tasks": {
-        const validated = SearchTasksSchema.parse(args);
-        const result = await searchTasks(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_get_task": {
-        const validated = GetTaskSchema.parse(args);
-        const result = await getTask(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_update_task": {
-        const validated = UpdateTaskSchema.parse(args);
-        const result = await updateTask(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Todo tools
-      case "productive_create_todo": {
-        const validated = CreateTodoSchema.parse(args);
-        const result = await createTodo(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_list_todos": {
-        const validated = ListTodosSchema.parse(args);
-        const result = await listTodos(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_update_todo": {
-        const validated = UpdateTodoSchema.parse(args);
-        const result = await updateTodo(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_delete_todo": {
-        const validated = DeleteTodoSchema.parse(args);
-        const result = await deleteTodo(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Page tools
-      case "productive_list_pages": {
-        const validated = ListPagesSchema.parse(args);
-        const result = await listPages(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_get_page": {
-        const validated = GetPageSchema.parse(args);
-        const result = await getPage(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_create_page": {
-        const validated = CreatePageSchema.parse(args);
-        const result = await createPage(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_update_page": {
-        const validated = UpdatePageSchema.parse(args);
-        const result = await updatePage(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_delete_page": {
-        const validated = DeletePageSchema.parse(args);
-        const result = await deletePage(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_search_pages": {
-        const validated = SearchPagesSchema.parse(args);
-        const result = await searchPages(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Batch tools
-      case "productive_create_tasks_batch": {
-        const validated = CreateTasksBatchSchema.parse(args);
-        const result = await createTasksBatch(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Task template tools
-      case "productive_list_task_templates": {
-        const validated = ListTaskTemplatesSchema.parse(args);
-        const result = await listTaskTemplates(validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_get_task_template": {
-        const validated = GetTaskTemplateSchema.parse(args);
-        const result = await getTaskTemplate(validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_apply_task_template": {
-        const validated = ApplyTaskTemplateSchema.parse(args);
-        const result = await applyTaskTemplate(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Task dependency tools
-      case "productive_create_task_dependency": {
-        const validated = CreateTaskDependencySchema.parse(args);
-        const result = await createTaskDependency(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_list_task_dependencies": {
-        const validated = ListTaskDependenciesSchema.parse(args);
-        const result = await listTaskDependencies(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_get_task_dependency": {
-        const validated = GetTaskDependencySchema.parse(args);
-        const result = await getTaskDependency(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_update_task_dependency": {
-        const validated = UpdateTaskDependencySchema.parse(args);
-        const result = await updateTaskDependency(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_delete_task_dependency": {
-        const validated = DeleteTaskDependencySchema.parse(args);
-        const result = await deleteTaskDependency(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Workflow helper tools
-      case "productive_mark_as_blocked_by": {
-        const validated = MarkAsBlockedBySchema.parse(args);
-        const result = await markAsBlockedBy(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_mark_as_duplicate": {
-        const validated = MarkAsDuplicateSchema.parse(args);
-        const result = await markAsDuplicate(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Attachment tools
-      case "productive_list_attachments": {
-        const validated = ListAttachmentsSchema.parse(args);
-        const result = await listAttachments(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_upload_attachment": {
-        const validated = UploadAttachmentSchema.parse(args);
-        const result = await uploadAttachment(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Comment tools
-      case "productive_list_comments": {
-        const validated = ListCommentsSchema.parse(args);
-        const result = await listComments(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_create_comment": {
-        const validated = CreateCommentSchema.parse(args);
-        const result = await createComment(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_get_comment": {
-        const validated = GetCommentSchema.parse(args);
-        const result = await getComment(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_update_comment": {
-        const validated = UpdateCommentSchema.parse(args);
-        const result = await updateComment(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_delete_comment": {
-        const validated = DeleteCommentSchema.parse(args);
-        const result = await deleteComment(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Sub-task tools
-      case "productive_list_subtasks": {
-        const validated = ListSubtasksSchema.parse(args);
-        const result = await listSubtasks(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Budget tools
-      case "productive_list_budgets": {
-        const validated = ListBudgetsSchema.parse(args);
-        const result = await listBudgets(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_get_budget": {
-        const validated = GetBudgetSchema.parse(args);
-        const result = await getBudget(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_update_budget": {
-        const validated = UpdateBudgetSchema.parse(args);
-        const result = await updateBudget(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_mark_budget_delivered": {
-        const validated = MarkBudgetDeliveredSchema.parse(args);
-        const result = await markBudgetDelivered(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_close_budget": {
-        const validated = CloseBudgetSchema.parse(args);
-        const result = await closeBudget(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_audit_project_budgets": {
-        const validated = AuditProjectBudgetsSchema.parse(args);
-        const result = await auditProjectBudgets(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Revenue Distribution tools
-      case "productive_list_revenue_distributions": {
-        const validated = ListRevenueDistributionsSchema.parse(args);
-        const result = await listRevenueDistributions(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_get_revenue_distribution": {
-        const validated = GetRevenueDistributionSchema.parse(args);
-        const result = await getRevenueDistribution(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_create_revenue_distribution": {
-        const validated = CreateRevenueDistributionSchema.parse(args);
-        const result = await createRevenueDistribution(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_update_revenue_distribution": {
-        const validated = UpdateRevenueDistributionSchema.parse(args);
-        const result = await updateRevenueDistribution(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_delete_revenue_distribution": {
-        const validated = DeleteRevenueDistributionSchema.parse(args);
-        const result = await deleteRevenueDistribution(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_extend_revenue_distribution": {
-        const validated = ExtendRevenueDistributionSchema.parse(args);
-        const result = await extendRevenueDistribution(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_report_overdue_distributions": {
-        const validated = ReportOverdueDistributionsSchema.parse(args);
-        const result = await reportOverdueDistributions(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Service tools
-      case "productive_list_services": {
-        const validated = ListServicesSchema.parse(args);
-        const result = await listServices(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_get_service": {
-        const validated = GetServiceSchema.parse(args);
-        const result = await getService(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_create_service": {
-        const validated = CreateServiceSchema.parse(args);
-        const result = await createService(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_update_service": {
-        const validated = UpdateServiceSchema.parse(args);
-        const result = await updateService(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      // Service Type tools
-      case "productive_list_service_types": {
-        const validated = ListServiceTypesSchema.parse(args);
-        const result = await listServiceTypes(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_get_service_type": {
-        const validated = GetServiceTypeSchema.parse(args);
-        const result = await getServiceType(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_create_service_type": {
-        const validated = CreateServiceTypeSchema.parse(args);
-        const result = await createServiceType(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_update_service_type": {
-        const validated = UpdateServiceTypeSchema.parse(args);
-        const result = await updateServiceType(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      case "productive_archive_service_type": {
-        const validated = ArchiveServiceTypeSchema.parse(args);
-        const result = await archiveServiceType(client, validated);
-        safeLog("[MCP Tool Success]", { tool: name });
-        return { content: [{ type: "text", text: result }] };
-      }
-
-      default:
-        safeLog("[MCP Tool Error]", { tool: name, error: "Unknown tool" });
-        throw new Error(`Unknown tool: ${name}`);
+    const entry = toolRegistry[name];
+    if (!entry) {
+      safeLog("[MCP Tool Error]", { tool: name, error: "Unknown tool" });
+      throw new Error(`Unknown tool: ${name}`);
     }
+
+    const validated = entry.schema.parse(args);
+    const result = await entry.handler(client, validated);
+    safeLog("[MCP Tool Success]", { tool: name });
+    return { content: [{ type: "text", text: result }] };
   } catch (error) {
     // Log detailed error information
     safeLog("[MCP Tool Error]", {

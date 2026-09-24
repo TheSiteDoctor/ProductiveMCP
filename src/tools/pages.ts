@@ -314,9 +314,15 @@ export async function createPage(
   };
 
   // Add optional attributes
-  // Convert Markdown to Productive Document Format (Productive expects stringified JSON string)
+  // Convert Markdown to Productive Document Format.
+  // Body must be a STRINGIFIED JSON string (confirmed by API testing — raw object is rejected).
   if (args.body !== undefined) {
-    payload.data.attributes.body = markdownToProductiveDocString(args.body);
+    const convertedBody = markdownToProductiveDocString(args.body);
+    console.error(
+      "[Pages:createPage] Converted body (first 500 chars):",
+      convertedBody.substring(0, 500),
+    );
+    payload.data.attributes.body = convertedBody;
   }
   if (args.version_number) {
     payload.data.attributes.version_number = args.version_number;
@@ -383,11 +389,16 @@ export async function updatePage(
   if (args.title !== undefined) {
     attributes.title = args.title;
   }
-  // Convert Markdown to Productive Document Format (Productive expects stringified JSON string)
-  // If body is null, pass it directly (to clear content); if string, convert it
+  // Convert Markdown to Productive Document Format.
+  // Body must be a STRINGIFIED JSON string (confirmed by API testing — raw object is rejected).
   if (args.body !== undefined) {
-    attributes.body =
+    const convertedBody =
       args.body === null ? null : markdownToProductiveDocString(args.body);
+    console.error(
+      "[Pages:updatePage] Converted body (first 500 chars):",
+      convertedBody?.substring(0, 500),
+    );
+    attributes.body = convertedBody;
   }
 
   if (Object.keys(attributes).length > 0) {

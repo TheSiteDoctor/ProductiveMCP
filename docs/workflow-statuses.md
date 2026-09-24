@@ -72,11 +72,15 @@ On an install where `productive.config.json` is absent there are no resolvable s
 
 Passing it explicitly throws, pointing at the setup script.
 
-## Known limitation
+## Per-project resolution at runtime
 
-Dominance is detected **globally**, per organisation. An organisation genuinely running two workflows across different projects will have one of them treated as authoritative, and a status legitimately belonging to the other is refused — even where it would have worked.
+Dominance is detected **globally**, per organisation, so on its own the config would misfire for an organisation genuinely running two workflows across different projects.
 
-The real fix is resolving the target's workflow per call: look up the task's or project's workflow, then match the status name within it. That would also let `Closed` work on a Default-workflow project. Until then, pass the status ID via the Productive UI for those projects.
+To handle that, `productive_create_task`, `productive_create_milestone`, `productive_update_task` and `productive_create_tasks_batch` resolve the name against the target project's own workflow first (`resolveWorkflowStatusIdForProject` in `src/tools/tasks.ts`). `GET /workflow_statuses?filter[project_id]` is unsupported (400), so the lookup is three steps: fetch one task from the project with `include=workflow_status`, fetch that status to get its `workflow_id`, then fetch every status in that workflow. Results are cached per project for five minutes.
+
+The config-based resolution described above is the **fallback**, used only when the project's workflow cannot be determined — a project with no tasks yet, or an API error. In both paths an unknown name throws; the per-project path lists the statuses in that project's workflow, the fallback lists the dominant workflow's.
+
+One residual gap: a brand-new project with no tasks has no workflow to sample, so its first task resolves against the dominant workflow. If that project uses a different workflow, create the first task without a status and set it on the next call.
 
 ## Re-run setup after upgrading
 

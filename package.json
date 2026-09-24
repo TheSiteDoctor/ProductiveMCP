@@ -1,11 +1,15 @@
 {
   "name": "productive-mcp-server",
-  "version": "1.4.0",
+  "version": "1.7.0",
   "description": "MCP server for Productive.io task management",
   "type": "module",
   "main": "dist/index.js",
+  "bin": {
+    "productive": "dist/cli.js"
+  },
   "scripts": {
     "start": "node dist/index.js",
+    "cli": "node dist/cli.js",
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "setup": "node setup.js",
@@ -18,6 +22,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.6.1",
     "axios": "^1.7.9",
+    "commander": "^14.0.3",
     "express": "^4.21.2",
     "form-data": "^4.0.5",
     "marked": "^17.0.0",

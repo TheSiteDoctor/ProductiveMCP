@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-An MCP (Model Context Protocol) server that exposes 50+ tools for interacting with the Productive.io API. It runs over stdio transport and is consumed by Claude Desktop, Claude Code, and other MCP-compatible clients.
+An MCP (Model Context Protocol) server that exposes 70+ tools for interacting with the Productive.io API. It runs over stdio transport and is consumed by Claude Desktop, Claude Code, and other MCP-compatible clients. A CLI interface (`productive` command) is also available for use via shell/Bash.
 
 ## Commands
 
@@ -12,6 +12,7 @@ An MCP (Model Context Protocol) server that exposes 50+ tools for interacting wi
 npm run build    # TypeScript compilation (tsc) → dist/
 npm run dev      # Watch mode with tsx auto-reload
 npm start        # Run compiled server (dist/index.js)
+npm run cli      # Run CLI (dist/cli.js) — or use `productive` after npm link
 npm run setup    # Auto-discover Productive.io custom fields → productive.config.json
 npm run clean    # Remove dist/
 ```
@@ -20,12 +21,11 @@ There are no tests or linting configured in this project.
 
 ## Architecture
 
-### Entry Point & Server Setup
+### Entry Points
 
-`src/index.ts` is the monolithic entry point (~2700 lines). It creates an MCP `Server` instance with stdio transport and registers two request handlers:
-
-1. **ListToolsRequestSchema** — returns all tool definitions (name, description, inputSchema)
-2. **CallToolRequestSchema** — routes tool calls to handler functions, validates args with Zod, formats responses
+- `src/index.ts` — MCP server entry point. Creates an MCP `Server` with stdio transport, registers tool definitions (`ListToolsRequestSchema`) and routes calls via the shared registry (`CallToolRequestSchema`).
+- `src/cli.ts` — CLI entry point. Uses Commander.js to auto-generate subcommands from the shared registry. Supports `@file` for long string args, JSON output by default.
+- `src/registry.ts` — Shared tool registry mapping tool names to `{ schema, handler }` pairs. Both entry points import from here.
 
 ### Tool Pattern
 
@@ -73,17 +73,111 @@ Reusable ticket templates live as JSON files in `templates/` (overridable via `P
 
 Different Productive API endpoints expect different formats for rich text body content:
 
-| Endpoint     | Input accepted   | Sent to API as          | Function                          |
-| ------------ | ---------------- | ----------------------- | --------------------------------- |
-| **Tasks**    | Markdown or HTML | HTML string             | `markdownToHtml()`                |
-| **Comments** | Markdown or HTML | HTML string             | `markdownToHtml()`                |
-| **Pages**    | Markdown         | Stringified JSON string | `markdownToProductiveDocString()` |
+| Endpoint     | Input accepted   | Sent to API as               | Function                          |
+| ------------ | ---------------- | ---------------------------- | --------------------------------- |
+| **Tasks**    | Markdown or HTML | HTML string                  | `markdownToHtml()`                |
+| **Comments** | Markdown or HTML | HTML string                  | `markdownToHtml()`                |
+| **Pages**    | Markdown         | Stringified ProseMirror JSON | `markdownToProductiveDocString()` |
 
-Pages use Productive's ProseMirror document format. The body attribute must be a **stringified JSON string** (not a raw JSON object). The `markdownToProductiveDocString()` function converts markdown to ProseMirror JSON and then stringifies it.
+Pages use Productive's ProseMirror document format. Two rules are **both required** (confirmed by Productive support ticket + live curl API testing + GUI page comparison):
+
+1. **Body must be a stringified JSON string** (confirmed by curl test — sending a raw JSON object causes Productive to reject the body and return the default empty document). The API response also returns `body` as a stringified string. Do not send a raw object.
+2. **Every block node must have an `id` attribute** — a 10-char random alphanumeric string (`generateNodeId()`). Productive's real-time collaborative editor uses these IDs to track document state. Without them, the editor overwrites API-provided content with empty state. This is why previous stringified-string-only attempts also failed.
+
+Node attrs required:
+
+| Node                      | Required attrs                                            |
+| ------------------------- | --------------------------------------------------------- |
+| `paragraph` (top-level)   | `{ id: "<10-char>", horizontalAlign: "start" }`           |
+| `paragraph` (inside `li`) | `{ id: null, horizontalAlign: null }`                     |
+| `heading`                 | `{ level: N, id: "<10-char>", horizontalAlign: "start" }` |
+| `ul` / `ol`               | `{ id: "<10-char>" }`                                     |
+| `blockquote`              | `{ id: "<10-char>" }`                                     |
+| `li`, `divider`, `text`   | no attrs                                                  |
+
+This has been tested empirically. Do not revisit — the string vs object question is settled by curl evidence.
+
+**Third rule — no `\n` in text nodes.** Text nodes must never contain newline characters. Productive's collaborative editor normalises documents against its ProseMirror schema on load and silently discards text nodes with embedded `\n`, causing content to vanish. Line breaks within a paragraph must use `{ type: "br" }` inline nodes instead. This affects:
+
+- Soft line breaks in markdown (e.g. consecutive bold items on separate lines) — produce `br` tokens in marked, which must map to `{ type: "br" }`, not `{ type: "text", text: "\n" }`
+- Multi-line code blocks — split on `\n` and intersperse `br` nodes between code-marked text nodes
+
+**Supported block node types** (from Productive Document Format API docs):
+`paragraph`, `heading`, `blockquote`, `ol`, `ul`, `checklist`, `table`, `divider`, `banner`
+
+**Table format:** `table` (no attrs) → `table_row` (no attrs) → `table_header` or `table_cell` (attrs: `{ colspan: 1, rowspan: 1, colwidth: null }`). Cells contain a `paragraph` child with `{ id: null, horizontalAlign: null }`.
+
+**`codeBlock` is NOT a supported node type.** Code blocks are rendered as paragraphs with inline `code` marks on the text nodes.
+
+### Workflow Status Gotcha
+
+Workflow status IDs are **per-project** in Productive. `GET /workflow_statuses?filter[project_id]=X` returns **400 Unsupported filter** — do not use it.
+
+`resolveWorkflowStatusIdForProject()` in `src/tools/tasks.ts` uses a 3-step lookup instead:
+
+1. `GET /tasks?filter[project_id]=X&page[size]=1&include=workflow_status` — fetch any task to get a status ID
+2. `GET /workflow_statuses/{id}?include=workflow` — get the workflow ID from that status
+3. `GET /workflow_statuses?filter[workflow_id]=Y` — fetch all statuses for that workflow
+
+Results are cached per project for 5 minutes. When the project's workflow cannot be determined (no tasks yet, or an API error), `resolveWorkflowStatusId()` in `src/constants.ts` resolves against `productive.config.json`, which `npm run setup` scopes to the organisation's dominant workflow. Both paths **throw** on an unknown name rather than silently dropping the status. See `docs/workflow-statuses.md`.
 
 ### Estimate Gotcha
 
 Productive uses two estimate fields: `initial_estimate` (set at creation, never changes) and `remaining_time` (displayed as "Time to complete" in the GUI, counts down as hours are logged). On **create**, set `initial_estimate` — Productive auto-sets `remaining_time` to match. On **update**, set `remaining_time` — this is what the GUI displays and edits.
+
+### Deal Value Gotcha
+
+Productive deals have **three** value-shaped attributes:
+
+| Attribute           | Writable | Format                      | Notes                                 |
+| ------------------- | -------- | --------------------------- | ------------------------------------- |
+| `deal_value`        | Yes      | string in minor units       | Manual value. "60000.0" = £600.00     |
+| `deal_value_source` | Yes      | `manual` \| `from_services` | Controls which value the GUI displays |
+| `deal_value_total`  | No       | integer in minor units      | Effective value; computed from source |
+| `budget_total`      | No       | integer in minor units      | Derived from services                 |
+| `revenue`           | No       | integer in minor units      | From invoiced services                |
+
+**Setting `deal_value` without `deal_value_source: "manual"` silently zeroes the deal** — `from_services` mode ignores the manual value and recomputes from services. `createDeal` and `updateDeal` auto-set `deal_value_source: "manual"` when `deal_value` is supplied; pass the source explicitly to override.
+
+The schema also exposes `deal_value` as a **number in minor units** at the tool boundary (e.g. `60000`) and converts to the API's stringified format internally. The API reads it back as `"60000.0"`.
+
+### Date Attribute on Deals
+
+The deal start date is `date` on the API — not `start_date`. The MCP schema uses `start_date` and translates. (The end date is `end_date` on both sides.)
+
+The Productive UI labels `date` as **"Date Opened"** — when the opportunity was first opened (or the original first-recorded date for migrated deals). It is **not** a sales-close forecast. Revenue attribution is a separate resource: `revenue_distributions`, each with its own `start_on` / `end_on` and `amount_percent`. `getDeal` fetches and renders these in a "Revenue Distributions" section; the markdown output for `date` is labelled "Date Opened" with an inline note pointing readers at distributions.
+
+### Required Custom Fields on Deals
+
+Most Productive orgs have required custom fields on deals. The API returns 422 with `code: "required_custom_field"` and `source.pointer: "data/attributes/custom_field_<id>"`. The error utility passes both through verbatim, so callers see the pointer in the message.
+
+Use `productive_list_custom_fields` with `customizable_type: "deals"` to discover required fields and their option IDs (for select/multi-select types) before calling `create_deal` / `update_deal`. The filter value is **plural** (`deals`, `tasks`, `projects`) — singular silently returns zero results.
+
+### Comments Are Polymorphic
+
+Comments can attach to `task`, `deal`, `project`, `discussion`, `invoice`, `person`, `company`, or `purchase_order`. Sent via the **singular** relationship key with a **plural** resource type:
+
+```json
+"relationships": { "deal": { "data": { "type": "deals", "id": "..." } } }
+```
+
+The error message points at `data/attributes/commentable` when missing, but the relationship form is what works. `createComment` accepts either the legacy `task_id` shorthand or a `commentable_type` + `commentable_id` pair.
+
+**Comment visibility uses `hidden`, not `visible_to_clients`.** The MCP-facing parameter stays `visible_to_clients`, but on the wire it maps to `hidden: !visible_to_clients`. The API silently drops unknown attributes, so sending `visible_to_clients` returns 201 and creates a public comment. Reads derive `visible_to_clients` from `attrs.hidden` and `pinned` from `attrs.pinned_at` (a timestamp or null). `productive_update_comment` accepts `visible_to_clients` on its own to fix wrongly-public comments without touching the body.
+
+**Only a comment's author can edit it.** PATCH `/comments/{id}` on someone else's comment returns 403 `access_denied`, regardless of token permissions.
+
+**Listing comments is not polymorphic.** The /comments endpoint only supports `filter[task_id]` and `filter[project_id]`. Deal/invoice/etc comments cannot be listed in bulk — fetch by known comment ID via `productive_get_comment`.
+
+### Sort Param Unsupported on Some Endpoints
+
+These endpoints **400 with `sort_param_unsupported`** if you send any `sort=` value:
+
+- `/pipelines`
+- `/custom_fields`
+- `/custom_field_options`
+
+Results come back in position/creation order natively. The new tools omit `sort`. The error reporter surfaces this clearly: `[sort_param_unsupported] (param sort)`.
 
 ### Response Constraints
 
@@ -93,8 +187,27 @@ All tool responses are capped at 25,000 characters (`CHARACTER_LIMIT` in constan
 
 1. Create/extend a Zod schema in `src/schemas/`
 2. Create/extend a handler function in `src/tools/`
-3. Register the tool definition in the `ListToolsRequestSchema` handler in `src/index.ts`
-4. Add the routing case in the `CallToolRequestSchema` handler in `src/index.ts`
+3. Add an entry to the registry in `src/registry.ts`
+4. Add the tool definition (name, description, inputSchema) in the `ListToolsRequestSchema` handler in `src/index.ts`
+
+The CLI automatically picks up new registry entries — no CLI-specific changes needed.
+
+## CLI Usage
+
+The CLI mirrors the MCP tools as subcommands. Tool name `productive_search_tasks` becomes `search-tasks`:
+
+```bash
+productive search-tasks --project_id 123 --limit 5
+productive create-task --title "Fix bug" --project_id 123 --task_list_id 456
+productive create-page --title "Design Doc" --body @design.md --project_id 123
+echo "# Notes" | productive create-page --title "Notes" --body @- --project_id 123
+productive search-tasks --format markdown --query "bug"
+```
+
+- `@filepath` reads content from a file; `@-` reads from stdin (for long body/description args)
+- JSON output by default; use `--format markdown` for human-readable output
+- Comma-separated arrays: `--labels "Bug,Urgent"`
+- Run `productive --help` or `productive <command> --help` for all options
 
 ## Environment
 

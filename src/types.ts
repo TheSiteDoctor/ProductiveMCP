@@ -345,6 +345,12 @@ export interface UpdateTaskPayload {
           id: string;
         };
       };
+      parent_task?: {
+        data: {
+          type: "tasks";
+          id: string;
+        } | null;
+      };
     };
   };
 }
@@ -376,6 +382,7 @@ export interface FormattedTask {
   due_date: string | null;
   start_date: string | null;
   labels: string[];
+  parent_task_id: string | null;
   is_milestone: boolean;
   created_at: string;
   url: string | null;
@@ -562,8 +569,10 @@ export interface CommentAttributes {
   body: string;
   created_at: string;
   updated_at: string;
-  pinned: boolean;
-  visible_to_clients: boolean;
+  hidden: boolean;
+  pinned_at: string | null;
+  commentable_type?: string | null;
+  commentable_id?: string | null;
 }
 
 export interface Comment extends JSONAPIData<CommentAttributes> {
@@ -581,23 +590,43 @@ export interface FormattedComment {
   author_id: string | null;
   author_name: string | null;
   task_id: string | null;
+  commentable_type: string | null;
+  commentable_id: string | null;
 }
+
+/**
+ * Resource types Productive lets you comment on. Each one is sent under a
+ * different relationship key in the create payload.
+ */
+export type CommentableType =
+  | "task"
+  | "deal"
+  | "project"
+  | "discussion"
+  | "invoice"
+  | "person"
+  | "company"
+  | "purchase_order";
 
 export interface CreateCommentPayload {
   data: {
     type: "comments";
     attributes: {
       body: string;
-      visible_to_clients?: boolean;
+      hidden?: boolean;
     };
-    relationships: {
-      task: {
+    // Polymorphic: exactly one of these is set based on the commentable_type.
+    // The relationship key uses the singular form ("deal", "task", etc.) and the
+    // target resource type uses the plural form ("deals", "tasks").
+    relationships: Record<
+      string,
+      {
         data: {
-          type: "tasks";
+          type: string;
           id: string;
         };
-      };
-    };
+      }
+    >;
   };
 }
 
@@ -607,6 +636,7 @@ export interface UpdateCommentPayload {
     id: string;
     attributes?: {
       body?: string;
+      hidden?: boolean;
     };
   };
 }
@@ -679,6 +709,140 @@ export interface BudgetAuditResult {
     project_id: string;
     project_name: string;
   }>;
+}
+
+// Deal types (deals with budget=false, i.e. sales deals)
+export interface DealAttributes {
+  name: string;
+  budget: boolean;
+  date: string | null;
+  end_date: string | null;
+  probability: number | null;
+  revenue: number | null;
+  services_revenue: number | null;
+  budget_total: number | null;
+  profit: number | null;
+  profit_margin: number | null;
+  currency: string | null;
+  note: string | null;
+  tag_list: string[] | null;
+  sales_closed_at: string | null;
+  sales_closed_on: string | null;
+  lost_comment: string | null;
+  days_since_created: number | null;
+  days_since_last_activity: number | null;
+  days_in_current_stage: number | null;
+  last_activity_at: string | null;
+  // Manual deal value (alternative to services-derived value).
+  // deal_value: stringified decimal in minor units (cents/pence) — e.g. "250000.0" = £2,500.00
+  // deal_value_source: "manual" sets the deal value directly; "from_services" derives it from services
+  // deal_value_total: read-only effective value in minor units (cents), sums retainer periods
+  deal_value: string | null;
+  deal_value_source: "manual" | "from_services" | null;
+  deal_value_total: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Deal extends JSONAPIData<DealAttributes> {
+  type: "deals";
+  id: string;
+}
+
+export interface FormattedDeal {
+  id: string;
+  name: string;
+  stage_status: "open" | "won" | "lost" | null;
+  probability: number | null;
+  revenue: number | null;
+  services_revenue: number | null;
+  budget_total: number | null;
+  deal_value: string | null;
+  deal_value_source: "manual" | "from_services" | null;
+  deal_value_total: number | null;
+  profit: number | null;
+  profit_margin: number | null;
+  currency: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  sales_closed_on: string | null;
+  note: string | null;
+  tag_list: string[];
+  lost_comment: string | null;
+  days_since_created: number | null;
+  days_since_last_activity: number | null;
+  days_in_current_stage: number | null;
+  last_activity_at: string | null;
+  project_id: string | null;
+  project_name: string | null;
+  company_id: string | null;
+  company_name: string | null;
+  responsible_id: string | null;
+  responsible_name: string | null;
+  deal_status_id: string | null;
+  deal_status_name: string | null;
+  pipeline_id: string | null;
+  pipeline_name: string | null;
+  contact_id: string | null;
+  contact_name: string | null;
+  created_at: string;
+  url: string | null;
+  /**
+   * Revenue distributions attached to this deal. Populated when the
+   * caller passes them through to `formatDeal` (e.g. getDeal fetches
+   * them via /revenue_distributions?filter[deal_id]=X). Empty when not
+   * fetched — not the same as "deal has no distributions".
+   */
+  revenue_distributions?: FormattedRevenueDistribution[];
+}
+
+export interface UpdateDealPayload {
+  data: {
+    type: "deals";
+    id: string;
+    attributes?: {
+      name?: string;
+      probability?: number;
+      deal_status_id?: number;
+      note?: string | null;
+      tag_list?: string[];
+      // deal_value is sent as integer minor units (cents/pence) per Productive API docs
+      deal_value?: number;
+      deal_value_source?: "manual" | "from_services";
+      // The deal's "Date Opened" surfaces as `date` on the API, not `start_date`.
+      date?: string;
+      end_date?: string;
+      currency?: string;
+      custom_fields?: Record<string, unknown>;
+    };
+    relationships?: {
+      responsible?: { data: { type: "people"; id: string } };
+    };
+  };
+}
+
+// Deal Status types (pipeline stages)
+export interface DealStatusAttributes {
+  name: string;
+  position: number | null;
+  status_id: number; // 1=open, 2=won, 3=lost
+  probability: number | null;
+  created_at: string;
+}
+
+export interface DealStatus extends JSONAPIData<DealStatusAttributes> {
+  type: "deal_statuses";
+  id: string;
+}
+
+export interface FormattedDealStatus {
+  id: string;
+  name: string;
+  position: number | null;
+  stage_status: "open" | "won" | "lost";
+  probability: number | null;
+  pipeline_id: string | null;
+  pipeline_name: string | null;
 }
 
 // Revenue Distribution types
@@ -869,6 +1033,166 @@ export interface FormattedService {
   person_name: string | null;
 }
 
+// Timer types
+//
+// A Productive timer is a thin tracking-session marker — only `started_at`,
+// `stopped_at`, `total_time`, and `person_id` live on the resource itself.
+// All metadata (service, task, note, billable_time, …) is on the linked
+// `time_entry` that Productive auto-mints when you POST /timers.
+//
+// Verbs supported by the API (empirically discovered against the live org):
+//   POST   /timers                   — start (accepts started_at, service)
+//   GET    /timers, /timers/{id}     — list / read (use ?include=time_entry)
+//   PATCH  /timers/{id}/stop         — stop (empty body)
+//   PATCH  /timers/{id}              — 404 (timers are not directly patchable)
+//   DELETE /timers/{id}              — 404
+// Update note / task / service / billable_time via PATCH /time_entries/{id}.
+export interface TimerAttributes {
+  person_id: number;
+  started_at: string;
+  stopped_at: string | null;
+  total_time: number; // accumulated minutes (computed by Productive on stop)
+}
+
+export interface Timer extends JSONAPIData<TimerAttributes> {
+  type: "timers";
+  id: string;
+}
+
+export interface CreateTimerPayload {
+  data: {
+    type: "timers";
+    attributes: {
+      started_at?: string;
+    };
+    relationships: {
+      service: {
+        data: {
+          type: "services";
+          id: string;
+        };
+      };
+    };
+  };
+}
+
+export interface FormattedTimer {
+  id: string;
+  started_at: string;
+  stopped_at: string | null;
+  is_running: boolean;
+  elapsed_minutes: number | null;
+  billable_minutes: number | null;
+  note: string | null;
+  service_id: string | null;
+  service_name: string | null;
+  task_id: string | null;
+  task_title: string | null;
+  task_number: number | null;
+  project_id: string | null;
+  project_name: string | null;
+  person_id: string | null;
+  person_name: string | null;
+  url: string | null;
+}
+
+// Time entry types
+export interface TimeEntryAttributes {
+  date: string;
+  time: number; // minutes
+  billable_time: number | null;
+  note: string | null;
+  started_at: string | null;
+  approved: boolean | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface TimeEntry extends JSONAPIData<TimeEntryAttributes> {
+  type: "time_entries";
+  id: string;
+}
+
+export interface CreateTimeEntryPayload {
+  data: {
+    type: "time_entries";
+    attributes: {
+      date: string;
+      time: number;
+      billable_time?: number;
+      note?: string;
+      started_at?: string;
+    };
+    relationships: {
+      service: {
+        data: {
+          type: "services";
+          id: string;
+        };
+      };
+      task?: {
+        data: {
+          type: "tasks";
+          id: string;
+        };
+      };
+      person: {
+        data: {
+          type: "people";
+          id: string;
+        };
+      };
+    };
+  };
+}
+
+export interface UpdateTimeEntryPayload {
+  data: {
+    type: "time_entries";
+    id: string;
+    attributes?: {
+      date?: string;
+      time?: number;
+      billable_time?: number;
+      note?: string | null;
+      started_at?: string | null;
+    };
+    relationships?: {
+      service?: {
+        data: {
+          type: "services";
+          id: string;
+        };
+      };
+      task?: {
+        data: {
+          type: "tasks";
+          id: string;
+        } | null;
+      };
+    };
+  };
+}
+
+export interface FormattedTimeEntry {
+  id: string;
+  date: string;
+  time_minutes: number;
+  billable_minutes: number | null;
+  note: string | null;
+  started_at: string | null;
+  approved: boolean | null;
+  service_id: string | null;
+  service_name: string | null;
+  task_id: string | null;
+  task_title: string | null;
+  task_number: number | null;
+  project_id: string | null;
+  project_name: string | null;
+  person_id: string | null;
+  person_name: string | null;
+}
+
 // Service Type types
 export interface ServiceTypeAttributes {
   name: string;
@@ -907,4 +1231,150 @@ export interface FormattedServiceType {
   name: string;
   description: string | null;
   archived: boolean;
+}
+
+// Pipeline types
+export interface PipelineAttributes {
+  name: string;
+  position: number | null;
+  icon_id: string | null;
+  pipeline_type_id: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Pipeline extends JSONAPIData<PipelineAttributes> {
+  type: "pipelines";
+  id: string;
+}
+
+export interface FormattedPipeline {
+  id: string;
+  name: string;
+  position: number | null;
+  icon_id: string | null;
+  pipeline_type_id: number | null;
+}
+
+// Company types
+export interface CompanyAttributes {
+  name: string;
+  billing_name: string | null;
+  domain: string | null;
+  default_currency: string | null;
+  vat: string | null;
+  tag_list: string[] | null;
+  archived_at: string | null;
+  last_activity_at: string | null;
+  due_days: number | null;
+  payment_terms_type: number | null;
+  parent_company_id: string | null;
+  custom_fields: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Company extends JSONAPIData<CompanyAttributes> {
+  type: "companies";
+  id: string;
+}
+
+export interface FormattedCompany {
+  id: string;
+  name: string;
+  billing_name: string | null;
+  domain: string | null;
+  default_currency: string | null;
+  tag_list: string[];
+  archived: boolean;
+  last_activity_at: string | null;
+  parent_company_id: string | null;
+  url: string | null;
+}
+
+// Custom field types
+export interface CustomFieldAttributes {
+  name: string;
+  description: string | null;
+  data_type_id: number;
+  customizable_type: string;
+  required: boolean;
+  position: number | null;
+  archived_at: string | null;
+  aggregation_type_id: number | null;
+  formatting_type_id: number | null;
+  global: boolean;
+  show_in_add_edit_views: boolean;
+  sensitive: boolean;
+  quick_add_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomField extends JSONAPIData<CustomFieldAttributes> {
+  type: "custom_fields";
+  id: string;
+}
+
+export interface CustomFieldOptionAttributes {
+  name: string;
+  position: number | null;
+  color_id: string | null;
+  archived_at: string | null;
+}
+
+export interface CustomFieldOption extends JSONAPIData<CustomFieldOptionAttributes> {
+  type: "custom_field_options";
+  id: string;
+}
+
+export interface FormattedCustomFieldOption {
+  id: string;
+  name: string;
+  archived: boolean;
+}
+
+export interface FormattedCustomField {
+  id: string;
+  name: string;
+  description: string | null;
+  data_type_id: number;
+  data_type: string; // friendly label
+  customizable_type: string;
+  required: boolean;
+  archived: boolean;
+  position: number | null;
+  options: FormattedCustomFieldOption[] | null;
+}
+
+// Deal/budget create payloads — sit alongside the existing UpdateDealPayload
+// (deals and budgets share the /deals endpoint; budget=false → deal, budget=true → budget).
+export interface CreateDealPayload {
+  data: {
+    type: "deals";
+    attributes: {
+      name: string;
+      budget?: boolean;
+      currency?: string;
+      // Cents/pence as string ("60000.0") — matches the API's reported format.
+      deal_value?: string;
+      deal_value_source?: "manual" | "from_services";
+      // Productive uses `date` for the start date, not `start_date`.
+      date?: string;
+      end_date?: string;
+      deal_type_id?: number;
+      probability?: number;
+      note?: string;
+      tag_list?: string[];
+      custom_fields?: Record<string, unknown>;
+    };
+    relationships: {
+      company: { data: { type: "companies"; id: string } };
+      responsible?: { data: { type: "people"; id: string } };
+      deal_status?: { data: { type: "deal_statuses"; id: string } };
+      pipeline?: { data: { type: "pipelines"; id: string } };
+      project?: { data: { type: "projects"; id: string } };
+      contact?: { data: { type: "people"; id: string } };
+    };
+  };
 }

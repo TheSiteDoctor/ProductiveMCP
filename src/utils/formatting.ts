@@ -48,6 +48,18 @@ import type {
   FormattedServiceType,
   ProductiveDoc,
   ProductiveDocNode,
+  Deal,
+  DealAttributes,
+  FormattedDeal,
+  DealStatus,
+  DealStatusAttributes,
+  FormattedDealStatus,
+  Timer,
+  TimerAttributes,
+  FormattedTimer,
+  TimeEntry,
+  TimeEntryAttributes,
+  FormattedTimeEntry,
 } from "../types.js";
 
 /**
@@ -76,6 +88,18 @@ export function markdownToHtml(markdown: string): string {
 // Productive Document Format types imported from types.ts
 
 /**
+ * Generate a random 10-character alphanumeric node ID matching Productive's format.
+ * Required by Productive's real-time collaborative editor to track document state.
+ */
+function generateNodeId(): string {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  return Array.from(
+    { length: 10 },
+    () => chars[Math.floor(Math.random() * chars.length)],
+  ).join("");
+}
+
+/**
  * Convert Markdown to Productive JSON Document Format for Pages.
  * Productive Pages use a JSON document format similar to Atlassian Document Format (ADF).
  * This function parses markdown and converts it to the required structure.
@@ -98,8 +122,9 @@ export function markdownToProductiveDoc(markdown: string): ProductiveDoc {
 
 /**
  * Convert Markdown to a stringified Productive document JSON.
- * Productive's Pages API expects the body attribute as a string containing JSON
- * (not a raw JSON object), matching the format returned in API responses:
+ * Productive's Pages API expects the body attribute as a stringified JSON string
+ * (confirmed by live API testing — sending a raw object causes the API to reject
+ * the body and return an empty default document).
  * e.g. "body": "{\"type\":\"doc\",\"content\":[...]}"
  */
 export function markdownToProductiveDocString(markdown: string): string {
@@ -130,43 +155,99 @@ function convertTokenToNode(token: Token): ProductiveDocNode | null {
     case "heading":
       return {
         type: "heading",
-        attrs: { level: Math.min(token.depth, 3) }, // Productive supports 3 levels
+        attrs: {
+          level: Math.min(token.depth, 3), // Productive supports 3 levels
+          id: generateNodeId(),
+          horizontalAlign: "start",
+        },
         content: convertInlineTokens(token.tokens || []),
       };
 
     case "paragraph":
       return {
         type: "paragraph",
+        attrs: { id: generateNodeId(), horizontalAlign: "start" },
         content: convertInlineTokens(token.tokens || []),
       };
 
     case "blockquote":
       return {
         type: "blockquote",
+        attrs: { id: generateNodeId() },
         content: convertTokensToNodes(token.tokens || []),
       };
 
     case "list":
       return {
         type: token.ordered ? "ol" : "ul",
+        attrs: { id: generateNodeId() },
         content: (token.items || []).map((item: Tokens.ListItem) => ({
           type: "li",
           content: convertListItemTokens(item.tokens || []),
         })),
       };
 
-    case "code":
-      // Code blocks become paragraphs with code-marked text
+    case "code": {
+      // Code blocks become paragraphs with code-marked text.
+      // Multi-line content is split into text+br sequences — embedding \n in text
+      // nodes violates ProseMirror schema and causes Productive's editor to discard content.
+      const lines = token.text.split("\n");
+      const codeContent: ProductiveDocNode[] = [];
+      lines.forEach((line: string, i: number) => {
+        codeContent.push({
+          type: "text",
+          text: line,
+          marks: [{ type: "code" }],
+        });
+        if (i < lines.length - 1) codeContent.push({ type: "br" });
+      });
       return {
         type: "paragraph",
-        content: [
-          {
-            type: "text",
-            text: token.text,
-            marks: [{ type: "code" }],
-          },
-        ],
+        attrs: { id: generateNodeId(), horizontalAlign: "start" },
+        content: codeContent,
       };
+    }
+
+    case "table": {
+      // Convert GFM tables to Productive's table node format.
+      // Structure: table → table_row → table_header (header) / table_cell (body)
+      const tableRows: ProductiveDocNode[] = [];
+      if (token.header?.length) {
+        tableRows.push({
+          type: "table_row",
+          content: token.header.map(
+            (cell: { tokens?: Token[]; text?: string }) => ({
+              type: "table_header",
+              attrs: { colspan: 1, rowspan: 1, colwidth: null },
+              content: [
+                {
+                  type: "paragraph",
+                  attrs: { id: null, horizontalAlign: null },
+                  content: convertInlineTokens(cell.tokens || []),
+                },
+              ],
+            }),
+          ),
+        });
+      }
+      for (const row of token.rows || []) {
+        tableRows.push({
+          type: "table_row",
+          content: row.map((cell: { tokens?: Token[]; text?: string }) => ({
+            type: "table_cell",
+            attrs: { colspan: 1, rowspan: 1, colwidth: null },
+            content: [
+              {
+                type: "paragraph",
+                attrs: { id: null, horizontalAlign: null },
+                content: convertInlineTokens(cell.tokens || []),
+              },
+            ],
+          })),
+        });
+      }
+      return { type: "table", content: tableRows };
+    }
 
     case "hr":
       return {
@@ -182,6 +263,7 @@ function convertTokenToNode(token: Token): ProductiveDocNode | null {
       if ("text" in token && typeof token.text === "string") {
         return {
           type: "paragraph",
+          attrs: { id: generateNodeId(), horizontalAlign: "start" },
           content: [{ type: "text", text: token.text }],
         };
       }
@@ -203,8 +285,10 @@ function convertListItemTokens(tokens: Token[]): ProductiveDocNode[] {
       Array.isArray(token.tokens)
     ) {
       // This is a text token with nested inline formatting - wrap in paragraph
+      // Paragraphs inside li use id: null per Productive's own document format
       nodes.push({
         type: "paragraph",
+        attrs: { id: null, horizontalAlign: null },
         content: convertInlineTokens(token.tokens),
       });
     } else if (
@@ -223,6 +307,7 @@ function convertListItemTokens(tokens: Token[]): ProductiveDocNode[] {
       if (inlineNodes.length > 0) {
         nodes.push({
           type: "paragraph",
+          attrs: { id: null, horizontalAlign: null },
           content: inlineNodes,
         });
       }
@@ -279,7 +364,9 @@ function convertInlineToken(token: Token): ProductiveDocNode[] {
       });
 
     case "br":
-      return [{ type: "text", text: "\n" }];
+      // Use the Productive `br` inline node — never embed \n in text nodes,
+      // as that violates ProseMirror schema and causes the editor to discard content.
+      return [{ type: "br" }];
 
     case "escape":
       return [{ type: "text", text: token.text }];
@@ -591,6 +678,11 @@ export function formatTask(
         .map((id) => reverseLookup[id] || `Unknown (${id})`)
         .filter(Boolean);
     })(),
+    parent_task_id:
+      task.relationships?.parent_task?.data &&
+      "id" in task.relationships.parent_task.data
+        ? task.relationships.parent_task.data.id
+        : null,
     is_milestone: attributes.type_id === 3,
     created_at: attributes.created_at,
     url: task.id ? `https://app.productive.io/${orgId}/tasks/${task.id}` : null,
@@ -669,6 +761,10 @@ export function formatTaskMarkdown(task: FormattedTask): string {
 
   if (task.labels && task.labels.length > 0) {
     lines.push(`**Labels**: ${task.labels.join(", ")}`);
+  }
+
+  if (task.parent_task_id) {
+    lines.push(`**Parent Task ID**: ${task.parent_task_id}`);
   }
 
   const createdDate = new Date(task.created_at).toLocaleString("en-GB", {
@@ -1049,13 +1145,16 @@ export function truncateResponse(
     return content;
   }
 
-  const truncated = content.substring(0, CHARACTER_LIMIT);
-  const truncationMessage =
-    format === "markdown"
-      ? "\n\n---\n**Response truncated.** Use `limit` and `offset` parameters to paginate through results."
-      : "\n\n[Response truncated. Use limit and offset parameters to paginate.]";
+  // Never truncate JSON — mid-string cuts produce invalid JSON that breaks parsers
+  if (format === "json") {
+    return content;
+  }
 
-  return truncated + truncationMessage;
+  const truncated = content.substring(0, CHARACTER_LIMIT);
+  return (
+    truncated +
+    "\n\n---\n**Response truncated.** Use `limit` and `offset` parameters to paginate through results."
+  );
 }
 
 /**
@@ -1360,6 +1459,446 @@ export function formatBudgetAuditMarkdown(result: BudgetAuditResult): string {
 
   if (result.issues_found === 0) {
     lines.push("All budgets are healthy with valid end dates.");
+  }
+
+  return lines.join("\n");
+}
+
+// ============================================================
+// Deal formatting
+// ============================================================
+
+const STAGE_STATUS_MAP: Record<number, "open" | "won" | "lost"> = {
+  1: "open",
+  2: "won",
+  3: "lost",
+};
+
+/**
+ * Resolve a named relationship from JSON:API included data
+ */
+function resolveIncludedName(
+  includedData: unknown[] | undefined,
+  type: string,
+  id: string | null,
+  nameExtractor?: (attrs: Record<string, unknown>) => string | null,
+): string | null {
+  if (!id || !includedData) return null;
+  const item = includedData.find(
+    (
+      i,
+    ): i is {
+      type: string;
+      id: string;
+      attributes?: Record<string, unknown>;
+    } =>
+      typeof i === "object" &&
+      i !== null &&
+      "type" in i &&
+      (i as { type: unknown }).type === type &&
+      "id" in i &&
+      (i as { id: unknown }).id === id,
+  );
+  if (!item?.attributes) return null;
+  if (nameExtractor) return nameExtractor(item.attributes);
+  return (item.attributes.name as string) || null;
+}
+
+/**
+ * Format a deal for display
+ */
+export function formatDeal(
+  deal: Deal,
+  orgId: string,
+  includedData?: unknown[],
+  revenueDistributions?: FormattedRevenueDistribution[],
+): FormattedDeal {
+  const attributes = deal.attributes as DealAttributes;
+
+  // Extract relationship IDs
+  const projectId =
+    deal.relationships?.project?.data && "id" in deal.relationships.project.data
+      ? deal.relationships.project.data.id
+      : null;
+  const companyId =
+    deal.relationships?.company?.data && "id" in deal.relationships.company.data
+      ? deal.relationships.company.data.id
+      : null;
+  const responsibleId =
+    deal.relationships?.responsible?.data &&
+    "id" in deal.relationships.responsible.data
+      ? deal.relationships.responsible.data.id
+      : null;
+  const dealStatusId =
+    deal.relationships?.deal_status?.data &&
+    "id" in deal.relationships.deal_status.data
+      ? deal.relationships.deal_status.data.id
+      : null;
+  const pipelineId =
+    deal.relationships?.pipeline?.data &&
+    "id" in deal.relationships.pipeline.data
+      ? deal.relationships.pipeline.data.id
+      : null;
+  const contactId =
+    deal.relationships?.contact?.data && "id" in deal.relationships.contact.data
+      ? deal.relationships.contact.data.id
+      : null;
+
+  // Resolve stage_status from the deal_status relationship's status_id
+  let stageStatus: "open" | "won" | "lost" | null = null;
+  if (dealStatusId && includedData) {
+    const dsItem = includedData.find(
+      (
+        i,
+      ): i is {
+        type: string;
+        id: string;
+        attributes?: Record<string, unknown>;
+      } =>
+        typeof i === "object" &&
+        i !== null &&
+        "type" in i &&
+        (i as { type: unknown }).type === "deal_statuses" &&
+        "id" in i &&
+        (i as { id: unknown }).id === dealStatusId,
+    );
+    if (dsItem?.attributes?.status_id) {
+      stageStatus =
+        STAGE_STATUS_MAP[dsItem.attributes.status_id as number] || null;
+    }
+  }
+
+  // Resolve names from included data
+  const personNameExtractor = (attrs: Record<string, unknown>) => {
+    const first = (attrs.first_name as string) || "";
+    const last = (attrs.last_name as string) || "";
+    return `${first} ${last}`.trim() || null;
+  };
+
+  return {
+    id: deal.id,
+    name: attributes.name,
+    stage_status: stageStatus,
+    probability: attributes.probability,
+    revenue: attributes.revenue,
+    services_revenue: attributes.services_revenue,
+    budget_total: attributes.budget_total,
+    deal_value: attributes.deal_value ?? null,
+    deal_value_source: attributes.deal_value_source ?? null,
+    deal_value_total: attributes.deal_value_total ?? null,
+    profit: attributes.profit,
+    profit_margin: attributes.profit_margin,
+    currency: attributes.currency,
+    start_date: attributes.date || null,
+    end_date: attributes.end_date || null,
+    sales_closed_on: attributes.sales_closed_on || null,
+    note: attributes.note || null,
+    tag_list: attributes.tag_list || [],
+    lost_comment: attributes.lost_comment || null,
+    days_since_created: attributes.days_since_created,
+    days_since_last_activity: attributes.days_since_last_activity,
+    days_in_current_stage: attributes.days_in_current_stage,
+    last_activity_at: attributes.last_activity_at || null,
+    project_id: projectId,
+    project_name: resolveIncludedName(includedData, "projects", projectId),
+    company_id: companyId,
+    company_name: resolveIncludedName(includedData, "companies", companyId),
+    responsible_id: responsibleId,
+    responsible_name: resolveIncludedName(
+      includedData,
+      "people",
+      responsibleId,
+      personNameExtractor,
+    ),
+    deal_status_id: dealStatusId,
+    deal_status_name: resolveIncludedName(
+      includedData,
+      "deal_statuses",
+      dealStatusId,
+    ),
+    pipeline_id: pipelineId,
+    pipeline_name: resolveIncludedName(includedData, "pipelines", pipelineId),
+    contact_id: contactId,
+    contact_name: resolveIncludedName(
+      includedData,
+      "contacts",
+      contactId,
+      personNameExtractor,
+    ),
+    created_at: attributes.created_at,
+    url: deal.id ? `https://app.productive.io/${orgId}/deals/${deal.id}` : null,
+    revenue_distributions: revenueDistributions,
+  };
+}
+
+/**
+ * Format deals as markdown list
+ */
+export function formatDealListMarkdown(
+  deals: FormattedDeal[],
+  total?: number,
+): string {
+  if (deals.length === 0) {
+    return "No deals found.";
+  }
+
+  const lines = ["# Deals", ""];
+
+  if (total !== undefined) {
+    lines.push(`**Total**: ${total} deals`, "");
+  }
+
+  for (const deal of deals) {
+    const stageLabel = deal.stage_status
+      ? deal.stage_status.charAt(0).toUpperCase() + deal.stage_status.slice(1)
+      : "Unknown";
+    lines.push(`- **${deal.name}** (${stageLabel})`);
+    lines.push(`  ID: ${deal.id}`);
+
+    if (deal.company_name) {
+      lines.push(`  Company: ${deal.company_name}`);
+    }
+    if (deal.deal_status_name) {
+      lines.push(`  Stage: ${deal.deal_status_name}`);
+    }
+    if (deal.probability !== null && deal.probability !== undefined) {
+      lines.push(`  Probability: ${deal.probability}%`);
+    }
+    if (deal.revenue !== null && deal.revenue !== undefined && deal.currency) {
+      lines.push(`  Revenue: ${deal.revenue} ${deal.currency}`);
+    }
+    if (
+      deal.deal_value_total !== null &&
+      deal.deal_value_total !== undefined &&
+      deal.currency
+    ) {
+      const sourceLabel =
+        deal.deal_value_source === "manual" ? " (manual)" : "";
+      lines.push(
+        `  Deal value: ${deal.deal_value_total} ${deal.currency}${sourceLabel}`,
+      );
+    }
+    if (deal.responsible_name) {
+      lines.push(`  Owner: ${deal.responsible_name}`);
+    }
+    if (
+      deal.days_in_current_stage !== null &&
+      deal.days_in_current_stage !== undefined
+    ) {
+      lines.push(`  Days in stage: ${deal.days_in_current_stage}`);
+    }
+    if (deal.url) {
+      lines.push(`  [View in Productive](${deal.url})`);
+    }
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Format a single deal as detailed markdown
+ */
+export function formatSingleDealMarkdown(deal: FormattedDeal): string {
+  const lines = [`# ${deal.name}`, ""];
+
+  const stageLabel = deal.stage_status
+    ? deal.stage_status.charAt(0).toUpperCase() + deal.stage_status.slice(1)
+    : "Unknown";
+  lines.push(`**Status**: ${stageLabel}`);
+  lines.push(`**ID**: ${deal.id}`);
+
+  if (deal.pipeline_name) {
+    lines.push(`**Pipeline**: ${deal.pipeline_name}`);
+  }
+  if (deal.deal_status_name) {
+    lines.push(`**Stage**: ${deal.deal_status_name}`);
+  }
+  if (deal.probability !== null && deal.probability !== undefined) {
+    lines.push(`**Probability**: ${deal.probability}%`);
+  }
+  if (deal.revenue !== null && deal.revenue !== undefined && deal.currency) {
+    lines.push(`**Revenue**: ${deal.revenue} ${deal.currency}`);
+  }
+  if (deal.deal_value_total !== null && deal.deal_value_total !== undefined) {
+    const sourceLabel = deal.deal_value_source
+      ? ` _(source: ${deal.deal_value_source})_`
+      : "";
+    lines.push(
+      `**Deal Value**: ${deal.deal_value_total} ${deal.currency || ""}${sourceLabel}`,
+    );
+  }
+  if (deal.budget_total !== null && deal.budget_total !== undefined) {
+    lines.push(`**Budget Total**: ${deal.budget_total} ${deal.currency || ""}`);
+  }
+  if (deal.profit !== null && deal.profit !== undefined) {
+    lines.push(`**Profit**: ${deal.profit} ${deal.currency || ""}`);
+  }
+  if (deal.profit_margin !== null && deal.profit_margin !== undefined) {
+    lines.push(`**Profit Margin**: ${deal.profit_margin}%`);
+  }
+
+  lines.push("");
+  lines.push("## Relationships");
+
+  if (deal.company_name) {
+    lines.push(`**Company**: ${deal.company_name} (ID: ${deal.company_id})`);
+  }
+  if (deal.responsible_name) {
+    lines.push(
+      `**Owner**: ${deal.responsible_name} (ID: ${deal.responsible_id})`,
+    );
+  }
+  if (deal.contact_name) {
+    lines.push(`**Contact**: ${deal.contact_name} (ID: ${deal.contact_id})`);
+  }
+  if (deal.project_name) {
+    lines.push(`**Project**: ${deal.project_name} (ID: ${deal.project_id})`);
+  }
+
+  lines.push("");
+  lines.push("## Dates");
+  if (deal.start_date) {
+    lines.push(`**Date Opened**: ${deal.start_date}`);
+  }
+  if (deal.end_date) {
+    lines.push(`**End Date**: ${deal.end_date}`);
+  }
+  if (deal.sales_closed_on) {
+    lines.push(`**Closed On**: ${deal.sales_closed_on}`);
+  }
+  lines.push(
+    "_Note: Date Opened is when the opportunity was first opened (Productive API attribute `date`). It is NOT a sales-close forecast — see Revenue Distributions for revenue attribution dates._",
+  );
+
+  if (deal.revenue_distributions !== undefined) {
+    lines.push("");
+    lines.push("## Revenue Distributions");
+    if (deal.revenue_distributions.length === 0) {
+      lines.push("_None attached to this deal._");
+    } else {
+      for (const dist of deal.revenue_distributions) {
+        lines.push(
+          `- **${dist.start_on} → ${dist.end_on}** — ${dist.amount_percent}% (ID: ${dist.id})`,
+        );
+      }
+      lines.push(
+        "_Revenue distribution periods drive when deal value is recognised as revenue. Manage with productive_create_revenue_distribution / productive_update_revenue_distribution._",
+      );
+    }
+  }
+
+  if (
+    deal.days_since_created !== null ||
+    deal.days_since_last_activity !== null ||
+    deal.days_in_current_stage !== null
+  ) {
+    lines.push("");
+    lines.push("## Activity");
+    if (deal.days_since_created !== null) {
+      lines.push(`**Days Since Created**: ${deal.days_since_created}`);
+    }
+    if (deal.days_since_last_activity !== null) {
+      lines.push(
+        `**Days Since Last Activity**: ${deal.days_since_last_activity}`,
+      );
+    }
+    if (deal.days_in_current_stage !== null) {
+      lines.push(`**Days In Current Stage**: ${deal.days_in_current_stage}`);
+    }
+    if (deal.last_activity_at) {
+      lines.push(`**Last Activity**: ${deal.last_activity_at}`);
+    }
+  }
+
+  if (deal.note) {
+    lines.push("", "## Notes", deal.note);
+  }
+
+  if (deal.tag_list.length > 0) {
+    lines.push("", `**Tags**: ${deal.tag_list.join(", ")}`);
+  }
+
+  if (deal.lost_comment) {
+    lines.push("", `**Lost Reason**: ${deal.lost_comment}`);
+  }
+
+  const createdDate = new Date(deal.created_at).toLocaleDateString("en-GB", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
+  lines.push("", `**Created**: ${createdDate}`);
+
+  if (deal.url) {
+    lines.push("", `[View in Productive](${deal.url})`);
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Format a deal status for display
+ */
+export function formatDealStatus(
+  status: DealStatus,
+  includedData?: unknown[],
+): FormattedDealStatus {
+  const attributes = status.attributes as DealStatusAttributes;
+
+  const pipelineId =
+    status.relationships?.pipeline?.data &&
+    "id" in status.relationships.pipeline.data
+      ? status.relationships.pipeline.data.id
+      : null;
+
+  return {
+    id: status.id,
+    name: attributes.name,
+    position: attributes.position,
+    stage_status: STAGE_STATUS_MAP[attributes.status_id] || "open",
+    probability: attributes.probability,
+    pipeline_id: pipelineId,
+    pipeline_name: resolveIncludedName(includedData, "pipelines", pipelineId),
+  };
+}
+
+/**
+ * Format deal statuses as markdown list
+ */
+export function formatDealStatusListMarkdown(
+  statuses: FormattedDealStatus[],
+  total?: number,
+): string {
+  if (statuses.length === 0) {
+    return "No deal statuses found.";
+  }
+
+  const lines = ["# Deal Statuses (Pipeline Stages)", ""];
+
+  if (total !== undefined) {
+    lines.push(`**Total**: ${total} statuses`, "");
+  }
+
+  for (const status of statuses) {
+    const stageLabel =
+      status.stage_status.charAt(0).toUpperCase() +
+      status.stage_status.slice(1);
+    lines.push(`- **${status.name}** (${stageLabel})`);
+    lines.push(`  ID: ${status.id}`);
+    if (status.pipeline_name) {
+      lines.push(`  Pipeline: ${status.pipeline_name}`);
+    }
+    if (status.position !== null) {
+      lines.push(`  Position: ${status.position}`);
+    }
+    if (status.probability !== null) {
+      lines.push(`  Auto-probability: ${status.probability}%`);
+    }
+    lines.push("");
   }
 
   return lines.join("\n");
@@ -1934,6 +2473,390 @@ export function formatSingleServiceTypeMarkdown(
 
   if (serviceType.description) {
     lines.push(`**Description**: ${serviceType.description}`);
+  }
+
+  return lines.join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// Timer + time-entry formatters
+// ---------------------------------------------------------------------------
+
+/**
+ * Render minutes as `Hh Mm` (e.g. 95 → "1h 35m"). Returns "0m" for zero.
+ */
+function formatDuration(minutes: number | null): string {
+  if (minutes === null || minutes === undefined) return "—";
+  const total = Math.max(0, Math.round(minutes));
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
+/**
+ * Look up a single included resource by type + id.
+ */
+interface IncludedResource {
+  id: string;
+  type: string;
+  attributes?: Record<string, unknown>;
+  relationships?: Record<string, unknown>;
+}
+
+function findIncluded(
+  included: unknown[] | undefined,
+  type: string,
+  id: string,
+): IncludedResource | null {
+  if (!included) return null;
+  return (
+    (included.find(
+      (item): item is IncludedResource =>
+        typeof item === "object" &&
+        item !== null &&
+        "type" in item &&
+        (item as { type: unknown }).type === type &&
+        "id" in item &&
+        (item as { id: unknown }).id === id,
+    ) as IncludedResource | undefined) ?? null
+  );
+}
+
+/**
+ * Resolve a related resource ID from a JSON:API relationships block.
+ */
+function relatedId(
+  relationships: Record<string, unknown> | undefined,
+  key: string,
+): string | null {
+  const rel = relationships?.[key] as
+    | { data?: { id?: string } | null }
+    | undefined;
+  return rel?.data?.id ?? null;
+}
+
+function personFullName(
+  attrs: Record<string, unknown> | undefined,
+): string | null {
+  if (!attrs) return null;
+  const first = (attrs.first_name as string | undefined) ?? "";
+  const last = (attrs.last_name as string | undefined) ?? "";
+  const name = `${first} ${last}`.trim();
+  return name || null;
+}
+
+/**
+ * Convert a raw JSON:API timer resource into a flattened FormattedTimer.
+ *
+ * Productive's timer resource only carries `person_id` / `started_at` /
+ * `stopped_at` / `total_time`. Service, task, note, and billable_time live
+ * on the linked `time_entry`, which must be in `included` (caller should
+ * request `?include=time_entry,time_entry.service,time_entry.task,time_entry.project`).
+ */
+export function formatTimer(
+  timer: Timer,
+  orgId: string,
+  included?: unknown[],
+): FormattedTimer {
+  const attributes = timer.attributes as TimerAttributes;
+  const rels = timer.relationships as Record<string, unknown> | undefined;
+
+  // Resolve the linked time_entry first — that's where all the metadata lives.
+  const timeEntryId = relatedId(rels, "time_entry");
+  const timeEntry = timeEntryId
+    ? findIncluded(included, "time_entries", timeEntryId)
+    : null;
+  const teRels = (timeEntry?.relationships as Record<string, unknown>) ?? {};
+  const teAttrs = (timeEntry?.attributes as Record<string, unknown>) ?? {};
+
+  const serviceId = relatedId(teRels, "service");
+  const taskId = relatedId(teRels, "task");
+  const personId =
+    relatedId(teRels, "person") ??
+    (typeof attributes.person_id === "number"
+      ? String(attributes.person_id)
+      : null);
+
+  const service = serviceId
+    ? findIncluded(included, "services", serviceId)
+    : null;
+  const task = taskId ? findIncluded(included, "tasks", taskId) : null;
+  const person = personId ? findIncluded(included, "people", personId) : null;
+
+  // Project comes from the task or the service if either includes it.
+  let projectId: string | null = null;
+  if (task) {
+    projectId = relatedId(
+      task as { relationships?: Record<string, unknown> },
+      "project",
+    );
+  }
+  if (!projectId && service) {
+    projectId = relatedId(
+      service as { relationships?: Record<string, unknown> },
+      "project",
+    );
+  }
+  const project = projectId
+    ? findIncluded(included, "projects", projectId)
+    : null;
+  const projectName = (project?.attributes?.name as string | undefined) ?? null;
+
+  const stoppedAt = attributes.stopped_at ?? null;
+  const startedAt = attributes.started_at;
+  const isRunning = stoppedAt === null;
+
+  // Prefer the server's total_time after stop; otherwise derive elapsed from
+  // started_at so live UIs get a useful tick.
+  let elapsed: number | null = null;
+  if (typeof attributes.total_time === "number" && attributes.total_time > 0) {
+    elapsed = attributes.total_time;
+  } else if (startedAt) {
+    const startMs = new Date(startedAt).getTime();
+    const endMs = stoppedAt ? new Date(stoppedAt).getTime() : Date.now();
+    if (Number.isFinite(startMs) && Number.isFinite(endMs)) {
+      elapsed = Math.max(0, Math.round((endMs - startMs) / 60000));
+    }
+  }
+
+  return {
+    id: timer.id,
+    started_at: startedAt,
+    stopped_at: stoppedAt,
+    is_running: isRunning,
+    elapsed_minutes: elapsed,
+    billable_minutes:
+      typeof teAttrs.billable_time === "number"
+        ? (teAttrs.billable_time as number)
+        : null,
+    note: (teAttrs.note as string | null | undefined) ?? null,
+    service_id: serviceId,
+    service_name: (service?.attributes?.name as string | undefined) ?? null,
+    task_id: taskId,
+    task_title: (task?.attributes?.title as string | undefined) ?? null,
+    task_number:
+      typeof task?.attributes?.number === "number"
+        ? (task.attributes.number as number)
+        : null,
+    project_id: projectId,
+    project_name: projectName,
+    person_id: personId,
+    person_name: personFullName(person?.attributes),
+    url: timer.id ? `https://app.productive.io/${orgId}/time-tracking` : null,
+  };
+}
+
+/**
+ * Format a timer as a readable Markdown card.
+ */
+export function formatTimerMarkdown(timer: FormattedTimer): string {
+  const status = timer.is_running ? "● Running" : "■ Stopped";
+  const lines = [
+    `# ${status}`,
+    "",
+    `**Timer ID**: ${timer.id}`,
+    `**Elapsed**: ${formatDuration(timer.elapsed_minutes)}`,
+    `**Started**: ${timer.started_at}`,
+  ];
+
+  if (timer.stopped_at) {
+    lines.push(`**Stopped**: ${timer.stopped_at}`);
+  }
+
+  if (timer.service_name) {
+    lines.push(`**Service**: ${timer.service_name}`);
+  } else if (timer.service_id) {
+    lines.push(`**Service ID**: ${timer.service_id}`);
+  }
+
+  if (timer.task_title) {
+    const num = timer.task_number ? `#${timer.task_number} ` : "";
+    lines.push(`**Task**: ${num}${timer.task_title}`);
+  } else if (timer.task_id) {
+    lines.push(`**Task ID**: ${timer.task_id}`);
+  } else if (timer.is_running) {
+    lines.push(`**Task**: _(unlinked)_`);
+  }
+
+  if (timer.project_name) {
+    lines.push(`**Project**: ${timer.project_name}`);
+  }
+
+  if (timer.person_name) {
+    lines.push(`**Person**: ${timer.person_name}`);
+  }
+
+  if (timer.billable_minutes !== null) {
+    lines.push(`**Billable**: ${formatDuration(timer.billable_minutes)}`);
+  }
+
+  if (timer.note) {
+    lines.push("", `**Notes**: ${timer.note}`);
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Convert a raw JSON:API time-entry resource into a flattened FormattedTimeEntry.
+ */
+export function formatTimeEntry(
+  entry: TimeEntry,
+  included?: unknown[],
+): FormattedTimeEntry {
+  const attributes = entry.attributes as TimeEntryAttributes;
+  const rels = entry.relationships as Record<string, unknown> | undefined;
+
+  const serviceId = relatedId(rels, "service");
+  const taskId = relatedId(rels, "task");
+  const personId = relatedId(rels, "person");
+
+  const service = serviceId
+    ? findIncluded(included, "services", serviceId)
+    : null;
+  const task = taskId ? findIncluded(included, "tasks", taskId) : null;
+  const person = personId ? findIncluded(included, "people", personId) : null;
+
+  let projectId: string | null = null;
+  let projectName: string | null = null;
+  if (task) {
+    projectId = relatedId(
+      task as { relationships?: Record<string, unknown> },
+      "project",
+    );
+  }
+  if (!projectId && service) {
+    projectId = relatedId(
+      service as { relationships?: Record<string, unknown> },
+      "project",
+    );
+  }
+  if (projectId) {
+    const project = findIncluded(included, "projects", projectId);
+    projectName = (project?.attributes?.name as string | undefined) ?? null;
+  }
+
+  return {
+    id: entry.id,
+    date: attributes.date,
+    time_minutes: attributes.time,
+    billable_minutes: attributes.billable_time ?? null,
+    note: attributes.note ?? null,
+    started_at: attributes.started_at ?? null,
+    approved: attributes.approved ?? null,
+    service_id: serviceId,
+    service_name: (service?.attributes?.name as string | undefined) ?? null,
+    task_id: taskId,
+    task_title: (task?.attributes?.title as string | undefined) ?? null,
+    task_number:
+      typeof task?.attributes?.number === "number"
+        ? (task.attributes.number as number)
+        : null,
+    project_id: projectId,
+    project_name: projectName,
+    person_id: personId,
+    person_name: personFullName(person?.attributes),
+  };
+}
+
+/**
+ * Format a single time entry as Markdown.
+ */
+export function formatTimeEntryMarkdown(entry: FormattedTimeEntry): string {
+  const lines = [
+    `# Time Entry`,
+    "",
+    `**ID**: ${entry.id}`,
+    `**Date**: ${entry.date}`,
+    `**Duration**: ${formatDuration(entry.time_minutes)}`,
+  ];
+
+  if (entry.billable_minutes !== null) {
+    lines.push(`**Billable**: ${formatDuration(entry.billable_minutes)}`);
+  }
+
+  if (entry.service_name) {
+    lines.push(`**Service**: ${entry.service_name}`);
+  } else if (entry.service_id) {
+    lines.push(`**Service ID**: ${entry.service_id}`);
+  }
+
+  if (entry.task_title) {
+    const num = entry.task_number ? `#${entry.task_number} ` : "";
+    lines.push(`**Task**: ${num}${entry.task_title}`);
+  } else if (entry.task_id) {
+    lines.push(`**Task ID**: ${entry.task_id}`);
+  }
+
+  if (entry.project_name) {
+    lines.push(`**Project**: ${entry.project_name}`);
+  }
+
+  if (entry.person_name) {
+    lines.push(`**Person**: ${entry.person_name}`);
+  }
+
+  if (entry.started_at) {
+    lines.push(`**Started**: ${entry.started_at}`);
+  }
+
+  if (entry.approved !== null) {
+    lines.push(`**Approved**: ${entry.approved ? "yes" : "no"}`);
+  }
+
+  if (entry.note) {
+    lines.push("", `**Notes**: ${entry.note}`);
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Format a list of time entries as a Markdown table with totals.
+ */
+export function formatTimeEntryListMarkdown(
+  entries: FormattedTimeEntry[],
+  total?: number,
+): string {
+  if (entries.length === 0) {
+    return "No time entries found.";
+  }
+
+  const totalMinutes = entries.reduce(
+    (sum, e) => sum + (e.time_minutes || 0),
+    0,
+  );
+  const totalBillable = entries.reduce(
+    (sum, e) => sum + (e.billable_minutes ?? 0),
+    0,
+  );
+
+  const lines = ["# Time Entries", ""];
+  if (total !== undefined) {
+    lines.push(`**Total entries**: ${total}`);
+  }
+  lines.push(`**Total time**: ${formatDuration(totalMinutes)}`);
+  lines.push(`**Billable time**: ${formatDuration(totalBillable)}`);
+  lines.push("");
+  lines.push("| Date | Project | Service | Task | Time | Billable | Note |");
+  lines.push("|---|---|---|---|---|---|---|");
+
+  for (const e of entries) {
+    const project = e.project_name ?? "—";
+    const service = e.service_name ?? "—";
+    const taskLabel = e.task_title
+      ? `${e.task_number ? `#${e.task_number} ` : ""}${e.task_title}`
+      : "—";
+    const note = (e.note ?? "").replace(/\|/g, "\\|").replace(/\n+/g, " ");
+    const noteShort =
+      note.length > 60 ? `${note.slice(0, 57)}...` : note || "—";
+    lines.push(
+      `| ${e.date} | ${project} | ${service} | ${taskLabel} | ${formatDuration(
+        e.time_minutes,
+      )} | ${formatDuration(e.billable_minutes)} | ${noteShort} |`,
+    );
   }
 
   return lines.join("\n");

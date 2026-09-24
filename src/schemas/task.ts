@@ -138,6 +138,7 @@ export const UpdateTaskSchema = z
     task_type: z.enum(TASK_TYPES).optional(),
     workflow_status: z.string().optional(),
     task_list_id: z.string().optional(),
+    parent_task_id: z.string().optional().nullable(),
     labels: z.array(z.string()).optional(),
     response_format: ResponseFormatSchema,
   })
@@ -169,6 +170,26 @@ export const BatchTaskItemSchema = z
     priority: z.enum(PRIORITIES).default("Medium"),
     workflow_status: z.string().optional(),
     labels: z.array(z.string()).optional(),
+  })
+  .strict();
+
+/**
+ * Schema for "list my open tasks due today or earlier" — the headline view
+ * for the time tracker. Uses the authenticated user (resolved from
+ * PRODUCTIVE_PERSON_ID env or `/people/me`) and groups results into Today
+ * vs Overdue.
+ */
+export const ListMyTasksDueTodaySchema = z
+  .object({
+    include_overdue: z.boolean().default(true),
+    person_id: z
+      .string()
+      .optional()
+      .describe(
+        "Person whose tasks to fetch. Defaults to the authenticated user.",
+      ),
+    limit: z.coerce.number().int().min(1).max(100).default(100),
+    response_format: ResponseFormatSchema,
   })
   .strict();
 

@@ -19,12 +19,14 @@ import {
   markdownToHtml,
 } from "../utils/formatting.js";
 import { CreateTasksBatchSchema } from "../schemas/task.js";
-import { resolveLabelOptionIds } from "./tasks.js";
+import {
+  resolveLabelOptionIds,
+  resolveWorkflowStatusIdForProject,
+} from "./tasks.js";
 import {
   CUSTOM_FIELD_IDS,
   TASK_TYPE_OPTIONS,
   PRIORITY_OPTIONS,
-  resolveWorkflowStatusId,
 } from "../constants.js";
 
 /**
@@ -86,7 +88,11 @@ export async function createTasksBatch(
         payload.data.relationships.workflow_status = {
           data: {
             type: "workflow_statuses",
-            id: resolveWorkflowStatusId(taskInput.workflow_status),
+            id: await resolveWorkflowStatusIdForProject(
+              client,
+              args.project_id,
+              taskInput.workflow_status,
+            ),
           },
         };
       }

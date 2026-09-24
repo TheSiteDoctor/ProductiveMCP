@@ -1,8 +1,8 @@
-# Productive.io MCP Server
+# Productive.io MCP Server & CLI
 
-A [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that gives Claude (and other MCP-compatible AI clients) full access to your [Productive.io](https://productive.io) account.
+A [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server and CLI tool that gives Claude (and other MCP-compatible AI clients) full access to your [Productive.io](https://productive.io) account.
 
-Ask Claude to create tasks, search projects, manage budgets, and more - all through natural conversation.
+Ask Claude to create tasks, search projects, manage budgets, and more — through natural conversation via MCP, or directly via the `productive` CLI.
 
 ## Features
 
@@ -78,9 +78,61 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 
 ### Connect to Claude Code
 
-#### Via CLI (recommended)
+There are two ways to use this project with Claude Code: the **CLI** (recommended) and **MCP**.
 
-Add the server globally so it's available in all projects:
+#### Option A: CLI (recommended)
+
+The CLI gives Claude Code direct shell access to all 70+ Productive tools via the Bash tool, which is faster and more reliable than MCP for Claude Code.
+
+**1. Make the CLI available globally:**
+
+```bash
+npm link
+```
+
+This creates a global `productive` command. Alternatively, use `node /absolute/path/to/productive-mcp-server/dist/cli.js` directly.
+
+**2. Set environment variables:**
+
+The CLI reads `PRODUCTIVE_API_TOKEN` and `PRODUCTIVE_ORG_ID` from the environment. Add them to your shell profile (e.g. `~/.zshrc`):
+
+```bash
+export PRODUCTIVE_API_TOKEN="your_api_token_here"
+export PRODUCTIVE_ORG_ID="your_org_id_here"
+```
+
+**3. Verify:**
+
+```bash
+productive list-projects --limit 3
+productive search-tasks --query "bug" --limit 5
+productive --help
+```
+
+**4. Tell Claude Code about it:**
+
+Add to your project's `CLAUDE.md` or `~/.claude/CLAUDE.md`:
+
+```markdown
+## Productive.io CLI
+
+Use the `productive` CLI to interact with Productive.io. Run `productive --help` for all commands, or `productive <command> --help` for options.
+
+Examples:
+
+- `productive search-tasks --project_id 123 --limit 10`
+- `productive create-task --title "Fix bug" --project_id 123 --task_list_id 456`
+- `productive get-task --task_id 789`
+- `productive create-page --title "Notes" --body @notes.md --project_id 123`
+```
+
+Claude Code will then use the CLI via Bash tool calls automatically when you ask it to interact with Productive.
+
+#### Option B: MCP
+
+If you prefer MCP (or want both), add the server to Claude Code:
+
+**Via CLI (recommended):**
 
 ```bash
 claude mcp add --scope user productive -t stdio \
@@ -89,9 +141,9 @@ claude mcp add --scope user productive -t stdio \
   -- node /absolute/path/to/productive-mcp-server/dist/index.js
 ```
 
-#### Via config file
+**Via config file:**
 
-Alternatively, add to `.claude/settings.json` or `~/.claude.json`:
+Add to `.claude/settings.json` or `~/.claude.json`:
 
 ```json
 {
@@ -111,6 +163,50 @@ Alternatively, add to `.claude/settings.json` or `~/.claude.json`:
 ### Verify
 
 Restart Claude and ask: "List my projects in Productive"
+
+## CLI Usage
+
+The `productive` CLI mirrors all MCP tools as subcommands. The tool name `productive_search_tasks` becomes `search-tasks`:
+
+```bash
+# Search and filter
+productive search-tasks --project_id 123 --limit 5
+productive search-tasks --query "bug" --sort -created_at
+productive list-projects --format markdown
+
+# Create and update
+productive create-task --title "Fix bug" --project_id 123 --task_list_id 456
+productive update-task --task_id 789 --workflow_status "In Progress"
+
+# Long content via @file (reads file contents into the argument)
+productive create-page --title "Design Doc" --body @design.md --project_id 123
+productive update-task --task_id 789 --description @description.html
+
+# Pipe from stdin with @-
+echo "# Meeting Notes" | productive create-page --title "Notes" --body @- --project_id 123
+
+# Comma-separated arrays
+productive create-task --title "Urgent fix" --labels "Bug,Urgent" --project_id 123 --task_list_id 456
+
+# JSON for complex nested args (e.g. batch creation)
+productive create-tasks-batch --project_id 123 --task_list_id 456 --tasks @tasks.json
+```
+
+### Output format
+
+JSON by default (machine-readable, ideal for Claude Code). Use `--format markdown` for human-readable output:
+
+```bash
+productive get-task --task_id 123                    # JSON output
+productive get-task --task_id 123 --format markdown  # Markdown output
+```
+
+### Help
+
+```bash
+productive --help                    # List all commands
+productive search-tasks --help       # Show options for a specific command
+```
 
 ## Custom Field Configuration
 
@@ -234,7 +330,8 @@ Templates are JSON files in `templates/` describing a standard set of task lists
 ```bash
 npm run dev      # Watch mode with auto-reload
 npm run build    # Compile TypeScript
-npm start        # Run compiled server
+npm start        # Run compiled MCP server
+npm run cli      # Run CLI (or `productive` after npm link)
 npm run clean    # Remove build artifacts
 ```
 

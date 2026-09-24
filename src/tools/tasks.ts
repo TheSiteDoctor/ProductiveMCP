@@ -26,13 +26,15 @@ import {
   SearchTasksSchema,
   GetTaskSchema,
   UpdateTaskSchema,
+  ListMyTasksDueTodaySchema,
 } from "../schemas/task.js";
+import { resolveCurrentPersonId } from "./timers.js";
 import {
   CUSTOM_FIELD_IDS,
   TASK_TYPE_OPTIONS,
   PRIORITY_OPTIONS,
   LABEL_OPTIONS,
-  resolveWorkflowStatusId,
+  resolveWorkflowStatusId as resolveConfiguredWorkflowStatusId,
 } from "../constants.js";
 
 /**
@@ -46,6 +48,128 @@ let labelOptionsCache: {
 } | null = null;
 
 const LABEL_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Per-project cache of workflow status name → ID mappings.
+ * Keyed by projectId; expires after 5 minutes.
+ */
+const workflowStatusCache = new Map<
+  string,
+  { statuses: Record<string, string>; fetchedAt: number }
+>();
+
+const WORKFLOW_STATUS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Fetch the name → ID map of every status in the workflow a project uses.
+ *
+ * GET /workflow_statuses?filter[project_id] is unsupported (returns 400).
+ * Instead this uses a 3-step lookup:
+ *   1. Fetch one task from the project with include=workflow_status to get a status ID.
+ *   2. Fetch that workflow_status record to obtain its workflow_id.
+ *   3. Fetch all statuses for that workflow_id.
+ * Results are cached per project for 5 minutes.
+ *
+ * Returns null when the project's workflow cannot be determined — a project
+ * with no tasks yet, or an API error — so the caller can fall back to config.
+ */
+async function fetchProjectWorkflowStatuses(
+  client: ProductiveClient,
+  projectId: string,
+): Promise<Record<string, string> | null> {
+  const cached = workflowStatusCache.get(projectId);
+  if (cached && Date.now() - cached.fetchedAt < WORKFLOW_STATUS_CACHE_TTL_MS) {
+    return cached.statuses;
+  }
+
+  try {
+    // Step 1: get any task from the project to obtain a workflow_status ID
+    const taskResponse = await client.get<JSONAPIResponse>("/tasks", {
+      "filter[project_id]": projectId,
+      "page[size]": "1",
+      include: "workflow_status",
+    });
+    const included = (taskResponse.included ?? []) as Array<{
+      id: string;
+      type: string;
+    }>;
+    const anyStatus = included.find((r) => r.type === "workflow_statuses");
+    if (!anyStatus) {
+      return null;
+    }
+
+    // Step 2: fetch that workflow_status to get its workflow_id
+    const wsResponse = await client.get<JSONAPIResponse>(
+      `/workflow_statuses/${anyStatus.id}`,
+      { include: "workflow" },
+    );
+    const wsData = Array.isArray(wsResponse.data)
+      ? wsResponse.data[0]
+      : wsResponse.data;
+    const workflowId = (
+      wsData?.relationships?.workflow as { data?: { id: string } } | undefined
+    )?.data?.id;
+    if (!workflowId) {
+      return null;
+    }
+
+    // Step 3: fetch all statuses for this workflow
+    const allResponse = await client.get<JSONAPIResponse>(
+      "/workflow_statuses",
+      {
+        "filter[workflow_id]": workflowId,
+      },
+    );
+    const allStatuses = Array.isArray(allResponse.data)
+      ? allResponse.data
+      : [allResponse.data];
+    const statusMap: Record<string, string> = {};
+    for (const s of allStatuses) {
+      const name = (s.attributes as { name?: string })?.name;
+      if (name && s.id) statusMap[name] = s.id;
+    }
+
+    workflowStatusCache.set(projectId, {
+      statuses: statusMap,
+      fetchedAt: Date.now(),
+    });
+    return statusMap;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve a workflow status name to the correct ID for a given project.
+ *
+ * Statuses are scoped to a workflow and different projects can use different
+ * workflows, so the project's own workflow is consulted first. When it cannot
+ * be determined, the config-based resolver in constants.ts takes over (it
+ * prefers the organisation's dominant workflow as detected by `npm run setup`).
+ *
+ * Throws rather than silently skipping the field — a task created at the
+ * wrong status while the tool reports success is worse than a clear failure.
+ */
+export async function resolveWorkflowStatusIdForProject(
+  client: ProductiveClient,
+  projectId: string,
+  statusName: string,
+): Promise<string> {
+  const statuses = await fetchProjectWorkflowStatuses(client, projectId);
+  if (!statuses) {
+    return resolveConfiguredWorkflowStatusId(statusName);
+  }
+
+  const statusId = statuses[statusName];
+  if (statusId) {
+    return statusId;
+  }
+
+  throw new Error(
+    `Workflow status "${statusName}" does not exist in the workflow used by project ${projectId}. ` +
+      `Available statuses: ${Object.keys(statuses).join(", ")}.`,
+  );
+}
 
 /**
  * Fetch all label options from the Productive API with pagination support.
@@ -283,12 +407,16 @@ export async function createTask(
     };
   }
 
-  // Add optional workflow status relationship
+  // Add optional workflow status relationship (resolve per-project)
   if (args.workflow_status && payload.data.relationships) {
     payload.data.relationships.workflow_status = {
       data: {
         type: "workflow_statuses",
-        id: resolveWorkflowStatusId(args.workflow_status),
+        id: await resolveWorkflowStatusIdForProject(
+          client,
+          args.project_id,
+          args.workflow_status,
+        ),
       },
     };
   }
@@ -472,7 +600,11 @@ export async function createMilestone(
     payload.data.relationships.workflow_status = {
       data: {
         type: "workflow_statuses",
-        id: resolveWorkflowStatusId(args.workflow_status),
+        id: await resolveWorkflowStatusIdForProject(
+          client,
+          args.project_id,
+          args.workflow_status,
+        ),
       },
     };
   }
@@ -719,15 +851,38 @@ export async function updateTask(
     };
   }
 
-  // Handle workflow status relationship
+  // Handle workflow status relationship (resolve per-project)
   if (args.workflow_status !== undefined) {
     if (!payload.data.relationships) {
       payload.data.relationships = {};
     }
+    // Fetch the task to get its project_id for status resolution
+    const taskResponse = await client.get<JSONAPIResponse>(
+      `/tasks/${args.task_id}`,
+      { include: "project" },
+    );
+    const taskData = Array.isArray(taskResponse.data)
+      ? taskResponse.data[0]
+      : taskResponse.data;
+    const projectRel = (taskData as Task).relationships?.project;
+    const projectId =
+      projectRel && "data" in projectRel
+        ? (projectRel.data as { id: string })?.id
+        : null;
+
+    // Resolve against the task's own project when it can be determined,
+    // otherwise fall back to the organisation-level config mapping.
+    const statusId = projectId
+      ? await resolveWorkflowStatusIdForProject(
+          client,
+          projectId,
+          args.workflow_status,
+        )
+      : resolveConfiguredWorkflowStatusId(args.workflow_status);
     payload.data.relationships.workflow_status = {
       data: {
         type: "workflow_statuses",
-        id: resolveWorkflowStatusId(args.workflow_status),
+        id: statusId,
       },
     };
   }
@@ -739,6 +894,21 @@ export async function updateTask(
     }
     payload.data.relationships.task_list = {
       data: { type: "task_lists", id: args.task_list_id },
+    };
+  }
+
+  // Handle parent task relationship (null to clear, string to set)
+  if (args.parent_task_id !== undefined) {
+    if (!payload.data.relationships) {
+      payload.data.relationships = {};
+    }
+    payload.data.relationships.parent_task = {
+      data: args.parent_task_id
+        ? {
+            type: "tasks",
+            id: args.parent_task_id,
+          }
+        : null,
     };
   }
 
@@ -762,4 +932,109 @@ export async function updateTask(
   );
 
   return truncateResponse(result, args.response_format);
+}
+
+/**
+ * List the authenticated user's open tasks that are due today or earlier.
+ *
+ * Today's tasks come first, overdue underneath. The due-date predicate is
+ * applied client-side because Productive's `filter[due_date]` doesn't
+ * support `[lte]` operator suffixes — we fetch by assignee + status, sort
+ * by due_date ascending, and split locally.
+ */
+export async function listMyTasksDueToday(
+  client: ProductiveClient,
+  args: z.infer<typeof ListMyTasksDueTodaySchema>,
+): Promise<string> {
+  const personId = args.person_id ?? (await resolveCurrentPersonId(client));
+
+  const params: Record<string, unknown> = {
+    "filter[assignee_id]": personId,
+    "filter[status]": 1, // 1 = open in Productive
+    sort: "due_date",
+    include: "project,task_list,assignee,workflow_status,attachments",
+    "page[size]": args.limit,
+  };
+
+  const response = await client.get<JSONAPIResponse>("/tasks", params);
+
+  const orgId = client.getOrgId();
+  const tasks = (Array.isArray(response.data) ? response.data : [response.data])
+    .filter((t): t is Task => !!t?.id)
+    .map((task) => formatTask(task as Task, orgId, response.included));
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const today: FormattedTask[] = [];
+  const overdue: FormattedTask[] = [];
+  const undated: FormattedTask[] = [];
+
+  for (const t of tasks) {
+    if (!t.due_date) {
+      undated.push(t);
+    } else if (t.due_date === todayIso) {
+      today.push(t);
+    } else if (t.due_date < todayIso) {
+      overdue.push(t);
+    }
+    // Future-due tasks fall through — they aren't "due today or earlier".
+  }
+
+  if (args.response_format === "json") {
+    return truncateResponse(
+      JSON.stringify(
+        {
+          today,
+          overdue: args.include_overdue ? overdue : [],
+          undated,
+          counts: {
+            today: today.length,
+            overdue: overdue.length,
+            undated: undated.length,
+          },
+          person_id: personId,
+          today_date: todayIso,
+        },
+        null,
+        2,
+      ),
+      args.response_format,
+    );
+  }
+
+  // Markdown — sectioned by Today / Overdue (date-ascending so most-urgent first).
+  const lines: string[] = [`# My open tasks (as of ${todayIso})`, ""];
+
+  const renderRow = (t: FormattedTask): string => {
+    const num = t.number ? `#${t.number}` : t.id;
+    const project = t.project_name ? ` · ${t.project_name}` : "";
+    const due = t.due_date ? ` · due ${t.due_date}` : "";
+    const url = t.url ? ` — [open](${t.url})` : "";
+    return `- ○ **${num}** ${t.title}${project}${due}${url}`;
+  };
+
+  lines.push(`## Today (${today.length})`);
+  if (today.length === 0) {
+    lines.push("_Nothing due today._");
+  } else {
+    for (const t of today) lines.push(renderRow(t));
+  }
+  lines.push("");
+
+  if (args.include_overdue) {
+    overdue.sort((a, b) => (a.due_date ?? "").localeCompare(b.due_date ?? ""));
+    lines.push(`## Overdue (${overdue.length})`);
+    if (overdue.length === 0) {
+      lines.push("_Nothing overdue. Nice._");
+    } else {
+      for (const t of overdue) lines.push(renderRow(t));
+    }
+    lines.push("");
+  }
+
+  if (undated.length > 0) {
+    lines.push(`## Undated (${undated.length})`);
+    for (const t of undated) lines.push(renderRow(t));
+  }
+
+  return truncateResponse(lines.join("\n"), args.response_format);
 }
