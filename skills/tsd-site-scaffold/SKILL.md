@@ -1,11 +1,13 @@
 ---
 name: tsd-site-scaffold
-description: Interactively scaffold site build tickets in Productive from a list of page types. Use when starting a new website project and the user wants the page/feature tickets set up (e.g. "set up the build tickets for acme.com", "scaffold the pages for the new site", "create the page features"). Asks which page types are needed, spots entity types that may need separate list and detail pages (Case Studies, Products, News etc), then creates a task list per page with Design / Front-end / Back-end / QA / QC tasks via the ProductiveMCP template tools.
+description: Interactively scaffold site build tickets in Productive from a list of page types. Use when starting a new website project and the user wants the page/feature tickets set up (e.g. "set up the build tickets for acme.com", "scaffold the pages for the new site", "create the page features"). Asks which page types are needed, spots entity types that may need separate list and detail pages (Case Studies, Products, News etc), then creates a Feature (epic) per page in the build phase task list, with Design / Front-end / Back-end / QA / QC tasks beneath it, via the ProductiveMCP template tools.
 ---
 
 # TSD Site Build Scaffolding
 
-Turn a list of page types into build tickets in Productive: one task list per page, each holding the standard role tasks (Design / Front-end / Back-end / QA / QC).
+Turn a list of page types into build tickets in Productive: one Feature (epic) per page, each with the standard role tasks (Design / Front-end / Back-end / QA / QC) as its children.
+
+TSD's Productive hierarchy: **task list = project phase** (e.g. Discovery / Foundation, Build, Go-live), **Feature = the epic / delivery** (e.g. "Case Study List"), **children = the tasks** that deliver it. Pages always go in the build phase list.
 
 ## Prerequisites
 
@@ -19,7 +21,9 @@ Resolve the target Productive project with `productive_list_projects` (search by
 
 ### 2. Check the base templates
 
-Run `productive_list_task_lists` for the project. If the standard lists (Project Management, Infrastructure setup, Go-live Launch) are missing, offer to apply `standard-delivery` (and `umbraco-setup` / `stripe-integration` / `ecommerce-build` where relevant) first - pages sit on top of that scaffolding, and `website-build` already covers Homepage and Content Page if applied.
+Run `productive_list_task_lists` for the project, and `productive_search_tasks` for a "Project Management" Feature. If the standard scaffolding is missing, offer to apply `standard-delivery` (and `umbraco-setup` / `stripe-integration` / `ecommerce-build` where relevant) first - pages sit on top of it, and `website-build` already covers Site-wide, Homepage and Content Page.
+
+Identify the build phase list: the templates default it to **"Build"**. If the project uses a different name for its build phase (e.g. "Phase 1 - Build"), use that name so the pages land in the existing list; if unclear, ask once.
 
 ### 3. Gather the page types
 
@@ -51,19 +55,19 @@ Present the final page list, using the user's own naming (e.g. "Case Study List"
 
 - Every page gets all five roles: Design, Front-end / CMS, Back-end, QA, QC.
 - Purely static pages may drop Back-end if the user says so - but default to including it.
-- If a page is already covered by an applied template (Homepage and Content Page in `website-build`; PLP/PDP/checkout in `ecommerce-build`), point that out rather than duplicating it - `skip_existing_tasks` protects against exact-title duplicates only.
+- If a page is already covered by an applied template (Homepage and Content Page in `website-build`; PLP/PDP/checkout in `ecommerce-build`), point that out. Re-creating it is harmless - apply reuses a Feature with the same title and only adds missing child tasks - but a differently worded page name ("Home Page" vs "Homepage") becomes a second Feature.
 
 ### 6. Create the tickets
 
 Compose an inline template and call `productive_apply_task_template` with `template_definition` (no stored template needed) - first with `dry_run: true`, show the user, then apply for real on their go-ahead.
 
-One task list per page. Tasks per page, using EXACTLY these title patterns and descriptions (substituting the page name for `<Page>`):
+One task list: the build phase. Inside it, one **Feature per page** (title = the page name, `task_type: "Feature"`, description "<Page> delivery, from design through to QC."), with these child tasks, using EXACTLY these title patterns and descriptions (substituting the page name for `<Page>`):
 
-- **`Design: <Page>`** (task_type `Feature`)
+- **`Design: <Page>`** (task_type `Task`)
   "<Page> design for desktop and mobile, using the site-wide foundations. Client sign-off before build starts."
-- **`Front-end / CMS: <Page>`** (task_type `Feature`)
+- **`Front-end / CMS: <Page>`** (task_type `Task`)
   "Build the <Page> template and wire every section to CMS-editable content. Responsive across breakpoints."
-- **`Back-end: <Page>`** (task_type `Feature`)
+- **`Back-end: <Page>`** (task_type `Task`)
   "Models, controllers and any data/integration work <Page> needs."
 - **`QA: <Page>`** (task_type `Test Case`)
   "Internal testing against the signed-off design and acceptance criteria: content editable as expected, responsive, cross-browser, no console errors."
@@ -85,13 +89,20 @@ Skeleton for the call:
     "title": "Site Build Scaffold",
     "task_lists": [
       {
-        "name": "Case Study List",
+        "name": "Build",
         "tasks": [
-          { "title": "Design: Case Study List", "description": "...", "task_type": "Feature" },
-          { "title": "Front-end / CMS: Case Study List", "description": "...", "task_type": "Feature" },
-          { "title": "Back-end: Case Study List", "description": "...", "task_type": "Feature" },
-          { "title": "QA: Case Study List", "description": "...", "task_type": "Test Case" },
-          { "title": "QC: Case Study List", "description": "...", "task_type": "Test Case" }
+          {
+            "title": "Case Study List",
+            "description": "Case Study List delivery, from design through to QC.",
+            "task_type": "Feature",
+            "subtasks": [
+              { "title": "Design: Case Study List", "description": "...", "task_type": "Task" },
+              { "title": "Front-end / CMS: Case Study List", "description": "...", "task_type": "Task" },
+              { "title": "Back-end: Case Study List", "description": "...", "task_type": "Task" },
+              { "title": "QA: Case Study List", "description": "...", "task_type": "Test Case" },
+              { "title": "QC: Case Study List", "description": "...", "task_type": "Test Case" }
+            ]
+          }
         ]
       }
     ]

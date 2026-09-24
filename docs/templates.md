@@ -22,15 +22,37 @@ Use `dry_run: true` to preview exactly what would be created (with variables sub
 
 JSON files in the `templates/` directory at the project root. Set the `PRODUCTIVE_TEMPLATES_DIR` environment variable to load them from somewhere else - useful if you keep templates in a shared folder or a separate repository.
 
-Seven templates ship with this repository:
+## How templates are structured
 
-- **`discovery`** - foundational discovery for newer or larger projects, especially rebuilds. Creates one **Discovery / Foundation** task list holding seven Features (43 tasks in total): access and accounts, goals and stakeholders, Screaming Frog crawl and full legacy URL inventory, SEO baseline (Search Console, rankings, backlinks, indexation, Core Web Vitals, structured data), analytics and tracking (GA4 baseline, conversions, third-party pixels, consent), content and IA (audit, sitemap, migration ownership, forms, redirect map), and technical and integrations (platform, integrations, DNS zone snapshot, accessibility, compliance), then a findings playback and a "Discovery sign-off" milestone. High priority marks what's lost for good once the old site is switched off. Access requests are due five days after applying.
-- **`standard-delivery`** - TSD's standard Feature/Task breakdown for a new project: Project Management (kick-offs, ceremonies, budget and RAID tracking, UAT, close-down), Infrastructure setup (repo, CI/CD, hosting, database, blob storage, per-environment Seq keys, StatusCake monitoring for test and live, CreateSend), and Go-live Launch - a deliberately lean gate of the must-pass launch checks: production licences, DNS, HTTPS and www redirects, canonical URLs, GTM/GA4/Clarity firing, Search Console, StatusCake on the live URL, Seq logging, and a live test transaction for e-commerce. Deliberately platform-neutral - CMS-specific work lives in add-on templates. (`site-go-live` is the exhaustive reference checklist; Go-live Launch is the short list every project must actually pass.)
-- **`umbraco-setup`** - Umbraco add-on for standard-delivery: Umbraco and Igloo Theme installation plus client CMS training and handover. Its task lists share standard-delivery's names, so applying it afterwards adds the tasks to the existing lists rather than duplicating them.
-- **`website-build`** - build scaffolding for a standard www site: site-wide design/front-end, a Design / Front-end / Back-end / QA / QC breakdown for the Homepage and Content Page types, canonical URL enforcement, and a "Site go-live" release milestone. Apply alongside standard-delivery; shared list names merge and duplicate task titles are skipped.
-- **`ecommerce-build`** - e-commerce add-on to website-build: PLP, PDP and the four checkout steps (Basket, Shipping, Billing, Order Complete), each with the same five-role breakdown. Pair with stripe-integration for the payment provider work.
-- **`site-go-live`** - the exhaustive go-live checklist (131 tasks) covering DNS, server setup, source code changes, third-party services, content, SEO, testing, security, performance and post-launch tasks - modernised for GA4/GTM, Search Console and Umbraco Commerce. The transactional email tasks are provider-neutral: the `email_provider` variable (default `Mailgun`) names the provider, and the checklist steps - unique API key per customer, sending domain/sub-account, SPF/DKIM records - apply to Mailgun, SendGrid or any equivalent.
-- **`stripe-integration`** - the sandbox-to-live sequence for Stripe on Umbraco Commerce: account creation (in the client's name), test keys, per-environment webhooks and signing secrets, end-to-end sandbox payment tests (success, decline, 3DS, refund), client account activation, statement descriptor, live keys/webhook, wallet domain verification and a live smoke test.
+Templates follow TSD's Productive hierarchy:
+
+| Level | In Productive | Examples |
+| ----- | ------------- | -------- |
+| Task list | A project phase (milestone) | Discovery / Foundation, Build, Go-live |
+| Top-level ticket | A **Feature** - the epic, i.e. a deliverable | Project Management, Infrastructure setup, Homepage, Product Listing Page (PLP) |
+| Children | The tasks, meetings and test cases that deliver it | Design: Homepage, QA: Homepage, DSU / Regular Check-in |
+
+The phase names are variables with defaults, so templates need no configuration but can match a project's own naming:
+
+| Variable | Default |
+| -------- | ------- |
+| `foundation_list` | Discovery / Foundation |
+| `build_list` | Build |
+| `launch_list` | Go-live |
+
+Templates that share a phase and a Feature title combine: `umbraco-setup` adds "Install Umbraco" inside standard-delivery's "Infrastructure setup" Feature, and `website-build` adds its canonical URL check inside the "Go-live Launch" Feature.
+
+## The templates
+
+Seven templates ship with this repository, listed in the order they are normally applied:
+
+- **`discovery`** (Discovery / Foundation, 43 tickets) - foundational discovery for rebuilds and larger projects. Seven Features: Access & Accounts, Goals & Stakeholders, Current Site Audit (Screaming Frog crawl, full legacy URL inventory), SEO Baseline, Analytics & Tracking, Technical & Integrations, and Content & Information Architecture (sitemap, redirect map), then a findings playback and a "Discovery sign-off" milestone. High priority marks what's lost for good once the old site is switched off; access requests are due five days after applying.
+- **`standard-delivery`** (39 tickets) - the Features every project gets: **Project Management** and **Infrastructure setup** in the foundation phase, and **Go-live Launch** in the go-live phase - a lean gate of must-pass launch checks (production licences, DNS, HTTPS and www redirects, canonical URLs, GTM/GA4/Clarity, Search Console, StatusCake, Seq, and a live test transaction for e-commerce). Platform-neutral; CMS work lives in add-ons.
+- **`umbraco-setup`** (add-on, 5 tickets) - adds Umbraco and Igloo Theme installation to the Infrastructure setup Feature, and client CMS training to Project Management.
+- **`website-build`** (20 tickets) - a Feature per page type in the build phase (Site-wide, Homepage, Content Page), each with Design / Front-end / Back-end / QA / QC tasks; adds canonical URL enforcement to Go-live Launch and a "Site go-live" release milestone.
+- **`ecommerce-build`** (add-on, 36 tickets) - a Feature per shop page in the build phase: PLP, PDP and the four checkout steps (Basket, Shipping, Billing, Order Complete), each with the same five-role breakdown.
+- **`stripe-integration`** (18 tickets) - a **Stripe Integration** Feature in the build phase (account in the client's name, sandbox keys and per-environment webhook secrets, end-to-end sandbox payment tests, starting the client's account activation early) and a **Stripe Go-live** Feature in the go-live phase (live keys and webhook, wallet domain verification, live smoke test).
+- **`site-go-live`** (131 tickets) - the exhaustive go-live reference checklist, with each section (DNS Changes, On the server, Source Code Changes and so on) as a Feature in the go-live phase. Modernised for GA4/GTM, Search Console and Umbraco Commerce; the transactional email tasks are provider-neutral via the `email_provider` variable (default `Mailgun`).
 
 ## Template format
 
@@ -42,24 +64,31 @@ Seven templates ship with this repository:
   "variables": [
     {
       "name": "domain_name",
-      "description": "The project's primary domain, e.g. example.com",
-      "default": "example.com"
+      "description": "The project's primary domain, e.g. example.com"
+    },
+    {
+      "name": "foundation_list",
+      "description": "Task list (project phase) for foundation work",
+      "default": "Discovery / Foundation"
     }
   ],
   "task_lists": [
     {
-      "name": "Infrastructure setup ({{domain_name}})",
+      "name": "{{foundation_list}}",
       "tasks": [
         {
-          "title": "Create GitHub repo ({{domain_name}})",
+          "title": "Infrastructure setup ({{domain_name}})",
           "description": "Markdown supported - converted to HTML on creation",
-          "task_type": "Task",
-          "priority": "Medium",
-          "labels": ["Setup"],
-          "estimate_minutes": 30,
-          "due_in_days": 7,
+          "task_type": "Feature",
           "subtasks": [
-            { "title": "Add branch protection rules" }
+            {
+              "title": "Create GitHub repo ({{domain_name}})",
+              "task_type": "Task",
+              "priority": "Medium",
+              "labels": ["Setup"],
+              "estimate_minutes": 30,
+              "due_in_days": 7
+            }
           ]
         }
       ]
@@ -95,7 +124,8 @@ Placeholders (`{{variable_name}}`) work in task list names, task titles and desc
 ## Apply behaviour
 
 - **Task list reuse**: if the project already has an active task list with the same name (case-insensitive), tasks are added to it rather than a duplicate being created. Set `reuse_existing_task_lists: false` to always create new lists.
-- **Duplicate task skipping**: within a reused list, a top-level task whose title already exists (case-insensitive) is skipped along with its subtasks and reported as such - so re-applying a template, or stacking add-on templates that share a task, is idempotent. Set `skip_existing_tasks: false` to disable.
+- **Merging into existing tickets**: within a reused list, a ticket whose title already exists at the same level (case-insensitive) is reused rather than recreated, and only the template's missing children are added beneath it - at every depth. This is how add-ons contribute tasks to another template's Features, and why re-applying a template is idempotent. The summary marks reused tickets _(existing)_. Set `skip_existing_tasks: false` to always create new tickets.
+- **Phase order**: Productive appends new task lists at the end. When a template creates a list and one of its later phases already exists (for example `website-build` creating Build after `standard-delivery` created Go-live), the new list is moved before that later phase, so phases stay in order.
 - **Board**: newly created task lists go on the board given by `board_id`, or the project's first board.
 - **Assignee**: `default_assignee_id` assigns every created task to one person; otherwise tasks are unassigned.
 - **Ordering**: tasks are created sequentially in template order, so Productive displays them in the order written.
@@ -104,7 +134,7 @@ Placeholders (`{{variable_name}}`) work in task list names, task titles and desc
 
 ## Previewing templates: the Template Planner
 
-`npm run templates:report` builds `template-report.html` (git-ignored): a self-contained page showing every template as a nested tree of task lists, features, tasks and subtasks, with types, estimates, priorities and relative due dates. Tick the templates to stack (or pick a preset such as "Rebuild" or "E-commerce site") and it shows the merged result, following the same rules as apply: same-name task lists merge, and top-level tasks an earlier template already created are shown as skipped. Variable values can be edited live. Nothing touches the Productive API.
+`npm run templates:report` builds `template-report.html` (git-ignored): a self-contained page showing every template as a nested tree of task lists, features, tasks and subtasks, with types, estimates, priorities and relative due dates. Tick the templates to stack (or pick a preset such as "Rebuild" or "E-commerce site") and it shows the merged result, following the same rules as apply: same-name task lists merge, new phase lists are placed before later phases, and a ticket an earlier template already created is shown once, with the other templates' children merged into it. Variable values can be edited live. Nothing touches the Productive API.
 
 Pass a path to write elsewhere, and `--fragment` to omit the `<html>`/`<head>`/`<body>` wrapper for hosts that supply their own.
 
@@ -112,7 +142,7 @@ Pass a path to write elsewhere, and `--fragment` to omit the `<html>`/`<head>`/`
 
 `productive_apply_task_template` also accepts a `template_definition` - a full template object passed inline instead of a stored template name. This is for structures composed on the fly, where no file exists (or should exist) on the server.
 
-The main consumer is the **`tsd-site-scaffold` skill** (in `skills/tsd-site-scaffold/`): it asks which page types a new site needs ("Homepage, Case Study List, Case Study Details, Contact Us"), spots entity types that may need separate list and detail pages (Case Studies, Products, News - but not FAQs or Contact Us), then composes an inline template creating one task list per page with the standard Design / Front-end / Back-end / QA / QC tasks. Install it by copying the folder into `~/.claude/skills/` (Claude Code) or uploading it as a skill on claude.ai.
+The main consumer is the **`tsd-site-scaffold` skill** (in `skills/tsd-site-scaffold/`): it asks which page types a new site needs ("Homepage, Case Study List, Case Study Details, Contact Us"), spots entity types that may need separate list and detail pages (Case Studies, Products, News - but not FAQs or Contact Us), then composes an inline template creating a Feature per page in the build phase, with the standard Design / Front-end / Back-end / QA / QC tasks beneath it. Install it by copying the folder into `~/.claude/skills/` (Claude Code) or uploading it as a skill on claude.ai.
 
 ## Writing a new template
 

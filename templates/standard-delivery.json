@@ -6,218 +6,244 @@
     {
       "name": "domain_name",
       "description": "The project's primary domain name, e.g. example.com"
+    },
+    {
+      "name": "foundation_list",
+      "description": "Task list (project phase) for discovery and foundation work",
+      "default": "Discovery / Foundation"
+    },
+    {
+      "name": "launch_list",
+      "description": "Task list (project phase) for go-live",
+      "default": "Go-live"
     }
   ],
   "task_lists": [
     {
-      "name": "Project Management",
+      "name": "{{foundation_list}}",
       "tasks": [
         {
-          "title": "Project Kick-off (internal)",
-          "description": "Brief the delivery team: scope, approach, roles, key dates, budget and known risks before any client-facing work starts.",
-          "task_type": "Meeting"
+          "title": "Project Management",
+          "description": "Project management and ceremonies for the life of the project.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Project Kick-off (internal)",
+              "description": "Brief the delivery team: scope, approach, roles, key dates, budget and known risks before any client-facing work starts.",
+              "task_type": "Meeting"
+            },
+            {
+              "title": "Project Kick-off (client)",
+              "description": "Align with the customer on goals, timeline, comms cadence, who signs off what, and how feedback/tickets flow.",
+              "task_type": "Meeting"
+            },
+            {
+              "title": "Ticket Management",
+              "description": "Ongoing triage, refinement and prioritisation of the project's tickets.",
+              "task_type": "Task"
+            },
+            {
+              "title": "DSU / Regular Check-in",
+              "description": "Daily stand-up or regular check-in cadence for the project team.",
+              "task_type": "Meeting"
+            },
+            {
+              "title": "Project Planning",
+              "description": "Sprint/iteration planning and roadmap maintenance.",
+              "task_type": "Meeting"
+            },
+            {
+              "title": "Weekly client status update",
+              "description": "Short weekly summary to the customer: progress, what's next, decisions needed, and anything at risk. Keeps surprises out of invoicing conversations.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Budget & burn-rate review",
+              "description": "Weekly check of logged time against budget in Productive. Flag early if the burn rate points at an overrun rather than discovering it at invoicing.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Risks, assumptions & dependencies log",
+              "description": "Maintain a RAID log: risks, assumptions, issues and dependencies (customer content, third-party access, DNS control etc). Review it at planning sessions.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Show & Tell",
+              "description": "Regular demo of progress to the customer.",
+              "task_type": "Meeting"
+            },
+            {
+              "title": "UAT coordination",
+              "description": "Agree the UAT window with the customer, provide a test plan/checklist, and capture their feedback as tickets rather than emails.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Retrospective",
+              "description": "End-of-phase retrospective: what went well, what to improve.",
+              "task_type": "Meeting"
+            },
+            {
+              "title": "Project close-down",
+              "description": "Archive the project properly: final invoice check, remove temporary access/test accounts, ensure documentation and credentials are stored, move the project to support/retainer status.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Post-launch review (30 days)",
+              "description": "Review the site with the customer a month after launch: analytics and search rankings, Seq errors, outstanding snags, and upsell/next-phase opportunities.",
+              "task_type": "Meeting",
+              "due_in_days": 30
+            }
+          ]
         },
         {
-          "title": "Project Kick-off (client)",
-          "description": "Align with the customer on goals, timeline, comms cadence, who signs off what, and how feedback/tickets flow.",
-          "task_type": "Meeting"
-        },
-        {
-          "title": "Ticket Management",
-          "description": "Ongoing triage, refinement and prioritisation of the project's tickets.",
-          "task_type": "Task"
-        },
-        {
-          "title": "DSU / Regular Check-in",
-          "description": "Daily stand-up or regular check-in cadence for the project team.",
-          "task_type": "Meeting"
-        },
-        {
-          "title": "Project Planning",
-          "description": "Sprint/iteration planning and roadmap maintenance.",
-          "task_type": "Meeting"
-        },
-        {
-          "title": "Weekly client status update",
-          "description": "Short weekly summary to the customer: progress, what's next, decisions needed, and anything at risk. Keeps surprises out of invoicing conversations.",
-          "task_type": "Task"
-        },
-        {
-          "title": "Budget & burn-rate review",
-          "description": "Weekly check of logged time against budget in Productive. Flag early if the burn rate points at an overrun rather than discovering it at invoicing.",
-          "task_type": "Task"
-        },
-        {
-          "title": "Risks, assumptions & dependencies log",
-          "description": "Maintain a RAID log: risks, assumptions, issues and dependencies (customer content, third-party access, DNS control etc). Review it at planning sessions.",
-          "task_type": "Task"
-        },
-        {
-          "title": "Show & Tell",
-          "description": "Regular demo of progress to the customer.",
-          "task_type": "Meeting"
-        },
-        {
-          "title": "UAT coordination",
-          "description": "Agree the UAT window with the customer, provide a test plan/checklist, and capture their feedback as tickets rather than emails.",
-          "task_type": "Task"
-        },
-        {
-          "title": "Retrospective",
-          "description": "End-of-phase retrospective: what went well, what to improve.",
-          "task_type": "Meeting"
-        },
-        {
-          "title": "Project close-down",
-          "description": "Archive the project properly: final invoice check, remove temporary access/test accounts, ensure documentation and credentials are stored, move the project to support/retainer status.",
-          "task_type": "Task"
-        },
-        {
-          "title": "Post-launch review (30 days)",
-          "description": "Review the site with the customer a month after launch: analytics and search rankings, Seq errors, outstanding snags, and upsell/next-phase opportunities.",
-          "task_type": "Meeting",
-          "due_in_days": 30
+          "title": "Infrastructure setup ({{domain_name}})",
+          "description": "Environments, tooling and third-party accounts the build depends on.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Create GitHub repo ({{domain_name}})",
+              "task_type": "Task",
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Set up CI/CD (AppVeyor/GitHub) ({{domain_name}})",
+              "task_type": "Task",
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Provision hosting",
+              "task_type": "Task",
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Provision database",
+              "task_type": "Task",
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Create Azure blob storage for media (CDN)",
+              "task_type": "Task",
+              "estimate_minutes": 60
+            },
+            {
+              "title": "General project setup (Rider SLN files etc)",
+              "task_type": "Task",
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Setup Seq API Keys for UAT",
+              "description": "Create a UAT-specific API key in Seq and configure the test environment to log to it. Keys are per environment so noisy UAT logging can be filtered or throttled without touching production.",
+              "task_type": "Task",
+              "estimate_minutes": 15
+            },
+            {
+              "title": "Setup Seq API Keys for PROD",
+              "description": "Create a production API key in Seq and configure the live environment to log to it.",
+              "task_type": "Task",
+              "estimate_minutes": 15
+            },
+            {
+              "title": "Setup StatusCake monitoring against the test site",
+              "description": "Uptime check against the UAT/staging URL so hosting or deployment breakage shows up during the build, not at demo time. Remember UAT is often behind basic auth - allow the StatusCake check through or monitor a public health endpoint.",
+              "task_type": "Task",
+              "estimate_minutes": 15
+            },
+            {
+              "title": "Setup StatusCake monitoring against the live site",
+              "description": "Uptime and SSL certificate checks against https://{{domain_name}} with alerts to the support channel. Set up ahead of go-live so it's watching from the moment DNS switches.",
+              "task_type": "Task",
+              "estimate_minutes": 15
+            },
+            {
+              "title": "Set up CreateSend mailing list account + API keys",
+              "task_type": "Task",
+              "estimate_minutes": 60
+            }
+          ]
         }
       ]
     },
     {
-      "name": "Infrastructure setup ({{domain_name}})",
+      "name": "{{launch_list}}",
       "tasks": [
         {
-          "title": "Create GitHub repo ({{domain_name}})",
-          "task_type": "Task",
-          "estimate_minutes": 30
-        },
-        {
-          "title": "Set up CI/CD (AppVeyor/GitHub) ({{domain_name}})",
-          "task_type": "Task",
-          "estimate_minutes": 60
-        },
-        {
-          "title": "Provision hosting",
-          "task_type": "Task",
-          "estimate_minutes": 60
-        },
-        {
-          "title": "Provision database",
-          "task_type": "Task",
-          "estimate_minutes": 30
-        },
-        {
-          "title": "Create Azure blob storage for media (CDN)",
-          "task_type": "Task",
-          "estimate_minutes": 60
-        },
-        {
-          "title": "General project setup (Rider SLN files etc)",
-          "task_type": "Task",
-          "estimate_minutes": 60
-        },
-        {
-          "title": "Setup Seq API Keys for UAT",
-          "description": "Create a UAT-specific API key in Seq and configure the test environment to log to it. Keys are per environment so noisy UAT logging can be filtered or throttled without touching production.",
-          "task_type": "Task",
-          "estimate_minutes": 15
-        },
-        {
-          "title": "Setup Seq API Keys for PROD",
-          "description": "Create a production API key in Seq and configure the live environment to log to it.",
-          "task_type": "Task",
-          "estimate_minutes": 15
-        },
-        {
-          "title": "Setup StatusCake monitoring against the test site",
-          "description": "Uptime check against the UAT/staging URL so hosting or deployment breakage shows up during the build, not at demo time. Remember UAT is often behind basic auth - allow the StatusCake check through or monitor a public health endpoint.",
-          "task_type": "Task",
-          "estimate_minutes": 15
-        },
-        {
-          "title": "Setup StatusCake monitoring against the live site",
-          "description": "Uptime and SSL certificate checks against https://{{domain_name}} with alerts to the support channel. Set up ahead of go-live so it's watching from the moment DNS switches.",
-          "task_type": "Task",
-          "estimate_minutes": 15
-        },
-        {
-          "title": "Set up CreateSend mailing list account + API keys",
-          "task_type": "Task",
-          "estimate_minutes": 60
-        }
-      ]
-    },
-    {
-      "name": "Go-live Launch",
-      "tasks": [
-        {
-          "title": "Ensure production licences are in place",
-          "description": "Check every licence the live site needs is purchased and installed **for the live domain** before DNS switches - domain-bound licences (e.g. Umbraco Commerce, Umbraco Forms, uSync Complete) that worked on UAT will not cover production. Confirm the licence files/keys are in the production deployment, not just a developer machine.",
-          "task_type": "Task",
-          "estimate_minutes": 30
-        },
-        {
-          "title": "Update DNS settings",
-          "description": "Point {{domain_name}} at the new hosting. Check both WWW and non-WWW variations are set up.",
-          "task_type": "Task",
-          "estimate_minutes": 60
-        },
-        {
-          "title": "Check HTTP redirects to HTTPS",
-          "description": "http://{{domain_name}} must 301 to https://{{domain_name}}. Check a deep URL as well as the homepage, and confirm the certificate is valid for both www and non-www.",
-          "task_type": "Test Case",
-          "estimate_minutes": 15
-        },
-        {
-          "title": "Check www redirects to the non-www site",
-          "description": "https://www.{{domain_name}} must 301 to https://{{domain_name}} (single canonical hostname). Check a deep URL too - some configs only redirect the root.",
-          "task_type": "Test Case",
-          "estimate_minutes": 15
-        },
-        {
-          "title": "Ensure canonical URL redirects are set up",
-          "description": "One URL per page: lowercase enforced, trailing slash policy applied consistently, and old/legacy URLs redirecting to their new equivalents. Spot-check with the network tab that a canonical URL loads with **no** redirect and a non-canonical variant reaches it in a **single** 301 hop.",
-          "task_type": "Test Case",
-          "estimate_minutes": 30
-        },
-        {
-          "title": "Ensure Google Tag Manager is installed and firing",
-          "description": "Confirm the GTM container snippet is on every page template with the correct container ID, and use GTM preview mode against the live site to confirm the container loads and tags fire.",
-          "task_type": "Test Case",
-          "estimate_minutes": 15
-        },
-        {
-          "title": "Ensure GA4 is receiving data (via GTM)",
-          "description": "Check the GA4 tag fires from GTM (not a hard-coded gtag snippet) with the correct measurement ID, then confirm live traffic appears in GA4's Realtime report. Check internal/TSD IPs are excluded.",
-          "task_type": "Test Case",
-          "estimate_minutes": 15
-        },
-        {
-          "title": "Ensure Microsoft Clarity is recording (via GTM)",
-          "description": "Check the Clarity tag fires from GTM with the correct project ID and that sessions appear in the Clarity dashboard (recordings can lag a little behind).",
-          "task_type": "Test Case",
-          "estimate_minutes": 15
-        },
-        {
-          "title": "Ensure the site is configured in Google Search Console",
-          "description": "Verify the property for {{domain_name}} (domain property covers www/non-www and both protocols), submit the XML sitemap, and check for coverage errors once it starts processing.",
-          "task_type": "Task",
-          "estimate_minutes": 30
-        },
-        {
-          "title": "Ensure StatusCake is configured for the production URL",
-          "description": "The uptime and SSL checks must point at https://{{domain_name}} (not the pre-launch/holding URL) with alerts going to the support channel. Confirm a green check after DNS has switched.",
-          "task_type": "Test Case",
-          "estimate_minutes": 15
-        },
-        {
-          "title": "Ensure Seq is configured and logging",
-          "description": "Confirm production events for {{domain_name}} are arriving in Seq under the PROD API key after go-live, and that errors would alert - trigger a harmless test log entry if nothing has come through naturally.",
-          "task_type": "Test Case",
-          "estimate_minutes": 30
-        },
-        {
-          "title": "Put a live test transaction through (e-commerce only)",
-          "description": "Place a real low-value order on the live site with a TSD card against the live payment setup: payment appears in the provider's live dashboard, the order status updates via the live webhook, and the confirmation email sends. Then refund it. (This is the live smoke test from the stripe-integration template - skip here if that template is being worked.)",
-          "task_type": "Test Case",
-          "estimate_minutes": 30
+          "title": "Go-live Launch",
+          "description": "The must-pass launch checks. Every task here is verified on the live site before the project is signed off.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Ensure production licences are in place",
+              "description": "Check every licence the live site needs is purchased and installed **for the live domain** before DNS switches - domain-bound licences (e.g. Umbraco Commerce, Umbraco Forms, uSync Complete) that worked on UAT will not cover production. Confirm the licence files/keys are in the production deployment, not just a developer machine.",
+              "task_type": "Task",
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Update DNS settings",
+              "description": "Point {{domain_name}} at the new hosting. Check both WWW and non-WWW variations are set up.",
+              "task_type": "Task",
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check HTTP redirects to HTTPS",
+              "description": "http://{{domain_name}} must 301 to https://{{domain_name}}. Check a deep URL as well as the homepage, and confirm the certificate is valid for both www and non-www.",
+              "task_type": "Test Case",
+              "estimate_minutes": 15
+            },
+            {
+              "title": "Check www redirects to the non-www site",
+              "description": "https://www.{{domain_name}} must 301 to https://{{domain_name}} (single canonical hostname). Check a deep URL too - some configs only redirect the root.",
+              "task_type": "Test Case",
+              "estimate_minutes": 15
+            },
+            {
+              "title": "Ensure canonical URL redirects are set up",
+              "description": "One URL per page: lowercase enforced, trailing slash policy applied consistently, and old/legacy URLs redirecting to their new equivalents. Spot-check with the network tab that a canonical URL loads with **no** redirect and a non-canonical variant reaches it in a **single** 301 hop.",
+              "task_type": "Test Case",
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Ensure Google Tag Manager is installed and firing",
+              "description": "Confirm the GTM container snippet is on every page template with the correct container ID, and use GTM preview mode against the live site to confirm the container loads and tags fire.",
+              "task_type": "Test Case",
+              "estimate_minutes": 15
+            },
+            {
+              "title": "Ensure GA4 is receiving data (via GTM)",
+              "description": "Check the GA4 tag fires from GTM (not a hard-coded gtag snippet) with the correct measurement ID, then confirm live traffic appears in GA4's Realtime report. Check internal/TSD IPs are excluded.",
+              "task_type": "Test Case",
+              "estimate_minutes": 15
+            },
+            {
+              "title": "Ensure Microsoft Clarity is recording (via GTM)",
+              "description": "Check the Clarity tag fires from GTM with the correct project ID and that sessions appear in the Clarity dashboard (recordings can lag a little behind).",
+              "task_type": "Test Case",
+              "estimate_minutes": 15
+            },
+            {
+              "title": "Ensure the site is configured in Google Search Console",
+              "description": "Verify the property for {{domain_name}} (domain property covers www/non-www and both protocols), submit the XML sitemap, and check for coverage errors once it starts processing.",
+              "task_type": "Task",
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Ensure StatusCake is configured for the production URL",
+              "description": "The uptime and SSL checks must point at https://{{domain_name}} (not the pre-launch/holding URL) with alerts going to the support channel. Confirm a green check after DNS has switched.",
+              "task_type": "Test Case",
+              "estimate_minutes": 15
+            },
+            {
+              "title": "Ensure Seq is configured and logging",
+              "description": "Confirm production events for {{domain_name}} are arriving in Seq under the PROD API key after go-live, and that errors would alert - trigger a harmless test log entry if nothing has come through naturally.",
+              "task_type": "Test Case",
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Put a live test transaction through (e-commerce only)",
+              "description": "Place a real low-value order on the live site with a TSD card against the live payment setup: payment appears in the provider's live dashboard, the order status updates via the live webhook, and the confirmation email sends. Then refund it. (This is the live smoke test from the stripe-integration template - skip here if that template is being worked.)",
+              "task_type": "Test Case",
+              "estimate_minutes": 30
+            }
+          ]
         }
       ]
     }

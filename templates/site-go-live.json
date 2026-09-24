@@ -11,15 +11,20 @@
       "name": "email_provider",
       "description": "Transactional email provider, e.g. Mailgun or SendGrid",
       "default": "Mailgun"
+    },
+    {
+      "name": "launch_list",
+      "description": "Task list (project phase) for go-live",
+      "default": "Go-live"
     }
   ],
   "task_lists": [
     {
-      "name": "Site Go Live ({{domain_name}})",
+      "name": "{{launch_list}}",
       "tasks": [
         {
           "title": "Before go-live",
-          "task_type": "Task",
+          "task_type": "Feature",
           "labels": [
             "GoLive"
           ],
@@ -48,7 +53,7 @@
         {
           "title": "DNS Changes",
           "description": "We use either Rackspace (http://my.rackspace.com) or Heart Internet (http://customer.heartinternet.co.uk) for the DNS management. Newer domain names will generally be on Heart Internet.",
-          "task_type": "Task",
+          "task_type": "Feature",
           "labels": [
             "GoLive"
           ],
@@ -102,7 +107,7 @@
         },
         {
           "title": "On the server",
-          "task_type": "Task",
+          "task_type": "Feature",
           "labels": [
             "GoLive"
           ],
@@ -137,7 +142,7 @@
         },
         {
           "title": "Third Party Sites",
-          "task_type": "Task",
+          "task_type": "Feature",
           "labels": [
             "GoLive"
           ],
@@ -183,7 +188,7 @@
         },
         {
           "title": "Source Code Changes",
-          "task_type": "Task",
+          "task_type": "Feature",
           "labels": [
             "GoLive"
           ],
@@ -312,7 +317,7 @@
         },
         {
           "title": "On the website",
-          "task_type": "Task",
+          "task_type": "Feature",
           "labels": [
             "GoLive"
           ],
@@ -640,7 +645,7 @@
         {
           "title": "Site content checks",
           "description": "We want to ensure the content and style on the site is correct.",
-          "task_type": "Task",
+          "task_type": "Feature",
           "labels": [
             "GoLive"
           ],
@@ -713,7 +718,7 @@
         },
         {
           "title": "Standards and validation",
-          "task_type": "Task",
+          "task_type": "Feature",
           "labels": [
             "GoLive"
           ],
@@ -751,7 +756,7 @@
         {
           "title": "SEO and metrics",
           "description": "Search engine visibility and metrics related tasks",
-          "task_type": "Task",
+          "task_type": "Feature",
           "labels": [
             "GoLive"
           ],
@@ -805,7 +810,7 @@
         },
         {
           "title": "Functional testing",
-          "task_type": "Task",
+          "task_type": "Feature",
           "labels": [
             "GoLive"
           ],
@@ -877,7 +882,7 @@
         },
         {
           "title": "Security/risk related tasks",
-          "task_type": "Task",
+          "task_type": "Feature",
           "labels": [
             "GoLive"
           ],
@@ -928,7 +933,7 @@
         },
         {
           "title": "Performance",
-          "task_type": "Task",
+          "task_type": "Feature",
           "labels": [
             "GoLive"
           ],
@@ -980,7 +985,7 @@
         },
         {
           "title": "Finishing touches",
-          "task_type": "Task",
+          "task_type": "Feature",
           "labels": [
             "GoLive"
           ],
@@ -1140,7 +1145,7 @@
         },
         {
           "title": "After go-live",
-          "task_type": "Task",
+          "task_type": "Feature",
           "labels": [
             "GoLive"
           ],

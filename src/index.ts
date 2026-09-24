@@ -1100,7 +1100,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_apply_task_template",
       description:
-        'Apply a task template to a project: creates every task list, task and subtask the template defines, substituting {{variable}} placeholders with the supplied values. Task lists whose name already exists in the project are reused rather than duplicated, and within a reused list tasks whose title already exists are skipped. Set dry_run: true first to preview exactly what will be created.\n\nPass either a stored template by name, or an inline template_definition composed for the occasion (e.g. scaffolding Design/Front-end/Back-end/QA/QC tasks for a project-specific list of pages).\n\nExample:\n{\n  "template": "standard-delivery",\n  "project_id": "1234",\n  "variables": {"domain_name": "example.com"},\n  "dry_run": true\n}',
+        'Apply a task template to a project: creates every task list, task and subtask the template defines, substituting {{variable}} placeholders with the supplied values. Task lists whose name already exists in the project are reused rather than duplicated, and within a reused list an existing ticket with the same title is reused, with the template\'s missing children added beneath it. Set dry_run: true first to preview exactly what will be created.\n\nPass either a stored template by name, or an inline template_definition composed for the occasion (e.g. scaffolding Design/Front-end/Back-end/QA/QC tasks for a project-specific list of pages).\n\nExample:\n{\n  "template": "standard-delivery",\n  "project_id": "1234",\n  "variables": {"domain_name": "example.com"},\n  "dry_run": true\n}',
       inputSchema: {
         type: "object",
         properties: {
@@ -1152,7 +1152,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             type: "boolean",
             default: true,
             description:
-              "In a reused task list, skip top-level tasks whose title already exists (case-insensitive), so re-applying a template or stacking add-on templates doesn't create duplicates (default: true)",
+              "In a reused task list, reuse any ticket whose title already exists at the same level (case-insensitive) and add only the missing children under it, so re-applying a template or stacking add-on templates that share Features doesn't create duplicates (default: true)",
           },
           dry_run: {
             type: "boolean",

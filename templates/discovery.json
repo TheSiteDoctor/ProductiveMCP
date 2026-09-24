@@ -6,11 +6,16 @@
     {
       "name": "current_domain",
       "description": "The existing site's domain being audited, e.g. example.com"
+    },
+    {
+      "name": "foundation_list",
+      "description": "Task list (project phase) for discovery and foundation work",
+      "default": "Discovery / Foundation"
     }
   ],
   "task_lists": [
     {
-      "name": "Discovery / Foundation",
+      "name": "{{foundation_list}}",
       "tasks": [
         {
           "title": "Access & Accounts",

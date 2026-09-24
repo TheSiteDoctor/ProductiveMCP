@@ -1,36 +1,50 @@
 {
   "name": "umbraco-setup",
   "title": "Umbraco Setup (add-on)",
-  "description": "Umbraco-specific tasks layered on top of standard-delivery. Its task lists share the same names, so applying it after standard-delivery adds these tasks to the existing lists rather than creating duplicates.",
+  "description": "Umbraco-specific tasks layered on top of standard-delivery. Its Features share standard-delivery's names, so applying it afterwards adds these tasks inside the existing Infrastructure setup and Project Management tickets rather than creating duplicates.",
   "variables": [
     {
       "name": "domain_name",
       "description": "The project's primary domain name, e.g. example.com"
+    },
+    {
+      "name": "foundation_list",
+      "description": "Task list (project phase) for discovery and foundation work",
+      "default": "Discovery / Foundation"
     }
   ],
   "task_lists": [
     {
-      "name": "Infrastructure setup ({{domain_name}})",
+      "name": "{{foundation_list}}",
       "tasks": [
         {
-          "title": "Install Umbraco",
-          "task_type": "Task",
-          "estimate_minutes": 60
+          "title": "Infrastructure setup ({{domain_name}})",
+          "description": "Environments, tooling and third-party accounts the build depends on.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Install Umbraco",
+              "task_type": "Task",
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Install Igloo Theme",
+              "task_type": "Task",
+              "estimate_minutes": 60
+            }
+          ]
         },
         {
-          "title": "Install Igloo Theme",
-          "task_type": "Task",
-          "estimate_minutes": 60
-        }
-      ]
-    },
-    {
-      "name": "Project Management",
-      "tasks": [
-        {
-          "title": "Client CMS training & handover",
-          "description": "Train the customer's editors on Umbraco, hand over credentials and documentation, and confirm who to contact for support.",
-          "task_type": "Meeting"
+          "title": "Project Management",
+          "description": "Project management and ceremonies for the life of the project.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Client CMS training & handover",
+              "description": "Train the customer's editors on Umbraco, hand over credentials and documentation, and confirm who to contact for support.",
+              "task_type": "Meeting"
+            }
+          ]
         }
       ]
     }

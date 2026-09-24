@@ -169,7 +169,7 @@ interface AppliedTaskResult {
   title: string;
   task_list: string;
   depth: number;
-  status: "created" | "failed" | "skipped";
+  status: "created" | "existing" | "failed" | "skipped";
   task_id?: string;
   url?: string;
   error?: string;
@@ -179,6 +179,7 @@ interface AppliedListResult {
   name: string;
   task_list_id?: string;
   reused: boolean;
+  placed_before?: string;
   error?: string;
 }
 
@@ -251,7 +252,38 @@ export async function applyTaskTemplate(
     taskListName: string,
     parentTaskId: string | undefined,
     depth: number,
+    existingSiblings: Map<string, string> | null,
   ): Promise<void> => {
+    // A ticket with this title already exists at this level: reuse it and
+    // merge the template's children into it rather than duplicating it.
+    const existingId = existingSiblings?.get(task.title.toLowerCase());
+    if (existingId) {
+      taskResults.push({
+        title: task.title,
+        task_list: taskListName,
+        depth,
+        status: "existing",
+        task_id: existingId,
+        url: `https://app.productive.io/${client.getOrgId()}/tasks/${existingId}`,
+      });
+      if (task.subtasks && task.subtasks.length > 0) {
+        const existingChildren = await fetchExistingTasks({
+          "filter[parent_task_id]": existingId,
+        });
+        for (const sub of task.subtasks) {
+          await createOneTask(
+            sub,
+            taskListId,
+            taskListName,
+            existingId,
+            depth + 1,
+            existingChildren,
+          );
+        }
+      }
+      return;
+    }
+
     let createdId: string | undefined;
     try {
       const payload: CreateTaskPayload = {
@@ -342,7 +374,15 @@ export async function applyTaskTemplate(
 
     for (const sub of task.subtasks || []) {
       if (createdId) {
-        await createOneTask(sub, taskListId, taskListName, createdId, depth + 1);
+        // A freshly created parent has no existing children to merge with.
+        await createOneTask(
+          sub,
+          taskListId,
+          taskListName,
+          createdId,
+          depth + 1,
+          null,
+        );
       } else {
         markSkipped(sub, taskListName, depth + 1, "Parent task was not created");
       }
@@ -367,17 +407,50 @@ export async function applyTaskTemplate(
     }
   };
 
-  // Titles already present in a reused list, so re-applying a template (or
-  // stacking add-on templates that share a task) doesn't create duplicates.
-  const fetchExistingTaskTitles = async (
+  // Productive appends new task lists at the end. When a template's later
+  // phase already exists (e.g. an earlier template created "Go-live"), move
+  // the new list before it so phases stay in the template's order.
+  const placeBeforeLaterPhase = async (
+    listIndex: number,
     taskListId: string,
-  ): Promise<Set<string>> => {
-    const titles = new Set<string>();
+  ): Promise<string | undefined> => {
+    for (const later of template.task_lists.slice(listIndex + 1)) {
+      const laterId = existingLists.get(later.name.toLowerCase());
+      if (!laterId) continue;
+      try {
+        await client.patch<JSONAPIResponse>(
+          `/task_lists/${taskListId}/reposition`,
+          {
+            data: {
+              type: "task_lists",
+              attributes: { move_before_id: parseInt(laterId, 10) },
+            },
+          },
+        );
+        return later.name;
+      } catch (error) {
+        console.error(
+          `Warning: could not move task list before "${later.name}": ${error instanceof Error ? error.message : error}`,
+        );
+        return undefined;
+      }
+    }
+    return undefined;
+  };
+
+  // Existing tasks (lowercase title -> id) matching a filter. Used so that
+  // re-applying a template, or stacking add-ons that share Features, reuses
+  // tickets that already exist instead of duplicating them.
+  const fetchExistingTasks = async (
+    filter: Record<string, string>,
+    topLevelOnly = false,
+  ): Promise<Map<string, string>> => {
+    const tasks = new Map<string, string>();
     let pageNumber = 1;
     const pageSize = 200;
     while (true) {
       const response = await client.get<JSONAPIResponse>("/tasks", {
-        "filter[task_list_id]": taskListId,
+        ...filter,
         "page[number]": pageNumber,
         "page[size]": pageSize,
       });
@@ -385,8 +458,13 @@ export async function applyTaskTemplate(
         ? response.data
         : [response.data];
       for (const item of items) {
-        const title = (item as Task)?.attributes?.title;
-        if (title) titles.add(title.toLowerCase());
+        const task = item as Task;
+        const title = task?.attributes?.title;
+        if (!title || !task.id) continue;
+        if (topLevelOnly && task.relationships?.parent_task?.data) continue;
+        if (!tasks.has(title.toLowerCase())) {
+          tasks.set(title.toLowerCase(), task.id);
+        }
       }
       const totalCount = response.meta?.total_count;
       if (totalCount && pageNumber * pageSize < totalCount) {
@@ -395,14 +473,15 @@ export async function applyTaskTemplate(
         break;
       }
     }
-    return titles;
+    return tasks;
   };
 
-  for (const list of template.task_lists) {
+  for (const [listIndex, list] of template.task_lists.entries()) {
     let taskListId = args.reuse_existing_task_lists
       ? existingLists.get(list.name.toLowerCase())
       : undefined;
     const reused = taskListId !== undefined;
+    let placedBefore: string | undefined;
 
     if (!taskListId) {
       try {
@@ -426,6 +505,7 @@ export async function applyTaskTemplate(
         taskListId = (data as TaskList).id;
         existingLists.set(list.name.toLowerCase(), taskListId);
         console.error(`✓ Created task list: ${list.name}`);
+        placedBefore = await placeBeforeLaterPhase(listIndex, taskListId);
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Unknown error";
@@ -437,27 +517,34 @@ export async function applyTaskTemplate(
       }
     }
 
-    listResults.push({ name: list.name, task_list_id: taskListId, reused });
+    listResults.push({
+      name: list.name,
+      task_list_id: taskListId,
+      reused,
+      placed_before: placedBefore,
+    });
 
-    // In a reused list, skip top-level tasks that already exist by title so
-    // re-applying a template or stacking add-ons stays idempotent.
-    const existingTitles =
+    const existingTopLevel =
       reused && args.skip_existing_tasks
-        ? await fetchExistingTaskTitles(taskListId)
+        ? await fetchExistingTasks({ "filter[task_list_id]": taskListId }, true)
         : null;
 
     for (const task of list.tasks) {
-      if (existingTitles?.has(task.title.toLowerCase())) {
-        markSkipped(task, list.name, 0, "Task already exists in this list");
-        continue;
-      }
-      await createOneTask(task, taskListId, list.name, undefined, 0);
+      await createOneTask(
+        task,
+        taskListId,
+        list.name,
+        undefined,
+        0,
+        existingTopLevel,
+      );
     }
   }
 
   const created = taskResults.filter((t) => t.status === "created");
   const failed = taskResults.filter((t) => t.status === "failed");
   const skipped = taskResults.filter((t) => t.status === "skipped");
+  const existing = taskResults.filter((t) => t.status === "existing");
 
   const summary = {
     template: template.name,
@@ -466,6 +553,7 @@ export async function applyTaskTemplate(
     task_lists: listResults,
     total: taskResults.length,
     created: created.length,
+    existing: existing.length,
     failed: failed.length,
     skipped: skipped.length,
     tasks: taskResults,
@@ -487,6 +575,9 @@ export async function applyTaskTemplate(
     lines.push(
       "",
       `**${created.length} of ${taskResults.length} tasks created**` +
+        (existing.length > 0
+          ? `, ${existing.length} already existed and were reused`
+          : "") +
         (failed.length > 0 ? `, ${failed.length} failed` : "") +
         (skipped.length > 0 ? `, ${skipped.length} skipped` : ""),
       "",
@@ -509,17 +600,27 @@ export async function applyTaskTemplate(
     }
 
     lines.push("## Created", "");
+    if (existing.length > 0) {
+      lines.push(
+        "_(existing)_ marks a ticket that was already in the project; new children were added under it.",
+        "",
+      );
+    }
     for (const list of listResults) {
       const note = list.error
         ? `— failed: ${list.error}`
         : list.reused
           ? "(existing list)"
-          : "(new list)";
+          : list.placed_before
+            ? `(new list, placed before ${list.placed_before})`
+            : "(new list)";
       lines.push(`### ${list.name} ${note}`, "");
       for (const t of taskResults) {
-        if (t.task_list !== list.name || t.status !== "created") continue;
+        if (t.task_list !== list.name) continue;
+        if (t.status !== "created" && t.status !== "existing") continue;
         const indent = "  ".repeat(t.depth);
-        lines.push(`${indent}- [#${t.task_id}](${t.url}) ${t.title}`);
+        const marker = t.status === "existing" ? " _(existing)_" : "";
+        lines.push(`${indent}- [#${t.task_id}](${t.url}) ${t.title}${marker}`);
       }
       lines.push("");
     }
