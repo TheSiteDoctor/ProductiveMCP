@@ -188,6 +188,18 @@ All tool responses are capped at 25,000 characters (`CHARACTER_LIMIT` in constan
 
 The CLI automatically picks up new registry entries — no CLI-specific changes needed.
 
+**Don't skip step 4.** A tool missing from `src/index.ts` still works via the CLI, so the gap goes unnoticed, but MCP clients never see it (this happened to `productive_get_todo`, fixed in 1.6.4). After `npm run build`, check for drift:
+
+```bash
+node --input-type=module -e '
+import fs from "fs";
+const { toolRegistry } = await import("./dist/registry.js");
+const listed = new Set([...fs.readFileSync("src/index.ts","utf8").matchAll(/name: "(productive_[a-z_]+)"/g)].map(m=>m[1]));
+const keys = Object.keys(toolRegistry);
+console.log("missing from index.ts:", keys.filter(k=>!listed.has(k)));
+console.log("listed but not registered:", [...listed].filter(k=>!keys.includes(k)));'
+```
+
 ## CLI Usage
 
 The CLI mirrors the MCP tools as subcommands. Tool name `productive_search_tasks` becomes `search-tasks`:
