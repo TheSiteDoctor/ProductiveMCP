@@ -9,8 +9,8 @@
     },
     {
       "name": "email_provider",
-      "description": "Transactional email provider, e.g. Mailgun or SendGrid",
-      "default": "Mailgun"
+      "description": "Transactional email provider. The default keeps tickets provider-neutral; name the one in use (e.g. Mailgun) to be specific.",
+      "default": "Mailgun / Mandrill / SendGrid"
     },
     {
       "name": "launch_list",

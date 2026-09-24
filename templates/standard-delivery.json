@@ -1,7 +1,7 @@
 {
   "name": "standard-delivery",
   "title": "Standard Project Delivery",
-  "description": "The core delivery tickets TSD creates for every new project: Project Setup in the foundation phase; Project Management, Infrastructure setup, Third-party accounts and Transactional email in the core delivery, ending in a Build Complete milestone; and the Go-live Launch checks. Platform-neutral - apply umbraco-setup on top for Umbraco projects, and stripe-integration where the site takes payments.",
+  "description": "The core delivery tickets TSD creates for every new project: Project Setup, Project Management, Infrastructure setup, Third-party accounts and Transactional email in the core delivery, ending in a Build Complete milestone; and the Go-live Launch checks. Platform-neutral - apply umbraco-setup on top for Umbraco projects, and stripe-integration where the site takes payments.",
   "variables": [
     {
       "name": "domain_name",
@@ -13,13 +13,8 @@
     },
     {
       "name": "email_provider",
-      "description": "Transactional email provider, e.g. Mailgun or SendGrid",
-      "default": "Mailgun"
-    },
-    {
-      "name": "foundation_list",
-      "description": "Task list (project phase) for discovery and foundation work",
-      "default": "Discovery / Foundation"
+      "description": "Transactional email provider. The default keeps tickets provider-neutral; name the one in use (e.g. Mailgun) to be specific.",
+      "default": "Mailgun / Mandrill / SendGrid"
     },
     {
       "name": "delivery_list",
@@ -34,11 +29,11 @@
   ],
   "task_lists": [
     {
-      "name": "{{foundation_list}}",
+      "name": "{{delivery_list}}",
       "tasks": [
         {
           "title": "Project Setup",
-          "description": "The early, one-off work that gets the project moving. Everything here should be done in the first week or two, so the foundation phase can be closed.",
+          "description": "The early, one-off work that gets the project moving. Everything here should be done in the first week or two.",
           "task_type": "Feature",
           "subtasks": [
             {
@@ -74,12 +69,7 @@
               "estimate_minutes": 60
             }
           ]
-        }
-      ]
-    },
-    {
-      "name": "{{delivery_list}}",
-      "tasks": [
+        },
         {
           "title": "Project Management",
           "description": "Project management and ceremonies for the life of the project.",
