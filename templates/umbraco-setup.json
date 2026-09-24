@@ -1,21 +1,21 @@
 {
   "name": "umbraco-setup",
   "title": "Umbraco Setup (add-on)",
-  "description": "Umbraco-specific tasks layered on top of standard-delivery. Its Features share standard-delivery's names, so applying it afterwards adds these tasks inside the existing Infrastructure setup and Project Management tickets rather than creating duplicates.",
+  "description": "Umbraco-specific tasks layered on top of standard-delivery. Its Features share standard-delivery's names, so applying it afterwards adds these tasks inside the existing Infrastructure setup and Project Management tickets in the core delivery phase.",
   "variables": [
     {
       "name": "domain_name",
       "description": "The project's primary domain name, e.g. example.com"
     },
     {
-      "name": "foundation_list",
-      "description": "Task list (project phase) for discovery and foundation work",
-      "default": "Discovery / Foundation"
+      "name": "delivery_list",
+      "description": "Task list (project phase) for the core delivery",
+      "default": "Core Delivery"
     }
   ],
   "task_lists": [
     {
-      "name": "{{foundation_list}}",
+      "name": "{{delivery_list}}",
       "tasks": [
         {
           "title": "Infrastructure setup ({{domain_name}})",

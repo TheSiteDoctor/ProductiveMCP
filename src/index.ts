@@ -1112,7 +1112,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           template_definition: {
             type: "object",
             description:
-              'Inline template object, same shape as a template file: {"name": "kebab-case-id", "title": "...", "variables": [{"name", "description", "default"}]?, "task_lists": [{"name": "...", "tasks": [{"title", "description"?, "task_type"? (Bug|Task|Feature|Question|Meeting|Test Case), "priority"?, "labels"?, "estimate_minutes"?, "due_in_days"?, "milestone"?, "subtasks"?}]}]}. Provide either this or template',
+              'Inline template object, same shape as a template file: {"name": "kebab-case-id", "title": "...", "variables": [{"name", "description", "default"}]?, "task_lists": [{"name": "...", "tasks": [{"title", "description"?, "task_type"? (Bug|Task|Feature|Question|Meeting|Test Case), "priority"?, "labels"?, "estimate_minutes"?, "due_in_days"?, "milestone"?, "repeat"? (count or "{{variable}}"; {{repeat_index}} becomes 1..N), "repeat_every_days"?, "subtasks"?}]}]}. Provide either this or template',
             properties: {
               name: { type: "string" },
               title: { type: "string" },

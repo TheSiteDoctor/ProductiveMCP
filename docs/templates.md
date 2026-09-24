@@ -28,7 +28,7 @@ Templates follow TSD's Productive hierarchy:
 
 | Level | In Productive | Examples |
 | ----- | ------------- | -------- |
-| Task list | A project phase (milestone) | Discovery / Foundation, Build, Go-live |
+| Task list | A project phase (milestone) | Discovery / Foundation, Core Delivery, Go-live |
 | Top-level ticket | A **Feature** - the epic, i.e. a deliverable | Project Management, Infrastructure setup, Homepage, Product Listing Page (PLP) |
 | Children | The tasks, meetings and test cases that deliver it | Design: Homepage, QA: Homepage, DSU / Regular Check-in |
 
@@ -37,7 +37,7 @@ The phase names are variables with defaults, so templates need no configuration 
 | Variable | Default |
 | -------- | ------- |
 | `foundation_list` | Discovery / Foundation |
-| `build_list` | Build |
+| `delivery_list` | Core Delivery |
 | `launch_list` | Go-live |
 
 Templates that share a phase and a Feature title combine: `umbraco-setup` adds "Install Umbraco" inside standard-delivery's "Infrastructure setup" Feature, and `website-build` adds its canonical URL check inside the "Go-live Launch" Feature.
@@ -47,11 +47,11 @@ Templates that share a phase and a Feature title combine: `umbraco-setup` adds "
 Seven templates ship with this repository, listed in the order they are normally applied:
 
 - **`discovery`** (Discovery / Foundation, 43 tickets) - foundational discovery for rebuilds and larger projects. Seven Features: Access & Accounts, Goals & Stakeholders, Current Site Audit (Screaming Frog crawl, full legacy URL inventory), SEO Baseline, Analytics & Tracking, Technical & Integrations, and Content & Information Architecture (sitemap, redirect map), then a findings playback and a "Discovery sign-off" milestone. High priority marks what's lost for good once the old site is switched off; access requests are due five days after applying.
-- **`standard-delivery`** (39 tickets) - the Features every project gets: **Project Management** and **Infrastructure setup** in the foundation phase, and **Go-live Launch** in the go-live phase - a lean gate of must-pass launch checks (production licences, DNS, HTTPS and www redirects, canonical URLs, GTM/GA4/Clarity, Search Console, StatusCake, Seq, and a live test transaction for e-commerce). Platform-neutral; CMS work lives in add-ons.
-- **`umbraco-setup`** (add-on, 5 tickets) - adds Umbraco and Igloo Theme installation to the Infrastructure setup Feature, and client CMS training to Project Management.
-- **`website-build`** (20 tickets) - a Feature per page type in the build phase (Site-wide, Homepage, Content Page), each with Design / Front-end / Back-end / QA / QC tasks; adds canonical URL enforcement to Go-live Launch and a "Site go-live" release milestone.
-- **`ecommerce-build`** (add-on, 36 tickets) - a Feature per shop page in the build phase: PLP, PDP and the four checkout steps (Basket, Shipping, Billing, Order Complete), each with the same five-role breakdown.
-- **`stripe-integration`** (18 tickets) - a **Stripe Integration** Feature in the build phase (account in the client's name, sandbox keys and per-environment webhook secrets, end-to-end sandbox payment tests, starting the client's account activation early) and a **Stripe Go-live** Feature in the go-live phase (live keys and webhook, wallet domain verification, live smoke test).
+- **`standard-delivery`** (53 tickets, plus one Show & Tell per sprint) - the Features every project gets. **Project Setup** in the foundation phase (agree the Product Owners and Project Team, kick-offs, repo, development environment). In the core delivery phase: **Project Management** (ceremonies for the life of the project, including a `Show & Tell: Sprint N` ticket per planned sprint from `sprint_count`), **Infrastructure setup**, **Third-party accounts** (get or create GTM, GA4, Clarity, Search Console, cookie consent and CreateSend), **Transactional email** (client set up in the SMTP provider, SMTP details shared), and a **Build Complete** milestone marking the start of UAT. **Go-live Launch** in the go-live phase is a lean gate of must-pass checks (production licences, live SMTP provider, DNS, HTTPS and www redirects, canonical URLs, GTM/GA4/Clarity, Search Console, StatusCake, Seq, and a live test transaction for e-commerce). Platform-neutral; CMS work lives in add-ons.
+- **`umbraco-setup`** (add-on, 5 tickets) - adds Umbraco and Igloo Theme installation to the Infrastructure setup Feature, and client CMS training to Project Management, both in the core delivery phase.
+- **`website-build`** (20 tickets) - a Feature per page type in the core delivery phase (Site-wide, Homepage, Content Page), each with Design / Front-end / Back-end / QA / QC tasks; adds canonical URL enforcement to Go-live Launch and a "Site go-live" release milestone.
+- **`ecommerce-build`** (add-on, 36 tickets) - a Feature per shop page in the core delivery phase: PLP, PDP and the four checkout steps (Basket, Shipping, Billing, Order Complete), each with the same five-role breakdown.
+- **`stripe-integration`** (18 tickets) - a **Stripe Integration** Feature in the core delivery phase (account in the client's name, sandbox keys and per-environment webhook secrets, end-to-end sandbox payment tests, starting the client's account activation early) and a **Stripe Go-live** Feature in the go-live phase (live keys and webhook, wallet domain verification, live smoke test).
 - **`site-go-live`** (131 tickets) - the exhaustive go-live reference checklist, with each section (DNS Changes, On the server, Source Code Changes and so on) as a Feature in the go-live phase. Modernised for GA4/GTM, Search Console and Umbraco Commerce; the transactional email tasks are provider-neutral via the `email_provider` variable (default `Mailgun`).
 
 ## Template format
@@ -117,6 +117,8 @@ Seven templates ship with this repository, listed in the order they are normally
 - `estimate_minutes` - sets `initial_estimate` (Productive auto-sets "Time to complete" to match on creation).
 - `due_in_days` - due date set to N days after the apply date.
 - `milestone` - `true` creates the task as a Productive milestone (`type_id: 3`) rather than a normal task.
+- `repeat` - create the task several times: a whole number, or a single `{{variable}}` holding one (maximum 52). `{{repeat_index}}` in the title or description becomes 1, 2, 3 and so on. For example `"title": "Show & Tell: Sprint {{repeat_index}}", "repeat": "{{sprint_count}}"`.
+- `repeat_every_days` - with `repeat`, each copy is due this many days after the previous one (the first copy uses `due_in_days`).
 - `subtasks` - nested tasks, arbitrarily deep. Each level is created with a `parent_task` relationship.
 
 Placeholders (`{{variable_name}}`) work in task list names, task titles and descriptions.
@@ -125,7 +127,8 @@ Placeholders (`{{variable_name}}`) work in task list names, task titles and desc
 
 - **Task list reuse**: if the project already has an active task list with the same name (case-insensitive), tasks are added to it rather than a duplicate being created. Set `reuse_existing_task_lists: false` to always create new lists.
 - **Merging into existing tickets**: within a reused list, a ticket whose title already exists at the same level (case-insensitive) is reused rather than recreated, and only the template's missing children are added beneath it - at every depth. This is how add-ons contribute tasks to another template's Features, and why re-applying a template is idempotent. The summary marks reused tickets _(existing)_. Set `skip_existing_tasks: false` to always create new tickets.
-- **Phase order**: Productive appends new task lists at the end. When a template creates a list and one of its later phases already exists (for example `website-build` creating Build after `standard-delivery` created Go-live), the new list is moved before that later phase, so phases stay in order.
+- **Phase order**: Productive appends new task lists at the end. When a template creates a list and one of its later phases already exists (for example a template creating Core Delivery after another template created Go-live), the new list is moved before that later phase, so phases stay in order.
+- **Milestones stay last**: a milestone marks the end of its phase. When a template adds a new top-level ticket to a list that already holds a milestone (for example `website-build` adding pages to Core Delivery after `standard-delivery` created Build Complete), the ticket is moved above the milestone. If Productive refuses the move, the summary carries a warning and the ticket stays at the end of the list.
 - **Board**: newly created task lists go on the board given by `board_id`, or the project's first board.
 - **Assignee**: `default_assignee_id` assigns every created task to one person; otherwise tasks are unassigned.
 - **Ordering**: tasks are created sequentially in template order, so Productive displays them in the order written.
@@ -142,7 +145,7 @@ Pass a path to write elsewhere, and `--fragment` to omit the `<html>`/`<head>`/`
 
 `productive_apply_task_template` also accepts a `template_definition` - a full template object passed inline instead of a stored template name. This is for structures composed on the fly, where no file exists (or should exist) on the server.
 
-The main consumer is the **`tsd-site-scaffold` skill** (in `skills/tsd-site-scaffold/`): it asks which page types a new site needs ("Homepage, Case Study List, Case Study Details, Contact Us"), spots entity types that may need separate list and detail pages (Case Studies, Products, News - but not FAQs or Contact Us), then composes an inline template creating a Feature per page in the build phase, with the standard Design / Front-end / Back-end / QA / QC tasks beneath it. Install it by copying the folder into `~/.claude/skills/` (Claude Code) or uploading it as a skill on claude.ai.
+The main consumer is the **`tsd-site-scaffold` skill** (in `skills/tsd-site-scaffold/`): it asks which page types a new site needs ("Homepage, Case Study List, Case Study Details, Contact Us"), spots entity types that may need separate list and detail pages (Case Studies, Products, News - but not FAQs or Contact Us), then composes an inline template creating a Feature per page in the core delivery phase, with the standard Design / Front-end / Back-end / QA / QC tasks beneath it. For Igloo builds it also asks which Igloo widgets the design needs and creates an `Igloo: <Widget>` Feature for each, with Front-end / Back-end / QA / QC tasks (design is already done by then). It can be re-run once design is signed off to add the widgets. Install it by copying the folder into `~/.claude/skills/` (Claude Code) or uploading it as a skill on claude.ai.
 
 ## Writing a new template
 

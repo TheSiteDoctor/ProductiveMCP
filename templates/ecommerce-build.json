@@ -4,14 +4,14 @@
   "description": "E-commerce page scaffolding layered on top of website-build: a Feature per shop page (PLP, PDP and the checkout steps), each with Design / Front-end / Back-end / QA / QC tasks. Pair with stripe-integration for the payment provider work.",
   "variables": [
     {
-      "name": "build_list",
-      "description": "Task list (project phase) for the build",
-      "default": "Build"
+      "name": "delivery_list",
+      "description": "Task list (project phase) for the core delivery",
+      "default": "Core Delivery"
     }
   ],
   "task_lists": [
     {
-      "name": "{{build_list}}",
+      "name": "{{delivery_list}}",
       "tasks": [
         {
           "title": "Product Listing Page (PLP)",

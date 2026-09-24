@@ -143,6 +143,7 @@ export async function getTaskTemplate(
       const indent = "  ".repeat(depth);
       const extras: string[] = [];
       if (task.milestone) extras.push("Milestone");
+      if (task.repeat !== undefined) extras.push(`repeated ${task.repeat} times`);
       if (task.estimate_minutes) {
         extras.push(formatMinutes(task.estimate_minutes));
       }
@@ -173,6 +174,13 @@ interface AppliedTaskResult {
   task_id?: string;
   url?: string;
   error?: string;
+}
+
+interface ExistingTasks {
+  /** lowercase title -> task id */
+  byTitle: Map<string, string>;
+  /** first top-level milestone found, if any */
+  milestoneId?: string;
 }
 
 interface AppliedListResult {
@@ -253,6 +261,7 @@ export async function applyTaskTemplate(
     parentTaskId: string | undefined,
     depth: number,
     existingSiblings: Map<string, string> | null,
+    moveBeforeId?: string,
   ): Promise<void> => {
     // A ticket with this title already exists at this level: reuse it and
     // merge the template's children into it rather than duplicating it.
@@ -267,9 +276,9 @@ export async function applyTaskTemplate(
         url: `https://app.productive.io/${client.getOrgId()}/tasks/${existingId}`,
       });
       if (task.subtasks && task.subtasks.length > 0) {
-        const existingChildren = await fetchExistingTasks({
-          "filter[parent_task_id]": existingId,
-        });
+        const existingChildren = (
+          await fetchExistingTasks({ "filter[parent_task_id]": existingId })
+        ).byTitle;
         for (const sub of task.subtasks) {
           await createOneTask(
             sub,
@@ -350,6 +359,10 @@ export async function applyTaskTemplate(
         ? response.data[0]
         : response.data;
       createdId = (data as Task).id;
+
+      if (moveBeforeId && !task.milestone) {
+        await keepMilestoneLast(createdId, moveBeforeId, taskListName);
+      }
 
       taskResults.push({
         title: task.title,
@@ -438,14 +451,43 @@ export async function applyTaskTemplate(
     return undefined;
   };
 
+  // A milestone marks the end of its phase, so a ticket added to a list that
+  // already holds one is moved above it. If the API refuses, warn once and
+  // leave the ticket at the end of the list.
+  const warnings: string[] = [];
+  let taskRepositionFailed = false;
+  const keepMilestoneLast = async (
+    taskId: string,
+    milestoneId: string,
+    taskListName: string,
+  ): Promise<void> => {
+    if (taskRepositionFailed) return;
+    try {
+      await client.patch<JSONAPIResponse>(`/tasks/${taskId}/reposition`, {
+        data: {
+          type: "tasks",
+          attributes: { move_before_id: parseInt(milestoneId, 10) },
+        },
+      });
+    } catch (error) {
+      taskRepositionFailed = true;
+      const message = error instanceof Error ? error.message : String(error);
+      warnings.push(
+        `New tickets in "${taskListName}" could not be moved above its milestone (${message}); drag them into place in Productive.`,
+      );
+      console.error(`Warning: task reposition failed - ${message}`);
+    }
+  };
+
   // Existing tasks (lowercase title -> id) matching a filter. Used so that
   // re-applying a template, or stacking add-ons that share Features, reuses
   // tickets that already exist instead of duplicating them.
   const fetchExistingTasks = async (
     filter: Record<string, string>,
     topLevelOnly = false,
-  ): Promise<Map<string, string>> => {
+  ): Promise<ExistingTasks> => {
     const tasks = new Map<string, string>();
+    let milestoneId: string | undefined;
     let pageNumber = 1;
     const pageSize = 200;
     while (true) {
@@ -465,6 +507,9 @@ export async function applyTaskTemplate(
         if (!tasks.has(title.toLowerCase())) {
           tasks.set(title.toLowerCase(), task.id);
         }
+        if (!milestoneId && task.attributes?.type_id === 3) {
+          milestoneId = task.id;
+        }
       }
       const totalCount = response.meta?.total_count;
       if (totalCount && pageNumber * pageSize < totalCount) {
@@ -473,7 +518,7 @@ export async function applyTaskTemplate(
         break;
       }
     }
-    return tasks;
+    return { byTitle: tasks, milestoneId };
   };
 
   for (const [listIndex, list] of template.task_lists.entries()) {
@@ -536,7 +581,8 @@ export async function applyTaskTemplate(
         list.name,
         undefined,
         0,
-        existingTopLevel,
+        existingTopLevel?.byTitle ?? null,
+        existingTopLevel?.milestoneId,
       );
     }
   }
@@ -556,6 +602,7 @@ export async function applyTaskTemplate(
     existing: existing.length,
     failed: failed.length,
     skipped: skipped.length,
+    warnings,
     tasks: taskResults,
   };
 
@@ -583,6 +630,9 @@ export async function applyTaskTemplate(
       "",
     );
 
+    if (warnings.length > 0) {
+      lines.push("## Warnings", "", ...warnings.map((w) => `- ${w}`), "");
+    }
     if (failed.length > 0) {
       lines.push("## Failures", "");
       for (const t of failed) {

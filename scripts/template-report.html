@@ -236,7 +236,7 @@
 
   <footer class="notes">
     <h2>How to read this</h2>
-    <p>Each box is a Productive task list (a project phase). Rows inside are tickets; an arrow means the ticket has children or a description, created with a parent relationship exactly as shown. The phase names come from the <code>foundation_list</code>, <code>build_list</code> and <code>launch_list</code> variables, so they can be renamed per project. Estimates are the template's <code>estimate_minutes</code>, set as the initial estimate in Productive. Due dates are relative to the day the template is applied.</p>
+    <p>Each box is a Productive task list (a project phase). Rows inside are tickets; an arrow means the ticket has children or a description, created with a parent relationship exactly as shown. The phase names come from the <code>foundation_list</code>, <code>delivery_list</code> and <code>launch_list</code> variables, so they can be renamed per project. A milestone marks the end of its phase, so tickets added by later templates are placed above it. Repeated tickets, such as a Show &amp; Tell per sprint, are shown once per copy; change <code>sprint_count</code> to see the effect. Estimates are the template's <code>estimate_minutes</code>, set as the initial estimate in Productive. Due dates are relative to the day the template is applied.</p>
     <p>This page is generated from the template files. After editing a template, run <code>npm run templates:report</code> to rebuild it.</p>
   </footer>
 </div>
@@ -246,7 +246,7 @@ const TEMPLATES = /*__TEMPLATES__*/[];
 const GENERATED = "__GENERATED__";
 
 const ORDER = ["discovery", "standard-delivery", "umbraco-setup", "website-build", "ecommerce-build", "stripe-integration", "site-go-live"];
-const SAMPLE_VALUES = { domain_name: "example.co.uk", current_domain: "oldsite.co.uk" };
+const SAMPLE_VALUES = { domain_name: "example.co.uk", current_domain: "oldsite.co.uk", sprint_count: "8" };
 const PRESET_DEFS = [
   { id: "rebuild", label: "Rebuild", names: ["discovery", "standard-delivery", "umbraco-setup", "website-build"] },
   { id: "brochure", label: "Brochure site", names: ["standard-delivery", "umbraco-setup", "website-build"] },
@@ -338,16 +338,46 @@ function renderMarkdown(src) {
 // Templates apply in order. In a task list an earlier template created, a
 // ticket whose title matches an earlier ticket at the same level is reused
 // and only its missing children are added. A new parent has nothing to merge.
+// Repeated tasks expand into copies, {{repeat_index}} becoming 1..N, with due
+// dates stepping by repeat_every_days, as substituteTemplate does.
+const MAX_REPEAT = 52;
+function fillIndex(task, i) {
+  const fill = (t) => t && t.replace(/\{\{\s*repeat_index\s*\}\}/g, String(i));
+  return { ...task, title: fill(task.title), description: fill(task.description), subtasks: (task.subtasks || []).map((c) => fillIndex(c, i)) };
+}
+function expand(tasks) {
+  return (tasks || []).flatMap((task) => {
+    const t = { ...task, subtasks: expand(task.subtasks) };
+    if (t.repeat === undefined) return [t];
+    const raw = sub(String(t.repeat)).trim();
+    const n = /^\d+$/.test(raw) ? Math.min(parseInt(raw, 10), MAX_REPEAT) : NaN;
+    const { repeat, repeat_every_days: step, ...base } = t;
+    if (Number.isNaN(n)) return [{ ...base, title: `${base.title} (set ${raw} to a number to see the copies)` }];
+    return Array.from({ length: n }, (_, i) => {
+      const copy = fillIndex(base, i + 1);
+      if (base.due_in_days !== undefined || step !== undefined) copy.due_in_days = (base.due_in_days ?? 0) + i * (step ?? 0);
+      return copy;
+    });
+  });
+}
+
 function makeNode(task, tpl) {
   return { task, tpl, alsoIn: [], children: (task.subtasks || []).map((c) => makeNode(c, tpl)) };
 }
-function place(siblings, task, tpl, canMatch, counter) {
+function place(siblings, task, tpl, canMatch, counter, isTop) {
   const key = sub(task.title).toLowerCase();
   const match = canMatch && siblings.find((n) => n.tpl !== tpl && sub(n.task.title).toLowerCase() === key);
-  if (!match) { siblings.push(makeNode(task, tpl)); return; }
+  if (!match) {
+    // A new top-level ticket in a list an earlier template created goes above
+    // that list's milestone, as apply repositions it.
+    const milestoneAt = canMatch && isTop && !task.milestone
+      ? siblings.findIndex((n) => n.task.milestone && n.tpl !== tpl) : -1;
+    siblings.splice(milestoneAt >= 0 ? milestoneAt : siblings.length, 0, makeNode(task, tpl));
+    return;
+  }
   counter.reused += 1;
   if (!match.alsoIn.includes(tpl)) match.alsoIn.push(tpl);
-  for (const child of task.subtasks || []) place(match.children, child, tpl, true, counter);
+  for (const child of task.subtasks || []) place(match.children, child, tpl, true, counter, false);
 }
 function compose() {
   const lists = [], byKey = new Map(), counter = { reused: 0 };
@@ -366,7 +396,7 @@ function compose() {
         byKey.set(key, merged);
       }
       if (!merged.sources.includes(tpl.name)) merged.sources.push(tpl.name);
-      for (const task of list.tasks) place(merged.nodes, task, tpl.name, reused, counter);
+      for (const task of expand(list.tasks)) place(merged.nodes, task, tpl.name, reused, counter, true);
     });
   }
   return { lists, reused: counter.reused };
@@ -467,7 +497,7 @@ document.getElementById("templates").innerHTML = sorted.map((t, i) => {
   return `<li><label class="tpl" for="tpl-${esc(t.name)}">
     <input type="checkbox" id="tpl-${esc(t.name)}" value="${esc(t.name)}">
     <span><span class="order">${i + 1}</span><span class="nm">${esc(t.name)}</span></span>
-    <span class="meta">${esc(t.title)}<br>${t.task_lists.length} list${t.task_lists.length === 1 ? "" : "s"} &middot; ${t.task_lists.reduce((s, l) => s + l.tasks.reduce((a, x) => a + countTree(x), 0), 0)} tasks${(() => { const m = t.task_lists.reduce((s, l) => s + l.tasks.reduce((a, x) => a + estTree(x), 0), 0); return m ? ` &middot; ${fmtMin(m)}` : ""; })()}${vars.length ? `<br>needs ${vars.map(esc).join(", ")}` : ""}</span>
+    <span class="meta">${esc(t.title)}<br>${t.task_lists.length} list${t.task_lists.length === 1 ? "" : "s"} &middot; ${t.task_lists.reduce((s, l) => s + expand(l.tasks).reduce((a, x) => a + countTree(x), 0), 0)} tasks${(() => { const m = t.task_lists.reduce((s, l) => s + expand(l.tasks).reduce((a, x) => a + estTree(x), 0), 0); return m ? ` &middot; ${fmtMin(m)}` : ""; })()}${vars.length ? `<br>needs ${vars.map(esc).join(", ")}` : ""}</span>
   </label></li>`;
 }).join("");
 document.getElementById("templates").addEventListener("change", (e) => {

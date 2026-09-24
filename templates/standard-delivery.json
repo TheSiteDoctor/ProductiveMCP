@@ -1,16 +1,30 @@
 {
   "name": "standard-delivery",
   "title": "Standard Project Delivery",
-  "description": "The core delivery tickets TSD creates for every new project: project management ceremonies, infrastructure setup, and go-live launch tasks. Platform-neutral - apply umbraco-setup on top for Umbraco projects, and stripe-integration where the site takes payments.",
+  "description": "The core delivery tickets TSD creates for every new project: Project Setup in the foundation phase; Project Management, Infrastructure setup, Third-party accounts and Transactional email in the core delivery, ending in a Build Complete milestone; and the Go-live Launch checks. Platform-neutral - apply umbraco-setup on top for Umbraco projects, and stripe-integration where the site takes payments.",
   "variables": [
     {
       "name": "domain_name",
       "description": "The project's primary domain name, e.g. example.com"
     },
     {
+      "name": "sprint_count",
+      "description": "Number of two-week sprints planned, e.g. 8 for a four-month project. One Show & Tell ticket is created per sprint."
+    },
+    {
+      "name": "email_provider",
+      "description": "Transactional email provider, e.g. Mailgun or SendGrid",
+      "default": "Mailgun"
+    },
+    {
       "name": "foundation_list",
       "description": "Task list (project phase) for discovery and foundation work",
       "default": "Discovery / Foundation"
+    },
+    {
+      "name": "delivery_list",
+      "description": "Task list (project phase) for the core delivery",
+      "default": "Core Delivery"
     },
     {
       "name": "launch_list",
@@ -23,10 +37,16 @@
       "name": "{{foundation_list}}",
       "tasks": [
         {
-          "title": "Project Management",
-          "description": "Project management and ceremonies for the life of the project.",
+          "title": "Project Setup",
+          "description": "The early, one-off work that gets the project moving. Everything here should be done in the first week or two, so the foundation phase can be closed.",
           "task_type": "Feature",
           "subtasks": [
+            {
+              "title": "Agree the Product Owners and Project Team",
+              "description": "Name the client-side Product Owner(s) - who prioritises the backlog and signs off work - and the TSD project team (delivery lead, developers, designer, QA). Record them on the project so everyone knows who decides what.",
+              "task_type": "Task",
+              "estimate_minutes": 30
+            },
             {
               "title": "Project Kick-off (internal)",
               "description": "Brief the delivery team: scope, approach, roles, key dates, budget and known risks before any client-facing work starts.",
@@ -37,6 +57,34 @@
               "description": "Align with the customer on goals, timeline, comms cadence, who signs off what, and how feedback/tickets flow.",
               "task_type": "Meeting"
             },
+            {
+              "title": "Create GitHub repo ({{domain_name}})",
+              "task_type": "Task",
+              "estimate_minutes": 30
+            },
+            {
+              "title": "General project setup (Rider SLN files etc)",
+              "task_type": "Task",
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Set up the development environment",
+              "description": "Every developer on the project can clone, build and run the site locally: repository access, local database, configuration and secrets, and a CMS login. Document anything non-obvious in the README.",
+              "task_type": "Task",
+              "estimate_minutes": 60
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "{{delivery_list}}",
+      "tasks": [
+        {
+          "title": "Project Management",
+          "description": "Project management and ceremonies for the life of the project.",
+          "task_type": "Feature",
+          "subtasks": [
             {
               "title": "Ticket Management",
               "description": "Ongoing triage, refinement and prioritisation of the project's tickets.",
@@ -68,9 +116,12 @@
               "task_type": "Task"
             },
             {
-              "title": "Show & Tell",
-              "description": "Regular demo of progress to the customer.",
-              "task_type": "Meeting"
+              "title": "Show & Tell: Sprint {{repeat_index}}",
+              "description": "End-of-sprint demo of progress to the customer. One ticket is created per planned two-week sprint; add more if the project runs longer.",
+              "task_type": "Meeting",
+              "repeat": "{{sprint_count}}",
+              "due_in_days": 14,
+              "repeat_every_days": 14
             },
             {
               "title": "UAT coordination",
@@ -101,11 +152,6 @@
           "task_type": "Feature",
           "subtasks": [
             {
-              "title": "Create GitHub repo ({{domain_name}})",
-              "task_type": "Task",
-              "estimate_minutes": 30
-            },
-            {
               "title": "Set up CI/CD (AppVeyor/GitHub) ({{domain_name}})",
               "task_type": "Task",
               "estimate_minutes": 60
@@ -122,11 +168,6 @@
             },
             {
               "title": "Create Azure blob storage for media (CDN)",
-              "task_type": "Task",
-              "estimate_minutes": 60
-            },
-            {
-              "title": "General project setup (Rider SLN files etc)",
               "task_type": "Task",
               "estimate_minutes": 60
             },
@@ -153,6 +194,43 @@
               "description": "Uptime and SSL certificate checks against https://{{domain_name}} with alerts to the support channel. Set up ahead of go-live so it's watching from the moment DNS switches.",
               "task_type": "Task",
               "estimate_minutes": 15
+            }
+          ]
+        },
+        {
+          "title": "Third-party accounts",
+          "description": "Accounts the site depends on. Each one belongs to the client, with TSD given admin access - never created under a personal TSD login. On a rebuild, reuse the existing accounts so history carries over.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Get or create the Google Tag Manager account",
+              "description": "If the client has a GTM account, request Publish access. Otherwise create the account and a web container for {{domain_name}} under the client's Google account and add TSD as an administrator.",
+              "task_type": "Task",
+              "estimate_minutes": 15
+            },
+            {
+              "title": "Get or create the Google Analytics (GA4) account",
+              "description": "If the client has a GA4 property, request Editor access. Otherwise create the account and property under the client's Google account, with a web data stream for {{domain_name}}. On a rebuild, keep the existing property so the traffic history carries over.",
+              "task_type": "Task",
+              "estimate_minutes": 15
+            },
+            {
+              "title": "Get or create the Microsoft Clarity account",
+              "description": "Get access to the client's Clarity project, or create one for {{domain_name}}. It's installed via GTM, and can be linked to GA4.",
+              "task_type": "Task",
+              "estimate_minutes": 15
+            },
+            {
+              "title": "Get or create the Google Search Console property",
+              "description": "Get Full access to the client's property, or create a domain property for {{domain_name}} verified by DNS TXT record. Do this early: Search Console only collects data from the day it's verified.",
+              "task_type": "Task",
+              "estimate_minutes": 15
+            },
+            {
+              "title": "Get or create the cookie consent platform account",
+              "description": "The consent platform (e.g. Cookiebot, CookieYes) must be in place before any tracking goes live. Configure Google Consent Mode v2 with GTM.",
+              "task_type": "Task",
+              "estimate_minutes": 15
             },
             {
               "title": "Set up CreateSend mailing list account + API keys",
@@ -160,6 +238,30 @@
               "estimate_minutes": 60
             }
           ]
+        },
+        {
+          "title": "Transactional email ({{email_provider}})",
+          "description": "Outbound email for forms and notifications, sent through {{email_provider}}. The live configuration is in the Go-live Launch Feature.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Set up the client in {{email_provider}}",
+              "description": "Create a sending domain for the client (e.g. mg.{{domain_name}}) with its own API key and SMTP credentials - never the shared agency key, so one client's sending reputation can't affect another's. Add the SPF and DKIM records {{email_provider}} provides to DNS and verify them.",
+              "task_type": "Task",
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Get and share the incoming/outgoing SMTP server details",
+              "description": "Record the outgoing SMTP host, port, username and password, plus any incoming server or inbound routing details the site needs. Store them in LastPass and share them with the team; UAT uses them for test mail.",
+              "task_type": "Task",
+              "estimate_minutes": 15
+            }
+          ]
+        },
+        {
+          "title": "Build Complete",
+          "description": "Milestone: the build is finished and the team is happy with the delivery. UAT starts from here.",
+          "milestone": true
         }
       ]
     },
@@ -174,6 +276,12 @@
             {
               "title": "Ensure production licences are in place",
               "description": "Check every licence the live site needs is purchased and installed **for the live domain** before DNS switches - domain-bound licences (e.g. Umbraco Commerce, Umbraco Forms, uSync Complete) that worked on UAT will not cover production. Confirm the licence files/keys are in the production deployment, not just a developer machine.",
+              "task_type": "Task",
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Configure the live SMTP provider",
+              "description": "Switch production to the client's live {{email_provider}} credentials, confirm the sending domain is verified, and submit a real form on the live site to check the email arrives and isn't marked as spam.",
               "task_type": "Task",
               "estimate_minutes": 30
             },

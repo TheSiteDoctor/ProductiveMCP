@@ -25,8 +25,21 @@ export interface TemplateTask {
   due_in_days?: number;
   /** Create as a Productive milestone (type_id 3) instead of a normal task */
   milestone?: boolean;
+  /**
+   * Create this task N times: a whole number, or a "{{variable}}" holding
+   * one. {{repeat_index}} in the title/description becomes 1..N.
+   */
+  repeat?: number | string;
+  /** With repeat: each copy is due this many days after the previous one */
+  repeat_every_days?: number;
   subtasks?: TemplateTask[];
 }
+
+/** Placeholder replaced with 1..N in repeated tasks; never a user variable */
+export const REPEAT_INDEX = "repeat_index";
+
+/** Upper bound on repeat, so a typo can't create hundreds of tickets */
+export const MAX_REPEAT = 52;
 
 export const TemplateTaskSchema: z.ZodType<TemplateTask> = z.lazy(() =>
   z
@@ -53,6 +66,22 @@ export const TemplateTaskSchema: z.ZodType<TemplateTask> = z.lazy(() =>
         .min(0, "due_in_days must be zero or more days from the apply date")
         .optional(),
       milestone: z.boolean().optional(),
+      repeat: z
+        .union([
+          z.number().int().min(0).max(MAX_REPEAT),
+          z
+            .string()
+            .regex(
+              /^(\d+|\{\{\s*[a-z][a-z0-9_]*\s*\}\})$/,
+              "repeat must be a whole number or a single {{variable}}",
+            ),
+        ])
+        .optional(),
+      repeat_every_days: z.coerce
+        .number()
+        .int()
+        .min(0, "repeat_every_days must be zero or more")
+        .optional(),
       subtasks: z.array(TemplateTaskSchema).optional(),
     })
     .strict(),

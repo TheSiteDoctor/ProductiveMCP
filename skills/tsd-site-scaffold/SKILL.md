@@ -1,13 +1,13 @@
 ---
 name: tsd-site-scaffold
-description: Interactively scaffold site build tickets in Productive from a list of page types. Use when starting a new website project and the user wants the page/feature tickets set up (e.g. "set up the build tickets for acme.com", "scaffold the pages for the new site", "create the page features"). Asks which page types are needed, spots entity types that may need separate list and detail pages (Case Studies, Products, News etc), then creates a Feature (epic) per page in the build phase task list, with Design / Front-end / Back-end / QA / QC tasks beneath it, via the ProductiveMCP template tools.
+description: Interactively scaffold site build tickets in Productive from a list of page types. Use when starting a new website project and the user wants the page/feature tickets set up (e.g. "set up the build tickets for acme.com", "scaffold the pages for the new site", "create the page features"). Asks which page types are needed, spots entity types that may need separate list and detail pages (Case Studies, Products, News etc), then creates a Feature (epic) per page in the Core Delivery task list, with Design / Front-end / Back-end / QA / QC tasks beneath it. For Igloo builds it also scaffolds a Feature per Igloo widget (Front-end / Back-end / QA / QC - design is already done). Uses the ProductiveMCP template tools.
 ---
 
 # TSD Site Build Scaffolding
 
 Turn a list of page types into build tickets in Productive: one Feature (epic) per page, each with the standard role tasks (Design / Front-end / Back-end / QA / QC) as its children.
 
-TSD's Productive hierarchy: **task list = project phase** (e.g. Discovery / Foundation, Build, Go-live), **Feature = the epic / delivery** (e.g. "Case Study List"), **children = the tasks** that deliver it. Pages always go in the build phase list.
+TSD's Productive hierarchy: **task list = project phase** (e.g. Discovery / Foundation, Core Delivery, Go-live), **Feature = the epic / delivery** (e.g. "Case Study List"), **children = the tasks** that deliver it. Pages and Igloo widgets always go in the Core Delivery list.
 
 ## Prerequisites
 
@@ -23,7 +23,7 @@ Resolve the target Productive project with `productive_list_projects` (search by
 
 Run `productive_list_task_lists` for the project, and `productive_search_tasks` for a "Project Management" Feature. If the standard scaffolding is missing, offer to apply `standard-delivery` (and `umbraco-setup` / `stripe-integration` / `ecommerce-build` where relevant) first - pages sit on top of it, and `website-build` already covers Site-wide, Homepage and Content Page.
 
-Identify the build phase list: the templates default it to **"Build"**. If the project uses a different name for its build phase (e.g. "Phase 1 - Build"), use that name so the pages land in the existing list; if unclear, ask once.
+Identify the delivery phase list: the templates default it to **"Core Delivery"**. If the project uses a different name for that phase (e.g. "Phase 1 - Core Delivery"), use that name so the pages land in the existing list; if unclear, ask once. New Features are placed above the list's "Build Complete" milestone automatically.
 
 ### 3. Gather the page types
 
@@ -49,6 +49,14 @@ Typical patterns (guidance, not rules - the client's content decides):
 
 Never ask about the "always single" group, and don't ask more than one round of clarification - make a sensible assumption for anything still unclear and flag it in the plan.
 
+### 4b. Igloo widgets (Igloo builds only)
+
+Igloo is TSD's site builder: it plugs into the CMS, and each project needs specific widgets built from the signed-off design. If the project uses Igloo (umbraco-setup's "Install Igloo Theme" task is present, or the user says so), ask:
+
+> "Is this an Igloo build? If so, which widgets does the design need yet (e.g. Hero Banner, Card Grid, Testimonial Carousel)?"
+
+Widgets are usually only known once design is complete. If they aren't known yet, say the skill can be run again after design sign-off - re-running is safe, as existing Features are reused and only missing tasks are added.
+
 ### 5. Confirm the plan
 
 Present the final page list, using the user's own naming (e.g. "Case Study List" and "Case Study Details" as two pages). Defaults, which the user can override:
@@ -61,7 +69,7 @@ Present the final page list, using the user's own naming (e.g. "Case Study List"
 
 Compose an inline template and call `productive_apply_task_template` with `template_definition` (no stored template needed) - first with `dry_run: true`, show the user, then apply for real on their go-ahead.
 
-One task list: the build phase. Inside it, one **Feature per page** (title = the page name, `task_type: "Feature"`, description "<Page> delivery, from design through to QC."), with these child tasks, using EXACTLY these title patterns and descriptions (substituting the page name for `<Page>`):
+One task list: Core Delivery. Inside it, one **Feature per page** (title = the page name, `task_type: "Feature"`, description "<Page> delivery, from design through to QC."), with these child tasks, using EXACTLY these title patterns and descriptions (substituting the page name for `<Page>`):
 
 - **`Design: <Page>`** (task_type `Task`)
   "<Page> design for desktop and mobile, using the site-wide foundations. Client sign-off before build starts."
@@ -73,6 +81,17 @@ One task list: the build phase. Inside it, one **Feature per page** (title = the
   "Internal testing against the signed-off design and acceptance criteria: content editable as expected, responsive, cross-browser, no console errors."
 - **`QC: <Page>`** (task_type `Test Case`)
   "Final quality control pass on UAT before client review: pixel check against design, real content in place, links and imagery correct."
+
+For each **Igloo widget**, a Feature titled **`Igloo: <Widget>`** (`task_type: "Feature"`, description "Igloo widget: <Widget>. Built from the signed-off design; design is not repeated here."), in the same Core Delivery list, with these children - no Design task:
+
+- **`Front-end / CMS: <Widget>`** (task_type `Task`)
+  "Build the <Widget> widget in Igloo: markup, styles and the CMS editing experience, matching the signed-off design. Responsive across breakpoints."
+- **`Back-end: <Widget>`** (task_type `Task`)
+  "Widget model, settings and any data or integration the <Widget> widget needs."
+- **`QA: <Widget>`** (task_type `Test Case`)
+  "Test the widget against the design with realistic content: every setting and variant, empty and overflow content, responsive, cross-browser."
+- **`QC: <Widget>`** (task_type `Test Case`)
+  "Final quality control on UAT: the widget used on real pages with real content, checked against the design."
 
 Page-specific additions (append to the relevant description):
 
@@ -89,7 +108,7 @@ Skeleton for the call:
     "title": "Site Build Scaffold",
     "task_lists": [
       {
-        "name": "Build",
+        "name": "Core Delivery",
         "tasks": [
           {
             "title": "Case Study List",

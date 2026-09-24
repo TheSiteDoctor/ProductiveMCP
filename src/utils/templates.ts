@@ -11,6 +11,8 @@ import { dirname, join, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   TaskTemplateSchema,
+  REPEAT_INDEX,
+  MAX_REPEAT,
   type TaskTemplate,
   type TemplateTask,
 } from "../schemas/template.js";
@@ -104,12 +106,13 @@ export function collectPlaceholders(template: TaskTemplate): string[] {
   const scan = (text: string | undefined): void => {
     if (!text) return;
     for (const match of text.matchAll(PLACEHOLDER_PATTERN)) {
-      found.add(match[1]);
+      if (match[1] !== REPEAT_INDEX) found.add(match[1]);
     }
   };
   const scanTask = (task: TemplateTask): void => {
     scan(task.title);
     scan(task.description);
+    if (typeof task.repeat === "string") scan(task.repeat);
     for (const sub of task.subtasks || []) scanTask(sub);
   };
   for (const list of template.task_lists) {
@@ -171,8 +174,23 @@ function substitute(
   );
 }
 
+/** Replace {{repeat_index}} throughout a task and its subtasks. */
+function withRepeatIndex(task: TemplateTask, index: number): TemplateTask {
+  const fill = (text: string): string =>
+    text.replace(PLACEHOLDER_PATTERN, (whole, name: string) =>
+      name === REPEAT_INDEX ? String(index) : whole,
+    );
+  return {
+    ...task,
+    title: fill(task.title),
+    description: task.description ? fill(task.description) : task.description,
+    subtasks: task.subtasks?.map((sub) => withRepeatIndex(sub, index)),
+  };
+}
+
 /**
- * Return a deep copy of the template with all placeholders replaced.
+ * Return a deep copy of the template with all placeholders replaced and
+ * repeated tasks expanded into their copies.
  * Validation has already bounded field lengths, but substitution can push a
  * title past Productive's 200-character limit, so re-check titles here.
  */
@@ -180,28 +198,53 @@ export function substituteTemplate(
   template: TaskTemplate,
   values: Record<string, string>,
 ): TaskTemplate {
-  const substituteTask = (task: TemplateTask): TemplateTask => {
-    const title = substitute(task.title, values);
+  const checkTitle = (title: string): void => {
     if (title.length > 200) {
       throw new Error(
         `Task title exceeds 200 characters after variable substitution: "${title.slice(0, 80)}..."`,
       );
     }
-    return {
+  };
+
+  const substituteTask = (task: TemplateTask): TemplateTask[] => {
+    const substituted: TemplateTask = {
       ...task,
-      title,
+      title: substitute(task.title, values),
       description: task.description
         ? substitute(task.description, values)
         : task.description,
-      subtasks: task.subtasks?.map(substituteTask),
+      subtasks: task.subtasks?.flatMap(substituteTask),
     };
+
+    if (task.repeat === undefined) {
+      checkTitle(substituted.title);
+      return [substituted];
+    }
+
+    const raw = substitute(String(task.repeat), values).trim();
+    const count = /^\d+$/.test(raw) ? parseInt(raw, 10) : NaN;
+    if (Number.isNaN(count) || count > MAX_REPEAT) {
+      throw new Error(
+        `"${task.title}" repeats ${raw === String(task.repeat) ? `"${raw}"` : `"${raw}" (from ${task.repeat})`} times, but repeat must be a whole number from 0 to ${MAX_REPEAT}.`,
+      );
+    }
+
+    const { repeat: _repeat, repeat_every_days: step, ...base } = substituted;
+    return Array.from({ length: count }, (_, i) => {
+      const copy = withRepeatIndex(base, i + 1);
+      if (base.due_in_days !== undefined || step !== undefined) {
+        copy.due_in_days = (base.due_in_days ?? 0) + i * (step ?? 0);
+      }
+      checkTitle(copy.title);
+      return copy;
+    });
   };
 
   return {
     ...template,
     task_lists: template.task_lists.map((list) => ({
       name: substitute(list.name, values),
-      tasks: list.tasks.map(substituteTask),
+      tasks: list.tasks.flatMap(substituteTask),
     })),
   };
 }

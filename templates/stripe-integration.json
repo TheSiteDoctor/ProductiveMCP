@@ -8,9 +8,9 @@
       "description": "The site taking payments, e.g. example.com"
     },
     {
-      "name": "build_list",
-      "description": "Task list (project phase) for the build",
-      "default": "Build"
+      "name": "delivery_list",
+      "description": "Task list (project phase) for the core delivery",
+      "default": "Core Delivery"
     },
     {
       "name": "launch_list",
@@ -20,7 +20,7 @@
   ],
   "task_lists": [
     {
-      "name": "{{build_list}}",
+      "name": "{{delivery_list}}",
       "tasks": [
         {
           "title": "Stripe Integration",
