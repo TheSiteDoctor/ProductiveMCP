@@ -27,7 +27,7 @@
           "subtasks": [
             {
               "title": "Get a copy of any old URLS for re-writing.",
-              "description": "If the site has a sitemap we can use that as a starting point. Once we have that, it's also worth checking Google with a \"site\" search i.e. https://www.google.co.uk/?q=site:domain.com and open up each result and make a record of it's url so we at least can map anything Google is aware of.",
+              "description": "If the discovery template was applied, this is covered by \"Build the full legacy URL inventory\" - confirm it is still current, as pages may have been added since.\n\nIf the site has a sitemap we can use that as a starting point. Once we have that, it's also worth checking Google with a \"site\" search i.e. https://www.google.co.uk/?q=site:domain.com and open up each result and make a record of it's url so we at least can map anything Google is aware of.",
               "task_type": "Task",
               "labels": [
                 "GoLive"
@@ -36,7 +36,7 @@
             },
             {
               "title": "Check current Google rankings",
-              "description": "If the site is has an existing (live) website that we're replacing, you'll need to get a list of the keywords that the customer checks on Google. They will generally have a handful which are important to them e.g. location and business type. We'll then need to run Advanced Web Ranking or similar to check the position of the site for these terms to avoid the \"We've fallen off Google\" discussion.",
+              "description": "If the discovery template was applied, this is covered by \"Record the keyword ranking baseline\" - just confirm tracking is still running.\n\nIf the site is has an existing (live) website that we're replacing, you'll need to get a list of the keywords that the customer checks on Google. They will generally have a handful which are important to them e.g. location and business type. We'll then need to run Advanced Web Ranking or similar to check the position of the site for these terms to avoid the \"We've fallen off Google\" discussion.",
               "task_type": "Task",
               "labels": [
                 "GoLive"

@@ -23,7 +23,9 @@ Run `productive_list_task_lists` for the project. If the standard lists (Project
 
 ### 3. Gather the page types
 
-Ask: **"Do you know what page types will be required yet?"**
+If the project has had discovery (a "Discovery: Content & Information Architecture" list exists), check the "Proposed sitemap and information architecture" task first. If it's signed off, offer its page types as the starting answer rather than asking from scratch.
+
+Otherwise ask: **"Do you know what page types will be required yet?"**
 
 The user answers free-form, e.g. "Homepage, Case Study List, Case Study Details, Contact Us".
 
