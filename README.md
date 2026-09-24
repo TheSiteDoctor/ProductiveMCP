@@ -144,7 +144,7 @@ Productive scopes statuses to a **workflow**, and most organisations have an unu
 | `productive_get_task_template`    | Preview a template's structure and variables       |
 | `productive_apply_task_template`  | Create a template's task lists/tasks in a project  |
 
-Templates are JSON files in `templates/` describing a standard set of task lists, tasks and subtasks (e.g. the core delivery tickets for a new project), with `{{variable}}` placeholders filled in at apply time. See [docs/templates.md](docs/templates.md).
+Templates are JSON files in `templates/` describing a standard set of task lists, tasks and subtasks (e.g. the core delivery tickets for a new project), with `{{variable}}` placeholders filled in at apply time. See [docs/templates.md](docs/templates.md). Run `npm run templates:report` for an interactive preview of what each template (or a stack of them) creates.
 
 ### Project & Organisation
 

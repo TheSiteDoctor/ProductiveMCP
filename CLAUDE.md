@@ -61,7 +61,7 @@ Schemas live in `src/schemas/` (one file per domain, plus `common.ts` for shared
 
 ### Task Templates
 
-Reusable ticket templates live as JSON files in `templates/` (overridable via `PRODUCTIVE_TEMPLATES_DIR`). `src/utils/templates.ts` loads/validates them and handles `{{variable}}` substitution; `src/tools/templates.ts` implements the list/get/apply tools. Applying a template creates task lists (reusing same-named ones) and nested tasks via `parent_task` relationships. Format reference: `docs/templates.md`.
+Reusable ticket templates live as JSON files in `templates/` (overridable via `PRODUCTIVE_TEMPLATES_DIR`). `src/utils/templates.ts` loads/validates them and handles `{{variable}}` substitution; `src/tools/templates.ts` implements the list/get/apply tools. Applying a template creates task lists (reusing same-named ones) and nested tasks via `parent_task` relationships. Format reference: `docs/templates.md`. `npm run templates:report` builds an interactive HTML preview of all templates (`scripts/template-report.mjs`).
 
 ### Key Utilities
 
