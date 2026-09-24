@@ -1,0 +1,192 @@
+{
+  "name": "stripe-integration",
+  "title": "Stripe Integration (Umbraco Commerce)",
+  "description": "The Stripe sequence for Umbraco Commerce, split across phases: a Stripe Integration Feature in the build (account, sandbox keys and webhook, test payments, client account activation) and a Stripe Go-live Feature at launch (live keys and webhook, wallet domains, live smoke test). The per-environment webhook signing secrets and starting the client's activation early are the steps that usually get missed.",
+  "variables": [
+    {
+      "name": "domain_name",
+      "description": "The site taking payments, e.g. example.com"
+    },
+    {
+      "name": "delivery_list",
+      "description": "Task list (project phase) for the core delivery",
+      "default": "Core Delivery"
+    },
+    {
+      "name": "launch_list",
+      "description": "Task list (project phase) for go-live",
+      "default": "Go-live"
+    }
+  ],
+  "task_lists": [
+    {
+      "name": "{{delivery_list}}",
+      "tasks": [
+        {
+          "title": "Stripe Integration",
+          "description": "Set up Stripe and prove the full payment flow in the sandbox.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Create the Stripe account",
+              "description": "Create the Stripe account in the **client's name and email**, not TSD's - they own the money and the compliance relationship. Then invite the TSD team as team members (Developer role is enough for integration work).\n\nStore the login details in LastPass under the client's folder.",
+              "task_type": "Task",
+              "labels": [
+                "Stripe"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Sandbox: get the test API keys",
+              "description": "From the Stripe dashboard in **test mode**: copy the publishable key (`pk_test_...`) and secret key (`sk_test_...`).\n\nStore both in LastPass. Never put the secret key in source control - it goes in environment config only.",
+              "task_type": "Task",
+              "labels": [
+                "Stripe"
+              ],
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Sandbox: set up the webhook and capture the signing secret",
+              "description": "In test mode, add a webhook endpoint pointing at the UAT/staging site's Umbraco Commerce Stripe callback URL.\n\n**Gotchas that have bitten us before:**\n\n* The signing secret (`whsec_...`) is **per endpoint** - the sandbox one will not work in live, and a second endpoint on the same account gets its own secret\n* The endpoint URL must be publicly reachable - Stripe cannot call a site behind basic auth or IP restrictions, so allow the webhook path through\n* Subscribe to the events Umbraco Commerce needs (at minimum `payment_intent.succeeded`, `payment_intent.payment_failed`, and the charge/refund events if refunds are handled through the site)\n\nStore the signing secret in LastPass alongside the keys.",
+              "task_type": "Task",
+              "labels": [
+                "Stripe"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Configure the test keys in code/CMS",
+              "description": "Configure the Umbraco Commerce Stripe payment provider for the test environments: publishable key, secret key, webhook signing secret, and test mode ON.\n\nKeys and webhook secrets are **per environment** - UAT and production must each hold their own set, so keep them in environment config/secrets rather than baked into the site.",
+              "task_type": "Task",
+              "labels": [
+                "Stripe"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Test payments end-to-end in sandbox",
+              "description": "Run the full order flow on UAT with Stripe test cards (4242 4242 4242 4242 for success). The point of this task is proving the **webhook round-trip** works, not just the card form - if orders sit at pending/authorised after payment, the webhook isn't reaching the site or the signing secret is wrong.",
+              "task_type": "Test Case",
+              "labels": [
+                "Stripe"
+              ],
+              "estimate_minutes": 120,
+              "subtasks": [
+                {
+                  "title": "Successful payment updates the order status via webhook",
+                  "task_type": "Test Case",
+                  "labels": [
+                    "Stripe"
+                  ],
+                  "estimate_minutes": 30
+                },
+                {
+                  "title": "Declined card shows a helpful error and leaves no phantom order",
+                  "description": "Use Stripe's decline test cards (e.g. 4000 0000 0000 0002).",
+                  "task_type": "Test Case",
+                  "labels": [
+                    "Stripe"
+                  ],
+                  "estimate_minutes": 30
+                },
+                {
+                  "title": "3D Secure challenge completes",
+                  "description": "Use Stripe's 3DS test card (4000 0027 6000 3184) to confirm the SCA challenge flow works within the checkout.",
+                  "task_type": "Test Case",
+                  "labels": [
+                    "Stripe"
+                  ],
+                  "estimate_minutes": 30
+                },
+                {
+                  "title": "Refund from the Stripe dashboard reflects on the order",
+                  "description": "Refund a test payment in Stripe and confirm the order/webhook handling reflects it (or document that refunds are dashboard-only for this client).",
+                  "task_type": "Test Case",
+                  "labels": [
+                    "Stripe"
+                  ],
+                  "estimate_minutes": 30
+                }
+              ]
+            },
+            {
+              "title": "Client completes Stripe account activation (company details)",
+              "description": "The client must fill out their business profile before live keys are available: company details, directors/owners identity checks, bank account for payouts, and VAT number.\n\n**Start this early** - Stripe's verification can take days and it's the usual go-live blocker. Send the client the activation link as soon as the account exists rather than waiting for dev work to finish.",
+              "task_type": "Task",
+              "labels": [
+                "Stripe"
+              ],
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Set the statement descriptor and public business details",
+              "description": "In Stripe settings, check the statement descriptor is something the customer will recognise on their bank statement (usually the trading name or domain, not a company registration name) - it's the single biggest cause of chargebacks. Also check the support email/phone shown on receipts.",
+              "task_type": "Task",
+              "labels": [
+                "Stripe"
+              ],
+              "estimate_minutes": 15
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "{{launch_list}}",
+      "tasks": [
+        {
+          "title": "Stripe Go-live",
+          "description": "Switch payments to the live Stripe account and prove a real transaction end to end.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Live: get the live API keys",
+              "description": "Once activation is complete, copy the live publishable (`pk_live_...`) and secret (`sk_live_...`) keys into LastPass.",
+              "task_type": "Task",
+              "labels": [
+                "Stripe"
+              ],
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Live: set up the webhook and capture the signing secret",
+              "description": "Add a **live mode** webhook endpoint pointing at https://{{domain_name}}'s Stripe callback URL, subscribed to the same events as the sandbox endpoint. Capture its own `whsec_...` signing secret - the sandbox secret will not verify live events.",
+              "task_type": "Task",
+              "labels": [
+                "Stripe"
+              ],
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Configure the live keys in production",
+              "description": "Production config gets the live publishable key, live secret key, the **live** webhook signing secret, and test mode OFF. Double-check UAT still points at the test keys so nobody takes a real payment from staging.",
+              "task_type": "Task",
+              "labels": [
+                "Stripe"
+              ],
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Apple Pay / Google Pay domain verification (if used)",
+              "description": "If the checkout offers wallet payments, register and verify {{domain_name}} under Stripe's payment method domains settings - wallets silently fail to appear on unverified domains.",
+              "task_type": "Task",
+              "labels": [
+                "Stripe"
+              ],
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Live payment smoke test and refund",
+              "description": "Place a real low-value order on the live site with a TSD card: confirm the payment appears in the live Stripe dashboard, the order status updates via the live webhook, and the confirmation email sends. Then refund it from Stripe and confirm the refund lands.",
+              "task_type": "Test Case",
+              "labels": [
+                "Stripe"
+              ],
+              "estimate_minutes": 30
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

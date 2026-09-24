@@ -1,0 +1,1204 @@
+{
+  "name": "site-go-live",
+  "title": "Site Go Live",
+  "description": "TSD's full go-live checklist for launching a website: pre-launch checks, DNS, server and source code changes, third-party services, content, SEO, testing, security, performance and post-launch tasks.",
+  "variables": [
+    {
+      "name": "domain_name",
+      "description": "The domain being launched, e.g. example.com"
+    },
+    {
+      "name": "email_provider",
+      "description": "Transactional email provider. The default keeps tickets provider-neutral; name the one in use (e.g. Mailgun) to be specific.",
+      "default": "Mailgun / Mandrill / SendGrid"
+    },
+    {
+      "name": "launch_list",
+      "description": "Task list (project phase) for go-live",
+      "default": "Go-live"
+    }
+  ],
+  "task_lists": [
+    {
+      "name": "{{launch_list}}",
+      "tasks": [
+        {
+          "title": "Before go-live",
+          "task_type": "Feature",
+          "labels": [
+            "GoLive"
+          ],
+          "estimate_minutes": 60,
+          "subtasks": [
+            {
+              "title": "Get a copy of any old URLS for re-writing.",
+              "description": "If the discovery template was applied, this is covered by \"Build the full legacy URL inventory\" - confirm it is still current, as pages may have been added since.\n\nIf the site has a sitemap we can use that as a starting point. Once we have that, it's also worth checking Google with a \"site\" search i.e. https://www.google.co.uk/?q=site:domain.com and open up each result and make a record of it's url so we at least can map anything Google is aware of.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check current Google rankings",
+              "description": "If the discovery template was applied, this is covered by \"Record the keyword ranking baseline\" - just confirm tracking is still running.\n\nIf the site is has an existing (live) website that we're replacing, you'll need to get a list of the keywords that the customer checks on Google. They will generally have a handful which are important to them e.g. location and business type. We'll then need to run Advanced Web Ranking or similar to check the position of the site for these terms to avoid the \"We've fallen off Google\" discussion.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            }
+          ]
+        },
+        {
+          "title": "DNS Changes",
+          "description": "We use either Rackspace (http://my.rackspace.com) or Heart Internet (http://customer.heartinternet.co.uk) for the DNS management. Newer domain names will generally be on Heart Internet.",
+          "task_type": "Feature",
+          "labels": [
+            "GoLive"
+          ],
+          "estimate_minutes": 60,
+          "subtasks": [
+            {
+              "title": "Check domain is added to the TSD domain list",
+              "description": "Make note of the IP as you'll need it for the IIS bindings later.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check that both WWW and non WWW variations of the domain are set up",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Remove any unnecessary records (FTP, SMTP, POP, IMAP etc)",
+              "description": "Log into the DNS management portal for the website (usually Heart Internet or Racksapce) and remove any extra (unused) DNS entries to reduce the attack vectors.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check the MX records are correct on all domains",
+              "description": "Confirm the MX records match the client's email provider (don't guess - a wrong MX change takes their email down). Verify with http://mxtoolbox.com/ (MX and TXT lookups) once DNS has propagated.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check SPF and DKIM records are set up for {{email_provider}}",
+              "description": "The transactional email sending domain needs verified SPF and DKIM records (and DMARC where the customer has a policy) or mail will land in spam. {{email_provider}} shows the exact records to add under the domain's settings; verify them there once DNS has propagated.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            }
+          ]
+        },
+        {
+          "title": "On the server",
+          "task_type": "Feature",
+          "labels": [
+            "GoLive"
+          ],
+          "estimate_minutes": 60,
+          "subtasks": [
+            {
+              "title": "Set up the bindings in IIS using the IP from above",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check bindings for both WWW and non WWW variations of the domain are set up",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Ensure permissions are correct on the Umbraco folder",
+              "description": "Ensure file system permissions are correct on the site folders (they should be). PowerShell script: https://gist.github.com/timgaunt/9933156",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            }
+          ]
+        },
+        {
+          "title": "Third Party Sites",
+          "task_type": "Feature",
+          "labels": [
+            "GoLive"
+          ],
+          "estimate_minutes": 60,
+          "subtasks": [
+            {
+              "title": "Check the GA4 property is set up",
+              "description": "A GA4 property should exist for the site (in the client's Google account where possible) with the data stream pointing at the live domain, and the GA4 tag firing via GTM - not a hard-coded gtag snippet.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Exclude internal IPs from GA4",
+              "description": "In GA4: Admin > Data streams > Configure tag settings > Define internal traffic - add rules for the TSD office and VPN IPs (and the client's office IP for corporates). Then activate the filter under Admin > Data settings > Data filters (filters start in Testing mode and exclude nothing until activated).",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Verify the site in Google Search Console and submit the XML sitemap",
+              "description": "Create/verify a **domain property** for the site (covers www/non-www and both protocols), submit the XML sitemap, and check back for coverage errors once it starts processing. Credentials are in LastPass.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Set up Bing Webmaster Tools and submit the sitemap",
+              "description": "https://www.bing.com/webmasters - quickest is importing the verified site straight from Google Search Console. Submit the XML sitemap.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            }
+          ]
+        },
+        {
+          "title": "Source Code Changes",
+          "task_type": "Feature",
+          "labels": [
+            "GoLive"
+          ],
+          "estimate_minutes": 60,
+          "subtasks": [
+            {
+              "title": "Setup URL rewriting (web.config should point to a rewrite.config and rewritemaps.config)",
+              "description": "There are a few changes you need to make if they've not already been done:\n\n* 1. Add the rewrite node to the end of the system.webServer node in web.config*\n\n**web.config**\n```\n<rewrite>\n\t<rules configSource=\"App_Data\\Rewrite.config\" />\n\t<rewriteMaps configSource=\"App_Data\\RewriteMaps.config\" />\n</rewrite>\n```\n\n* 2. Add a Rewrite.config file to App_Data*\n\n**App_Data\\Rewrite.config**\n```\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rules>\n\t<clear />\n\t<rule name=\"Canonical Hostname\" stopProcessing=\"true\" enabled=\"true\">\n\t\t<match url=\"(.*)\" />\n\t\t<conditions>\n\t\t\t<add input=\"{HTTP_HOST}\" pattern=\"^[## REPLACE WITH DOMAIN ESCAPED NAME i.e. \\.com not .com]$\" negate=\"true\" />\n\t\t</conditions>\n\t\t<action type=\"Redirect\" url=\"http://[## REPLACE WITH DOMAIN NAME]/{ToLower:{R:1}}\" />\n\t</rule>\n\t<rule name=\"Ignore Umbraco folders\" stopProcessing=\"true\">\n\t\t<match url=\"umbraco.+\" />\n\t\t<conditions logicalGrouping=\"MatchAll\" trackAllCaptures=\"false\" />\n\t\t<action type=\"None\" />\n\t</rule>\n\t<rule name=\"Ignore Umbraco Urls\" stopProcessing=\"true\">\n\t\t<match url=\"(\\d{4,5})\\.aspx\" />\n\t\t<conditions logicalGrouping=\"MatchAll\" trackAllCaptures=\"false\" />\n\t\t<action type=\"None\" />\n\t</rule>\n\t<rule name=\"Ignore protected folders\" stopProcessing=\"true\">\n\t\t<match url=\"(webservices|umbraco|usercontrols|css|img|images|media|xslt)/(.+)\" />\n\t\t<conditions logicalGrouping=\"MatchAll\" trackAllCaptures=\"false\" />\n\t\t<action type=\"None\" />\n\t</rule>\n\t<rule name=\"Ignore Image/Script/CSS Calls\" stopProcessing=\"true\">\n\t\t<match url=\".+\\.(jpg|jpeg|png|css|js|gif|axd|ico)*\" />\n\t\t<conditions logicalGrouping=\"MatchAll\" trackAllCaptures=\"false\" />\n\t\t<action type=\"None\" />\n\t</rule>\n\t<rule name=\"Add Trailing Slash\" stopProcessing=\"true\">\n\t\t<match url=\"(.*[^/])$\" />\n\t\t<conditions logicalGrouping=\"MatchAll\" trackAllCaptures=\"false\">\n\t\t\t<add input=\"{REQUEST_FILENAME}\" matchType=\"IsDirectory\" negate=\"true\" />\n\t\t\t<add input=\"{REQUEST_FILENAME}\" matchType=\"IsFile\" negate=\"true\" />\n\t\t\t<add input=\"{REQUEST_FILENAME}\" pattern=\"(.*)\\.html$\" negate=\"true\" />\n\t\t</conditions>\n\t\t<action type=\"Redirect\" url=\"{R:1}/\" />\n\t</rule>\n\t<rule name=\"Lower Case Url\" stopProcessing=\"true\">\n\t\t<match url=\"[A-Z]\" ignoreCase=\"false\" />\n\t\t<conditions logicalGrouping=\"MatchAll\" trackAllCaptures=\"false\" />\n\t\t<action type=\"Redirect\" url=\"{ToLower:{URL}}\" />\n\t</rule>\n\t<rule name=\"General Rewrites\" stopProcessing=\"true\" enabled=\"true\">\n\t\t<match url=\".*\" />\n\t\t<conditions logicalGrouping=\"MatchAll\" trackAllCaptures=\"false\">\n\t\t\t<add input=\"{General:{REQUEST_URI}}\" pattern=\"(.+)\" />\n\t\t</conditions>\n\t\t<action type=\"Redirect\" url=\"{C:1}\" appendQueryString=\"true\" />\n\t</rule>\n</rules>\n```\n\n* 3. Add a RewriteMaps.config file to App_Data*\n\n**App_Data\\RewriteMaps.config**\n```\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rewriteMaps>\n \t<rewriteMap name=\"General\">\n\t\t<add key=\"\" value=\"\" />\n\t</rewriteMap>\n</rewriteMaps>\n```\n\nRemember that if you modify Rewrite.config or RewriteMaps.config without modifying the web.config then you will need to \"touch\" the web.config to reload the settings.\n\nOne thing to note is if the old files had file extensions e.g. \".html\" or \".php\", the \"Add Trailing Slash\" rule will need to be updated with an additional rule that ignores urls with that extension as \"IsDirectory\" and \"IsFile\" check if the file/directory actually exist on the disk.\n\n```\n<rule name=\"Add Trailing Slash\" stopProcessing=\"true\">\n\t<match url=\"(.*[^/])$\" />\n\t<conditions logicalGrouping=\"MatchAll\" trackAllCaptures=\"false\">\n\t\t<add input=\"{REQUEST_FILENAME}\" matchType=\"IsDirectory\" negate=\"true\" />\n\t\t<add input=\"{REQUEST_FILENAME}\" matchType=\"IsFile\" negate=\"true\" />\n\t\t<add input=\"{REQUEST_FILENAME}\" pattern=\"(.*)\\.html$\" negate=\"true\" />\n\t</conditions>\n\t<action type=\"Redirect\" url=\"{R:1}/\" />\n</rule>\n```",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60,
+              "subtasks": [
+                {
+                  "title": "Activate canonical URL rewrite",
+                  "task_type": "Task",
+                  "labels": [
+                    "GoLive"
+                  ],
+                  "estimate_minutes": 60
+                },
+                {
+                  "title": "Add and upload any rewrites for the old URLs to the new site",
+                  "task_type": "Task",
+                  "labels": [
+                    "GoLive"
+                  ],
+                  "estimate_minutes": 60
+                }
+              ]
+            },
+            {
+              "title": "Add caching to web.config for the static content folders",
+              "description": "We need to leverage the browser caching on the folders that contain static content i.e. images, fonts, css and scripts.\n\nIf there's already a web.config, we need to add staticContent to the system.webServer node, if not, create a new web.config file:\n\n```\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<configuration>\n\t<system.webServer>\n\t\t<staticContent>\n\t\t\t<clientCache cacheControlMode=\"UseMaxAge\" cacheControlMaxAge=\"30.00:00:00\" />\n\t\t</staticContent>\n\t</system.webServer>\n</configuration>\n```\n\nApply to each static folder: css, img, fonts (if hosted locally), media, scripts.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 240,
+              "subtasks": [
+                {
+                  "title": "Add httpCompression and urlCompression to web.config",
+                  "description": "httpCompression and urlCompression nodes will need to be added to the end of the system.webServer node in the web.config if they're not already there\n\n**web.config**\n```\n<httpCompression directory=\"%SystemDrive%\\inetpub\\temp\\IIS Temporary Compressed Files\">\n    <scheme name=\"gzip\" dll=\"%Windir%\\system32\\inetsrv\\gzip.dll\" />\n    <dynamicTypes>\n        <add mimeType=\"text/*\" enabled=\"true\" />\n        <add mimeType=\"message/*\" enabled=\"true\" />\n        <add mimeType=\"application/javascript\" enabled=\"true\" />\n        <add mimeType=\"*/*\" enabled=\"false\" />\n    </dynamicTypes>\n    <staticTypes>\n        <add mimeType=\"text/*\" enabled=\"true\" />\n        <add mimeType=\"message/*\" enabled=\"true\" />\n        <add mimeType=\"application/javascript\" enabled=\"true\" />\n        <add mimeType=\"*/*\" enabled=\"false\" />\n    </staticTypes>\n</httpCompression>\n<urlCompression doStaticCompression=\"true\" doDynamicCompression=\"true\" />\n```",
+                  "task_type": "Task",
+                  "labels": [
+                    "GoLive"
+                  ],
+                  "estimate_minutes": 60
+                }
+              ]
+            },
+            {
+              "title": "Check the production logging configuration",
+              "description": "Logging (Serilog on modern Umbraco) should be at Information/Warning minimum level in production - no Debug/Verbose noise - and writing to Seq with the PROD API key. Confirm log files aren't growing unbounded on disk.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check the CMS notification email address",
+              "description": "Any CMS notification email address should be set to support@thesitedoctor.co.uk rather than a developer's address.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check a valid and suitable Robots.txt has been added.",
+              "description": "An example of a robots.txt file is below. The sitemap should be the XML sitemap.\n\n```\nUser-agent: *\nDisallow: \n\nSitemap: http://thesitedoctor.co.uk/xml-sitemap/\n```",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check site has a favicon and touch icons",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60,
+              "description": "Favicon (including SVG where possible) plus Apple touch icon and web app manifest icons."
+            },
+            {
+              "title": "Check site map has been added to Robots.txt",
+              "description": "The sitemap link should include the full (final) canonical domain name e.g. \n\n`Sitemap: http://thesitedoctor.co.uk/xml-sitemap/`",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check GTM is installed with the correct container ID",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60,
+              "description": "The GTM snippet should be on every page template with the correct container ID (check against the client's GTM account, not a copy-paste from another project)."
+            },
+            {
+              "title": "Deactivate debug mode throughout site",
+              "description": "When building the solution we'll need to set the build configuration mode to \"Release\" and also check that the web.config compilation mode is set to false e.g. \n\n```\n<compilation ... debug=\"false\"\n```",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Self-host web fonts",
+              "description": "Fonts should be served from the site (or its CDN), not a dev/third-party URL - better performance and no GDPR wobble over Google Fonts. Preload the primary font files.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            }
+          ]
+        },
+        {
+          "title": "On the website",
+          "task_type": "Feature",
+          "labels": [
+            "GoLive"
+          ],
+          "estimate_minutes": 60,
+          "subtasks": [
+            {
+              "title": "Check that all areas that require alt text have it",
+              "description": "* Main nav bar items\n* Sub nav items\n* Product listings (e-commerce sites)\n* Posts\n* sitemap\n* Any other dynamically generated content",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check Umbraco CMS nodes each have relevant icons",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check Umbraco CMS node creation rights are limited to the minimum of what the user will require",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Transfer any CMS admin users",
+              "description": "If porting from an old CMS we need to transfer over any users",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check RTE style sheet has been created and linked to the RTE",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check all off site links open in a new window",
+              "description": "At the very least, all links to the social media sites should open in a new window. If we've hard coded any others that they can't edit, these should also link using target=\"blank\".",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check all Contact Us forms work",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60,
+              "subtasks": [
+                {
+                  "title": "Contact us forms respond with thank you message/page",
+                  "description": "Ensure that all contact us/forms respond with a \"Thank You\" page (or similar message confirming that the form was successfully sent)",
+                  "task_type": "Task",
+                  "labels": [
+                    "GoLive"
+                  ],
+                  "estimate_minutes": 60
+                },
+                {
+                  "title": "Ensure emails are correctly sent",
+                  "description": "We need to make sure that the emails are correctly sent to the specified recipient. It's probably easier if you use a test TSD account (or your own):\n1. Update the contact us form(s) \"To\" address\n1. Submit the form(s)\n1. Check the inbox for the email and verify that they're received/formatted correctly\n1. Revert the \"To\" address back to the client's address\n\nCheck each of:\n* Contact us page\n* Order confirmation (if e-commerce)\n* Abandoned basket (if e-commerce)",
+                  "task_type": "Task",
+                  "labels": [
+                    "GoLive"
+                  ],
+                  "estimate_minutes": 60
+                },
+                {
+                  "title": "Check the {{email_provider}} API key is unique to the customer",
+                  "description": "Each customer must have their own API key (and sending domain) in {{email_provider}} - never the shared agency-wide key, so one customer's sending reputation or a revoked key can't affect the others.\n\n* Mailgun: create a separate sending domain for the site and use its domain-specific sending key\n* SendGrid: create a per-customer API key (Settings > API Keys) with Mail Send permission only\n\nCredentials are in LastPass.",
+                  "task_type": "Task",
+                  "labels": [
+                    "GoLive"
+                  ],
+                  "estimate_minutes": 60
+                },
+                {
+                  "title": "Ensure the {{email_provider}} sending domain / sub-account is set",
+                  "description": "Outbound mail must be attributable to the site so senders are identifiable in the provider's dashboard and sending reputation is isolated per customer:\n\n* Mailgun: send via the site's own sending domain (e.g. mg.domain.com)\n* SendGrid: use a per-customer subuser, or at minimum a category per site\n\nCheck the site's mail settings (e.g. the SMTP credentials or API key in web.config/appsettings) point at the customer-specific domain/sub-account, not a shared one.",
+                  "task_type": "Task",
+                  "labels": [
+                    "GoLive"
+                  ],
+                  "estimate_minutes": 60
+                },
+                {
+                  "title": "Check email address for the customer",
+                  "description": "Ensure that the email address configured in the CMS is that of the customer and not our test account.\n\nSubmit one form and confirm with the customer that they receive it.",
+                  "task_type": "Task",
+                  "labels": [
+                    "GoLive"
+                  ],
+                  "estimate_minutes": 60
+                }
+              ]
+            },
+            {
+              "title": "Check all Login and Registration forms work",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 120,
+              "subtasks": [
+                {
+                  "title": "Registration forms",
+                  "description": "Check each of:\n* **Registration forms show thank you message on sign up** - Ensure that any registration forms respond with a \"Thank You\" page (or similar message confirming that the user was successfully registered)\n* **Registration forms show helpful error message on existing user** - Ensure that any registration forms respond with a helpful message when the username already exists\n* **Registration forms show helpful error message on poor password** - Ensure that any registration forms respond with a helpful message when the password isn't secure enough\n* **Registration forms send welcome email** - Ensure that any registration forms send a welcome email to the user on registration",
+                  "task_type": "Task",
+                  "labels": [
+                    "GoLive"
+                  ],
+                  "estimate_minutes": 60
+                },
+                {
+                  "title": "Login forms",
+                  "task_type": "Task",
+                  "labels": [
+                    "GoLive"
+                  ],
+                  "estimate_minutes": 60,
+                  "subtasks": [
+                    {
+                      "title": "Social logins work (if applicable)",
+                      "task_type": "Task",
+                      "labels": [
+                        "GoLive"
+                      ],
+                      "estimate_minutes": 60,
+                      "description": "Check each configured provider logs in from an incognito window:\n* **X (Twitter) social login logs in** - Ensure that the social login button works in incognito mode.\n* **Facebook social login logs in** - Ensure that the social login button works in incognito mode.\n* **Google social login logs in** - Ensure that the social login button works in incognito mode."
+                    },
+                    {
+                      "title": "Forgotten password flow works",
+                      "task_type": "Task",
+                      "labels": [
+                        "GoLive"
+                      ],
+                      "estimate_minutes": 60,
+                      "description": "Check each of:\n* **Forgotten Password form show thank you message** - Ensure that any Forgotten Password form respond with a \"Thank You\" page (or similar message confirming that the process was successful)\n* **Forgotten Password form show helpful error message when no user is found** - Ensure that any Forgotten Password form respond with a helpful message when the user doesn't exist. It shouldn't say the user doesn't exist but instead just that if it's found we'll email them (so it doesn't identify valid usernames).\n* **Forgotten Password form send email** - Ensure that any Forgotten Password form send an email to the user with a link to reset their password\n* **Forgotten Password reset form show helpful message on successful reset**\n* **Forgotten Password reset form show helpful message on invalid token** - When an invalid token has been supplied it should show some form of helpful error message asking them to go through the process again.\n* **Forgotten Password reset form show helpful message on expired token** - The token to reset the password should expire after 24 hours. When using an expired token it should ask them to go through the process again.\n* **Forgotten Password reset form should correctly reset the user's password**\n* **Forgotten Password reset form should unlock the user** - When resetting the password the user may be locked (IsApproved = false in umbraco) so it should unlock the user and allow them to log in."
+                    }
+                  ],
+                  "description": "Check each of:\n* **Login form logs in** - Check that given a valid username/password the form logs the user in correctly\n* **Ensure user is correctly redirected to the previous page** - When a querystring parameter for `returnUrl` is supplied, after logging in it should redirect the user to the specified page on login.\n* **Ensure remote returnurl is blocked** - When a querystring parameter for `returnUrl` is external i.e. http://thesitedoctor.co.uk then it return the user to the homepage instead to avoid us being used as a pass-through site.\n* **Login form shows nice message when a wrong username is entered** - When entering an invalid username, the form should alert the user with a nice error message however the error message shouldn't specify whether it was either the username or the password i.e. something ambigous is best: `Sorry, no user could be found with that username or password. Please check your details and try again.`\n* **Login form shows nice message when a wrong password is entered** - When entering an invalid password, the form should alert the user with a nice error message however the error message shouldn't specify whether it was either the username or the password i.e. something ambigous is best: `Sorry, no user could be found with that username or password. Please check your details and try again.`"
+                }
+              ]
+            },
+            {
+              "title": "Check all mailing list signup forms work (both that they respond with a \"Thank You\" page (or similar) and the email address is added to the relevant list)",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check both Site Maps work (XML & HTML)",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60,
+              "subtasks": [
+                {
+                  "title": "Check XML sitemap exists",
+                  "description": "It's usually /xmlsitemap/ based on the template name.\nWhen checking it is important to ensure that the <loc> tag includes a full and valid url including domain name. If the domain name is missing from the url, this will need to be updated by setting the \"SiteUrl\" on the \"Homepage\" node in Umbraco.\nA good example is below:\n<url>\n\t<loc>http://thesitedoctor.co.uk/</loc>;\n\t<lastmod>2015-06-23T14:04:43+00:00</lastmod>\n\t<changefreq>daily</changefreq>\n\t<priority>0.5</priority>\n</url>",
+                  "task_type": "Task",
+                  "labels": [
+                    "GoLive"
+                  ],
+                  "estimate_minutes": 60
+                },
+                {
+                  "title": "Check HTML sitemap exists",
+                  "description": "It's usually /sitemap/ but we should also have a link in the footer.",
+                  "task_type": "Task",
+                  "labels": [
+                    "GoLive"
+                  ],
+                  "estimate_minutes": 60
+                }
+              ]
+            },
+            {
+              "title": "Check hidden pages are hidden on the sitemaps",
+              "description": "Examples are the Category/Product template pages and checkout steps. These should be hidden on both Site Maps XML & HTML) -if they're not click \"Hide From Navigation\" on the \"CMS\" node",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check visits appear in GA4 Realtime",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60,
+              "description": "Use GTM preview mode / Tag Assistant against the live site and confirm your visit appears in the GA4 Realtime report."
+            },
+            {
+              "title": "If e-commerce, check purchase events reach GA4",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60,
+              "description": "Confirm the purchase event fires on the order confirmation page via the dataLayer with the correct transaction ID and value, and that it appears in GA4 (Realtime, then the Ecommerce purchases report)."
+            },
+            {
+              "title": "Check that the open graph image is updated to the site logo rather than TSD logo",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check any canonical domain rewriting works",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check the rewriting lowercases all urls",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check the rewriting adds -or removes the trailing /",
+              "description": "Easiest way to check this is to go to any page on the site, once the page has loaded, remove the trailing slash and ensure that the url you're left with once the page has loaded has the trailing slash.\nAlso: hover over the menu links and ensure that the urls include the trailing /.\nA complete test will mean reviewing the network traffic to ensure that you don't get a 301 redirect in the request.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check old URLs are redirected",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check any site specific rules",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check that the TSD link is in the footer opens in a new window",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check that the TSD link is in the footer points at to non WWW URL",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check that the title, company name, address are correct in CMS",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Run PageSpeed Insights and address Core Web Vitals",
+              "description": "Run the key templates through https://pagespeed.web.dev/ (or Lighthouse in devtools). Address what's sensible - LCP, CLS and INP first - and note why for anything deliberately left.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check that browser caching is in place and being used",
+              "description": "Easiest thing to do is to run through Google's PageSpeed tests (https://developers.google.com/speed/pagespeed/). \n\nIt will highlight a lot of offsite issues but if it reports that files in the css/fonts/img/media/scripts folders aren't leveraging browser caching then you'll need to check that the web.configs exist and httpCompression and urlCompression exist in the web.config",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Validate Open Graph settings",
+              "description": "Run the key pages through Facebook's Sharing Debugger (https://developers.facebook.com/tools/debug/) - scrape again in case someone has fetched it before. Check title, description and image.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            }
+          ]
+        },
+        {
+          "title": "Site content checks",
+          "description": "We want to ensure the content and style on the site is correct.",
+          "task_type": "Feature",
+          "labels": [
+            "GoLive"
+          ],
+          "estimate_minutes": 60,
+          "subtasks": [
+            {
+              "title": "Typography and layout checks",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 120,
+              "description": "* Check for incorrect punctuation marks, particularly apostrophes, quotation marks and hyphens/dashes\n* Check headings for where you could potentially use ligatures\n* Check for widow/orphan terms in important paragraphs"
+            },
+            {
+              "title": "Spelling and grammar",
+              "description": "Ensure the content on the site is free of any spelling or grammar-related issues. It might be an idea to run some sort of automated spell checker here.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 120
+            },
+            {
+              "title": "Consistency",
+              "description": "* Capitalisation of headings\n* Tense/style of writing\n* Recurring/common phrases (e.g. 'More about X' links)\n* Variations in words (e.g. Websites vs Web Sites, or UK vs US spelling)\n* Treatment of bulleted lists (e.g. periods or commas at end of each item)",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 120
+            },
+            {
+              "title": "Link checks",
+              "description": "Ensure there are no links to UAT/staging sites present in any of the content.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Ensure no test content is present on the site",
+              "description": "Check to ensure no dummy text (Lorem Ipsum etc) is present on the site.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "If appropriate, ensure pages print correctly",
+              "description": "Can make use of the browser's print preview functionality in order to ensure the print layout is as expected.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check text not visible on page",
+              "description": "Ensure that alt attribute text, any text in JS etc has been spell-checked and uses correct grammar.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            }
+          ]
+        },
+        {
+          "title": "Standards and validation",
+          "task_type": "Feature",
+          "labels": [
+            "GoLive"
+          ],
+          "estimate_minutes": 240,
+          "subtasks": [
+            {
+              "title": "Accessibility",
+              "description": "Check for ARIA roles, landmarks, form accessibility (as appropriate). Ensure keyboard navigation is possible.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 120
+            },
+            {
+              "title": "HTML validation",
+              "description": "W3C Validator is available at https://validator.w3.org/#.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 120
+            },
+            {
+              "title": "Check for JavaScript console errors",
+              "description": "Browse the key pages and journeys with devtools open: no console errors, no failed network requests, no mixed-content warnings.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 120
+            }
+          ]
+        },
+        {
+          "title": "SEO and metrics",
+          "description": "Search engine visibility and metrics related tasks",
+          "task_type": "Feature",
+          "labels": [
+            "GoLive"
+          ],
+          "estimate_minutes": 240,
+          "subtasks": [
+            {
+              "title": "Check page titles",
+              "description": "Ensure page titles make sense, are relevant and inlude useful keywords.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Create metadata description tags for important pages",
+              "description": "Ensure these are of an appropriate length.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Ensure markup is semantically correct",
+              "description": "Use of correct heading tags etc",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check for target keyword usage in general content",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check format of URLs",
+              "description": "URLs should be search engine and human friendly",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            }
+          ]
+        },
+        {
+          "title": "Functional testing",
+          "task_type": "Feature",
+          "labels": [
+            "GoLive"
+          ],
+          "estimate_minutes": 60,
+          "subtasks": [
+            {
+              "title": "Check all bespoke/complex functionality",
+              "description": "Ensure all functionality behaves as expected.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check search functionality if applicable",
+              "description": "Ensure search results are relevant and display properly.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Perform browser testing",
+              "description": "Desktop browsers: latest Chrome, Firefox, Edge and Safari.\nMobile: iOS Safari (iPhone and iPad) and Android Chrome, at a range of viewport widths.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Responsive design checks if applicable",
+              "description": "Ensure all functionality behaves as expected with varying screen widths.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Test all forms (contact us etc)",
+              "description": "Ensure all forms function as expected.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Test core journeys with JavaScript disabled",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60,
+              "description": "Key content, navigation and forms should degrade gracefully without JavaScript (progressive enhancement). Also check nothing depends on dead plugin tech (Flash, Silverlight)."
+            },
+            {
+              "title": "Check all external links are valid",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            }
+          ]
+        },
+        {
+          "title": "Security/risk related tasks",
+          "task_type": "Feature",
+          "labels": [
+            "GoLive"
+          ],
+          "estimate_minutes": 60,
+          "subtasks": [
+            {
+              "title": "Configure backup schedule and test recovery from backup",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Protect any sensitive pages (administration area)",
+              "description": "/umbraco/ and any other relevant pages.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Security/Penetration testing",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check disk space/capacity",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Configure error reporting alerts/email",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            }
+          ]
+        },
+        {
+          "title": "Performance",
+          "task_type": "Feature",
+          "labels": [
+            "GoLive"
+          ],
+          "estimate_minutes": 240,
+          "subtasks": [
+            {
+              "title": "Check image optimisation",
+              "description": "JPEGs should be appropriately compressed and of an appropriate size.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Check total page size/download time",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Ensure assets are minified appropriately",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Optimise CSS",
+              "description": "Use full cascading nature of CSS, short image paths etc",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Configure Seq logging",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            }
+          ]
+        },
+        {
+          "title": "Finishing touches",
+          "task_type": "Feature",
+          "labels": [
+            "GoLive"
+          ],
+          "estimate_minutes": 60,
+          "subtasks": [
+            {
+              "title": "Create custom error pages",
+              "description": "404 etc",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Umbraco checks",
+              "description": "404 etc",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60,
+              "subtasks": [
+                {
+                  "title": "Umbraco root node should be the domain name i.e. thesitedoctor.co.uk",
+                  "task_type": "Task",
+                  "labels": [
+                    "GoLive"
+                  ],
+                  "estimate_minutes": 60
+                }
+              ]
+            },
+            {
+              "title": "Umbraco Commerce checks",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60,
+              "subtasks": [
+                {
+                  "title": "Check the emails are going from the right account",
+                  "description": "Umbraco Commerce > Settings > E-mail > Profiles > domain.com - each of these should be being sent from the client",
+                  "task_type": "Task",
+                  "labels": [
+                    "GoLive"
+                  ],
+                  "estimate_minutes": 60
+                },
+                {
+                  "title": "Check the emails have a sensible subject line",
+                  "description": "Umbraco Commerce > Settings > E-mail > Profiles > domain.com - each of these should have a sensible subject line i.e. Company Name Order #[Order.Number]",
+                  "task_type": "Task",
+                  "labels": [
+                    "GoLive"
+                  ],
+                  "estimate_minutes": 60
+                },
+                {
+                  "title": "Umbraco Commerce root (Catalog Group) should be the domain name i.e. thesitedoctor.co.uk",
+                  "task_type": "Task",
+                  "labels": [
+                    "GoLive"
+                  ],
+                  "estimate_minutes": 60
+                },
+                {
+                  "title": "Remove any irrelevant currencies",
+                  "task_type": "Task",
+                  "labels": [
+                    "GoLive"
+                  ],
+                  "estimate_minutes": 60
+                },
+                {
+                  "title": "Update the Order Number Series",
+                  "description": "We should have been running as \"TEST\" or similar, this should be changed to something meaningful to the customer please i.e. \"TSD\"",
+                  "task_type": "Task",
+                  "labels": [
+                    "GoLive"
+                  ],
+                  "estimate_minutes": 60
+                },
+                {
+                  "title": "Make sure the countries are set correctly",
+                  "description": "The country list should be complete and relevant to where the client actually ships/sells - the default list is rarely right.",
+                  "task_type": "Task",
+                  "labels": [
+                    "GoLive"
+                  ],
+                  "estimate_minutes": 60
+                },
+                {
+                  "title": "Payment methods",
+                  "task_type": "Task",
+                  "labels": [
+                    "GoLive"
+                  ],
+                  "estimate_minutes": 60,
+                  "subtasks": [
+                    {
+                      "title": "Disable any irrelevant payment methods",
+                      "task_type": "Task",
+                      "labels": [
+                        "GoLive"
+                      ],
+                      "estimate_minutes": 60
+                    }
+                  ]
+                },
+                {
+                  "title": "Shipping methods",
+                  "task_type": "Task",
+                  "labels": [
+                    "GoLive"
+                  ],
+                  "estimate_minutes": 60,
+                  "subtasks": [
+                    {
+                      "title": "Disable any irrelevant shipping methods",
+                      "task_type": "Task",
+                      "labels": [
+                        "GoLive"
+                      ],
+                      "estimate_minutes": 60
+                    },
+                    {
+                      "title": "Ensure the Pricing tab is configured",
+                      "task_type": "Task",
+                      "labels": [
+                        "GoLive"
+                      ],
+                      "estimate_minutes": 60
+                    },
+                    {
+                      "title": "Ensure the languages tabs are configured",
+                      "task_type": "Task",
+                      "labels": [
+                        "GoLive"
+                      ],
+                      "estimate_minutes": 60
+                    }
+                  ]
+                },
+                {
+                  "title": "Ensure the right price group is selected",
+                  "task_type": "Task",
+                  "labels": [
+                    "GoLive"
+                  ],
+                  "estimate_minutes": 60
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "title": "After go-live",
+          "task_type": "Feature",
+          "labels": [
+            "GoLive"
+          ],
+          "estimate_minutes": 60,
+          "subtasks": [
+            {
+              "title": "Schedule launch social posts",
+              "description": "Schedule the launch announcement on the relevant channels (X, LinkedIn, Facebook). Tag the links using the GA campaign URL builder (https://ga-dev-tools.google/campaign-url-builder/) so launch traffic is attributable.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Add new portfolio item",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 120,
+              "subtasks": [
+                {
+                  "title": "Take screenshot of current/old website",
+                  "task_type": "Task",
+                  "labels": [
+                    "GoLive"
+                  ],
+                  "estimate_minutes": 120
+                },
+                {
+                  "title": "Take screenshot of new website",
+                  "description": "Need to take screenshots of the key pages that have been designed/specifically styled e.g. timelines, about us pages etc, at a minimum it needs to be the homepage and content.\n\nAt minimum: the homepage and an internal/content page, plus any specifically designed pages (timelines, about us etc).",
+                  "task_type": "Task",
+                  "labels": [
+                    "GoLive"
+                  ],
+                  "estimate_minutes": 120
+                }
+              ]
+            },
+            {
+              "title": "Schedule weekly refresh of the Google rankings",
+              "description": "Set the ranking report to run every week so we can get a picture of what the site does post launch.",
+              "task_type": "Task",
+              "labels": [
+                "GoLive"
+              ],
+              "estimate_minutes": 60
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
