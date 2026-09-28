@@ -722,6 +722,27 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
+      name: "productive_get_todo",
+      description:
+        'Get a single todo/checklist item by ID.\n\nExample:\n{\n  "todo_id": "98765"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          todo_id: {
+            type: "string",
+            description: "Todo ID (required)",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["todo_id"],
+      },
+    },
+    {
       name: "productive_update_todo",
       description:
         'Update a todo/checklist item (e.g., mark as complete, change description).\n\nExample:\n{\n  "todo_id": "98765",\n  "closed": true\n}',
