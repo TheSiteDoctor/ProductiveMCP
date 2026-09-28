@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tsd-site-scaffold` skill asks whether the site has customer accounts, which extra My Account sections are needed, and which social login providers to support, then adds a ticket set per provider (with Google, Microsoft, Apple and Facebook specifics) and a Feature per extra My Account section.
 - Template Planner: `authentication` and `social-login` added, with a "Site with accounts" preset; the E-commerce preset now includes `authentication`.
 
+## [1.7.1] - 2026-09-28
+
+### Fixed
+
+- **`productive_get_todo` was unreachable over MCP**: the tool was registered in `src/registry.ts` (and so worked through the CLI) but had no definition in the `ListToolsRequestSchema` handler, so MCP clients never saw it. It is now listed alongside the other todo tools, with a required `todo_id` and optional `response_format`.
+
 ## [1.7.0] - 2026-09-24
 
 ### Added
