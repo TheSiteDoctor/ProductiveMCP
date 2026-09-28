@@ -28,6 +28,8 @@ interface ProductiveConfig {
     priority?: string;
     estimate?: string;
     labels?: string;
+    /** Free-text reference used in branch names and commit messages (e.g. IT-204). */
+    commit_reference?: string;
   };
   task_type_options?: Record<string, string>;
   priority_options?: Record<string, string>;
@@ -126,6 +128,7 @@ export const CUSTOM_FIELD_IDS = {
   PRIORITY: config.custom_field_ids?.priority || "",
   ESTIMATE: config.custom_field_ids?.estimate || "",
   LABELS: config.custom_field_ids?.labels || "",
+  COMMIT_REFERENCE: config.custom_field_ids?.commit_reference || "",
 } as const;
 
 // ---------------------------------------------------------------------------

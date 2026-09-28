@@ -75,6 +75,7 @@ export const CreateMilestoneSchema = z
 export const SearchTasksSchema = z
   .object({
     query: z.string().optional(),
+    commit_reference: z.string().optional(),
     project_id: z.string().optional(),
     assignee_id: z.string().optional(),
     task_list_id: z.string().optional(),

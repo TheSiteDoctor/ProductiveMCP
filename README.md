@@ -210,7 +210,7 @@ productive search-tasks --help       # Show options for a specific command
 
 ## Custom Field Configuration
 
-Productive.io uses custom fields for task type, priority, and estimates. These field IDs are unique to each organisation.
+Productive.io uses custom fields for task type, priority, estimates, and (optionally) a free-text **Commit reference** such as `IT-204` that teams use in branch names and commit messages. Tasks expose it as `commit_reference`, and `search-tasks --commit_reference IT-204` finds a task by it. These field IDs are unique to each organisation.
 
 **The recommended approach is `npm run setup`** which auto-discovers everything. The generated `productive.config.json` file is loaded at runtime - no source code editing or rebuilding needed after setup.
 

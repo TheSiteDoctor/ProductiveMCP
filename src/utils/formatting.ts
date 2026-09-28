@@ -584,6 +584,16 @@ export function formatTask(
     }
   }
 
+  // Extract the commit reference (free-text custom field, e.g. IT-204)
+  let commitReference: string | null = null;
+  if (CUSTOM_FIELD_IDS.COMMIT_REFERENCE) {
+    const raw = customFields[CUSTOM_FIELD_IDS.COMMIT_REFERENCE];
+    if (raw !== undefined && raw !== null && !Array.isArray(raw)) {
+      const trimmed = String(raw).trim();
+      commitReference = trimmed.length > 0 ? trimmed : null;
+    }
+  }
+
   // Extract workflow status from relationship
   let workflowStatus: string | null = null;
   if (
@@ -655,6 +665,7 @@ export function formatTask(
     estimate_minutes: estimateMinutes,
     task_type: taskType,
     priority: priority,
+    commit_reference: commitReference,
     workflow_status: workflowStatus,
     closed: attributes.closed,
     due_date: attributes.due_date || null,
@@ -698,6 +709,7 @@ export function formatTaskMarkdown(task: FormattedTask): string {
     task.is_milestone ? "# Milestone Details" : "# Task Details",
     "",
     `**ID**: ${task.number ? `#${task.number}` : task.id}`,
+    ...(task.commit_reference ? [`**Ref**: ${task.commit_reference}`] : []),
     `**Title**: ${task.title}`,
   ];
 

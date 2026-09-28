@@ -559,13 +559,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_search_tasks",
       description:
-        'Search for existing tasks in Productive.io. Filter by query text, project, assignee, status, dates, or task list. Supports sorting.\n\nExample:\n{\n  "project_id": "1234",\n  "created_after": "2026-02-18",\n  "sort": "-created_at",\n  "closed": false\n}',
+        'Search for existing tasks in Productive.io. Filter by exact title, commit reference (e.g. IT-204), project, assignee, status, dates, or task list. Supports sorting. Note: query is an exact title match, not a substring search.\n\nExample:\n{\n  "project_id": "1234",\n  "created_after": "2026-02-18",\n  "sort": "-created_at",\n  "closed": false\n}\n\nFind by commit reference:\n{\n  "commit_reference": "IT-204"\n}',
       inputSchema: {
         type: "object",
         properties: {
           query: {
             type: "string",
-            description: "Search query for task title/description",
+            description:
+              "Exact task title to match (Productive filter[title] is not a substring search)",
+          },
+          commit_reference: {
+            type: "string",
+            description:
+              "Exact match on the Commit reference custom field (e.g. IT-204) - the reference used in branch names and commit messages",
           },
           project_id: {
             type: "string",

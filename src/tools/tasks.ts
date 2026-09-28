@@ -649,6 +649,16 @@ export async function searchTasks(
   if (args.query) {
     params["filter[title]"] = args.query;
   }
+  if (args.commit_reference) {
+    if (!CUSTOM_FIELD_IDS.COMMIT_REFERENCE) {
+      throw new Error(
+        "commit_reference filter requires the Commit reference custom field id in productive.config.json - run `npm run setup` or set custom_field_ids.commit_reference manually.",
+      );
+    }
+    // Productive filters custom fields with the nested form filter[custom_fields][<field id>]
+    params[`filter[custom_fields][${CUSTOM_FIELD_IDS.COMMIT_REFERENCE}]`] =
+      args.commit_reference.trim();
+  }
   if (args.project_id) {
     params["filter[project_id]"] = args.project_id;
   }

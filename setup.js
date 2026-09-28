@@ -137,11 +137,17 @@ async function discoverCustomFields(token, orgId) {
     /^time.?estimate$/i,
   ];
   const labelsPatterns = [/^labels?$/i, /^tags?$/i];
+  const commitRefPatterns = [
+    /^commit.?ref(erence)?$/i,
+    /^ticket.?ref(erence)?$/i,
+    /^branch.?ref(erence)?$/i,
+  ];
 
   let typeField = null;
   let priorityField = null;
   let estimateField = null;
   let labelsField = null;
+  let commitRefField = null;
 
   for (const field of fields) {
     const name = field.attributes?.name || "";
@@ -181,6 +187,15 @@ async function discoverCustomFields(token, orgId) {
         }
       }
     }
+
+    if (!commitRefField) {
+      for (const pattern of commitRefPatterns) {
+        if (pattern.test(name)) {
+          commitRefField = field;
+          break;
+        }
+      }
+    }
   }
 
   return {
@@ -188,6 +203,7 @@ async function discoverCustomFields(token, orgId) {
     priorityField,
     estimateField,
     labelsField,
+    commitRefField,
     allFields: fields,
   };
 }
@@ -461,8 +477,14 @@ async function main() {
   }
 
   // Discover custom fields
-  const { typeField, priorityField, estimateField, labelsField, allFields } =
-    await discoverCustomFields(token, orgId);
+  const {
+    typeField,
+    priorityField,
+    estimateField,
+    labelsField,
+    commitRefField,
+    allFields,
+  } = await discoverCustomFields(token, orgId);
 
   const config = {
     custom_field_ids: {
@@ -470,6 +492,7 @@ async function main() {
       priority: "",
       estimate: "",
       labels: "",
+      commit_reference: "",
     },
     task_type_options: {},
     priority_options: {},
@@ -479,6 +502,18 @@ async function main() {
     workflow_status_workflow_ids: {},
     workflow_status_workflows: {},
   };
+
+  // Commit reference field (free text, e.g. IT-204 - used for branch names and commit messages)
+  if (commitRefField) {
+    console.log(
+      `  Commit reference field: "${commitRefField.attributes.name}" (ID: ${commitRefField.id})`,
+    );
+    config.custom_field_ids.commit_reference = commitRefField.id;
+  } else {
+    console.log(
+      "  Commit reference field: not found (commit_reference will be null on tasks)",
+    );
+  }
 
   // Task type field
   if (typeField) {

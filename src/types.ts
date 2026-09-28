@@ -377,6 +377,8 @@ export interface FormattedTask {
   estimate_minutes: number | null;
   task_type: string | null;
   priority: string | null;
+  /** Value of the "Commit reference" custom field (e.g. IT-204), or null if unset/unconfigured. */
+  commit_reference: string | null;
   workflow_status: string | null;
   closed: boolean;
   due_date: string | null;
