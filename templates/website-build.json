@@ -1,0 +1,145 @@
+{
+  "name": "website-build",
+  "title": "Website Build",
+  "description": "The build scaffolding for a standard www site: a Feature per page type (Site-wide, Homepage, Content Page), each with Design / Front-end / Back-end / QA / QC tasks, plus a go-live release milestone. Apply alongside standard-delivery: matching Features merge and duplicate tasks are skipped. Extend with ecommerce-build for shop pages.",
+  "variables": [
+    {
+      "name": "domain_name",
+      "description": "The project's primary domain name, e.g. example.com"
+    },
+    {
+      "name": "delivery_list",
+      "description": "Task list (project phase) for the core delivery",
+      "default": "Core Delivery"
+    },
+    {
+      "name": "launch_list",
+      "description": "Task list (project phase) for go-live",
+      "default": "Go-live"
+    }
+  ],
+  "task_lists": [
+    {
+      "name": "{{delivery_list}}",
+      "tasks": [
+        {
+          "title": "Infrastructure setup ({{domain_name}})",
+          "description": "Environments, tooling and third-party accounts the build depends on.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Install CMS",
+              "description": "Install and configure the project's CMS on the development/UAT environment. For Umbraco projects the umbraco-setup template covers this in more detail - skip this task if that template is applied.",
+              "task_type": "Task",
+              "estimate_minutes": 60
+            }
+          ]
+        },
+        {
+          "title": "Site-wide",
+          "description": "Global design foundations and the site shell every page builds on.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Design: Site-wide",
+              "description": "Global design foundations: grid, typography, colour palette, header/navigation, footer, buttons/forms and shared components, for desktop and mobile. Client sign-off before page builds start.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Front-end / CMS: Site-wide",
+              "description": "Build the global shell: base layout, header/navigation, footer, shared components and styles, wired to CMS-managed content (navigation, footer links, global settings). Responsive across breakpoints.",
+              "task_type": "Task"
+            }
+          ]
+        },
+        {
+          "title": "Homepage",
+          "description": "Homepage delivery, from design through to QC.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Design: Homepage",
+              "description": "Homepage design for desktop and mobile, using the site-wide foundations. Client sign-off.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Front-end / CMS: Homepage",
+              "description": "Build the homepage template and wire every section to CMS-editable content. Responsive across breakpoints.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Back-end: Homepage",
+              "description": "Models, controllers and any data/integration work the homepage needs (e.g. featured content queries, caching).",
+              "task_type": "Task"
+            },
+            {
+              "title": "QA: Homepage",
+              "description": "Internal testing against the signed-off design and acceptance criteria: content editable as expected, responsive, cross-browser, no console errors.",
+              "task_type": "Test Case"
+            },
+            {
+              "title": "QC: Homepage",
+              "description": "Final quality control pass on UAT before client review: pixel check against design, real content in place, links and imagery correct.",
+              "task_type": "Test Case"
+            }
+          ]
+        },
+        {
+          "title": "Content Page (Generic Text, Privacy Policy, T&Cs, Cookie Policy)",
+          "description": "Generic content page template, from design through to QC. One template serves the standard text pages.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Design: Content Page",
+              "description": "Generic content page design for desktop and mobile - typography-led, covering headings, body copy, lists, quotes, tables, imagery and embeds. This template serves Privacy Policy, T&Cs, Cookie Policy and general text pages.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Front-end / CMS: Content Page",
+              "description": "Build the content page template with a rich text/block editor experience covering every element in the design. Create the standard pages: Privacy Policy, T&Cs, Cookie Policy.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Back-end: Content Page",
+              "description": "Document types/models and routing for generic content pages.",
+              "task_type": "Task"
+            },
+            {
+              "title": "QA: Content Page",
+              "description": "Internal testing: every RTE/block element renders per design, responsive, cross-browser, editors can manage pages without developer help.",
+              "task_type": "Test Case"
+            },
+            {
+              "title": "QC: Content Page",
+              "description": "Final quality control pass on UAT: standard pages (Privacy Policy, T&Cs, Cookie Policy) populated with real content and reviewed.",
+              "task_type": "Test Case"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "{{launch_list}}",
+      "tasks": [
+        {
+          "title": "Go-live Launch",
+          "description": "The must-pass launch checks. Every task here is verified on the live site before the project is signed off.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Ensure canonical URL redirects are set up",
+              "description": "One URL per page: lowercase enforced, trailing slash policy applied consistently, and old/legacy URLs redirecting to their new equivalents. Spot-check with the network tab that a canonical URL loads with **no** redirect and a non-canonical variant reaches it in a **single** 301 hop.",
+              "task_type": "Test Case",
+              "estimate_minutes": 30
+            }
+          ]
+        },
+        {
+          "title": "Site go-live ({{domain_name}})",
+          "description": "Release milestone: the site is live on {{domain_name}} with the Go-live Launch checks passed.",
+          "milestone": true
+        }
+      ]
+    }
+  ]
+}

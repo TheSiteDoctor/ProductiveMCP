@@ -232,6 +232,18 @@ import {
   archiveServiceType,
 } from "./tools/services.js";
 
+// Task templates
+import {
+  ListTaskTemplatesSchema,
+  GetTaskTemplateSchema,
+  ApplyTaskTemplateSchema,
+} from "./schemas/template.js";
+import {
+  listTaskTemplates,
+  getTaskTemplate,
+  applyTaskTemplate,
+} from "./tools/templates.js";
+
 export interface ToolRegistryEntry {
   schema: z.ZodTypeAny;
   handler: (client: ProductiveClient, args: any) => Promise<string>;
@@ -529,5 +541,19 @@ export const toolRegistry: Record<string, ToolRegistryEntry> = {
   productive_list_my_tasks_due_today: {
     schema: ListMyTasksDueTodaySchema,
     handler: listMyTasksDueToday,
+  },
+
+  // Task template tools (list/get read template files and need no client)
+  productive_list_task_templates: {
+    schema: ListTaskTemplatesSchema,
+    handler: (_client, args) => listTaskTemplates(args),
+  },
+  productive_get_task_template: {
+    schema: GetTaskTemplateSchema,
+    handler: (_client, args) => getTaskTemplate(args),
+  },
+  productive_apply_task_template: {
+    schema: ApplyTaskTemplateSchema,
+    handler: applyTaskTemplate,
   },
 };

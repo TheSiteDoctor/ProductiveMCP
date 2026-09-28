@@ -1,0 +1,291 @@
+{
+  "name": "discovery",
+  "title": "Discovery & Foundations",
+  "description": "Foundational discovery for newer or larger projects, especially rebuilds of an existing site. Creates a single Discovery / Foundation task list with a Feature per area (access, goals, current site audit, SEO, analytics, technical, content and IA), ending in a findings playback and a sign-off milestone. Tasks marked High priority capture things that are gone for good once the old site is switched off - never skip those on a rebuild.",
+  "variables": [
+    {
+      "name": "current_domain",
+      "description": "The existing site's domain being audited, e.g. example.com"
+    },
+    {
+      "name": "foundation_list",
+      "description": "Task list (project phase) for discovery and foundation work",
+      "default": "Discovery / Foundation"
+    }
+  ],
+  "task_lists": [
+    {
+      "name": "{{foundation_list}}",
+      "tasks": [
+        {
+          "title": "Access & Accounts",
+          "description": "Get the access discovery depends on. Requests are due five days after the template is applied - discovery stalls without them.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Request Google Search Console access",
+              "description": "Ask the client to add TSD as a Full user on the Search Console property for {{current_domain}}. If no property exists, set one up **now** - Search Console only holds data from the day it's verified, so every day's delay is a day of lost baseline.",
+              "task_type": "Task",
+              "priority": "High",
+              "estimate_minutes": 15,
+              "due_in_days": 5
+            },
+            {
+              "title": "Request GA4 and GTM access",
+              "description": "Editor on GA4 and Publish on GTM. If the site has no GA4 at all, note it - the analytics baseline tasks become 'set up tracking now so there's something to compare against'.",
+              "task_type": "Task",
+              "priority": "High",
+              "estimate_minutes": 15,
+              "due_in_days": 5
+            },
+            {
+              "title": "Request current CMS admin access",
+              "description": "Needed for the content inventory, forms audit and to see how the current site is actually managed.",
+              "task_type": "Task",
+              "estimate_minutes": 15,
+              "due_in_days": 5
+            },
+            {
+              "title": "Establish who controls the domain, DNS and hosting",
+              "description": "Find out who holds the domain registration, the DNS and the current hosting for {{current_domain}}, and either get access or a named contact who can make changes. This is the most common late go-live blocker - find out in week one, not launch week. Record it in the TSD domain list.",
+              "task_type": "Task",
+              "priority": "High",
+              "estimate_minutes": 30,
+              "due_in_days": 5
+            }
+          ]
+        },
+        {
+          "title": "Goals & Stakeholders",
+          "description": "Understand what the client needs the site to achieve, for whom, and how success will be measured.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Stakeholder interviews",
+              "description": "Understand the business goals, frustrations with the current site, internal processes, and who signs off what.",
+              "task_type": "Meeting"
+            },
+            {
+              "title": "Define goals and success KPIs",
+              "description": "Agree measurable goals (enquiries, sales, organic traffic, etc) and tie each one to a baseline captured during discovery, so success can be shown after launch.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Audiences and key user journeys",
+              "description": "Identify the primary audiences and the top journeys each needs to complete. Feeds the information architecture and the QA test plans.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Competitor review",
+              "description": "Review 3-5 competitor sites for features, content and positioning. Note what to adopt and what to avoid.",
+              "task_type": "Task",
+              "estimate_minutes": 120
+            }
+          ]
+        },
+        {
+          "title": "Current Site Audit",
+          "description": "Crawl and inventory the existing site so nothing is lost in the rebuild: every URL, template, broken link and linked document.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Screaming Frog crawl of the current site",
+              "description": "Full crawl of https://{{current_domain}}.\n\nBefore crawling:\n* Check with the client whether a WAF/CDN will block or rate-limit the crawler (whitelist the IP or lower the crawl speed)\n* Enable JavaScript rendering if the site is JS-heavy\n* Add the XML sitemap(s) as a crawl source so orphan pages are picked up\n\nSave the crawl file and these exports to the project folder: Internal (all), Response Codes, Redirects, Page Titles, Meta Descriptions, H1, Canonicals, Images missing alt text.",
+              "task_type": "Task",
+              "priority": "High",
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Build the full legacy URL inventory",
+              "description": "A crawl alone misses orphan pages. Merge into one spreadsheet:\n* Crawl URLs\n* XML sitemap URLs\n* Search Console top pages (last 16 months)\n* GA4 landing pages with traffic\n* Top backlinked URLs\n\nThis is the source list for the redirect map - any URL missing here becomes a 404 after launch.",
+              "task_type": "Task",
+              "priority": "High",
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Document the current sitemap and page templates",
+              "description": "Group the inventory by section and page template (e.g. 40 case studies, 120 news articles, 12 service pages). This gives the page-type list for the build and the volumes for content migration estimates.",
+              "task_type": "Task",
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Record broken links, redirect chains and errors",
+              "description": "From the crawl: 4xx/5xx pages, internal links pointing at redirects, redirect chains and loops. Fix these going forward in the new site rather than carrying them over.",
+              "task_type": "Task",
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Inventory documents and media with inbound links",
+              "description": "PDFs and other files on the old site often have inbound links and search traffic of their own. List them (Screaming Frog > Internal > PDF, plus Search Console) so they're migrated or redirected rather than silently dropped.",
+              "task_type": "Task",
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Archive the current site",
+              "description": "Screenshot the key pages and templates for before/after comparison and the portfolio, and keep the crawl file. Once DNS switches, the old site is gone.",
+              "task_type": "Task",
+              "priority": "High",
+              "estimate_minutes": 30
+            }
+          ]
+        },
+        {
+          "title": "SEO Baseline",
+          "description": "Record where the site stands in search today, so post-launch performance can be judged against it.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Export the Search Console performance baseline",
+              "description": "Export the last 16 months of queries and pages (clicks, impressions, CTR, average position). This is the benchmark post-launch performance is judged against - and the evidence if the 'we've fallen off Google' conversation ever happens.",
+              "task_type": "Task",
+              "priority": "High",
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Record the keyword ranking baseline",
+              "description": "Agree the handful of keywords that matter to the client (usually location + service terms) and record current positions in the rank tracker. Start weekly tracking now, so there's a pre-launch trend rather than a single data point.",
+              "task_type": "Task",
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Review the backlink profile and top linked pages",
+              "description": "Using Search Console's Links report (plus Ahrefs/Semrush if available), list the most-linked pages. Each must redirect to its best equivalent on the new site - losing them loses the authority they carry.",
+              "task_type": "Task",
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Check indexation and crawl directives",
+              "description": "Compare indexed pages (Search Console > Pages) with the inventory. Note noindex pages, robots.txt rules, canonical tags and any hreflang. Anything deliberately hidden today should stay hidden on the new site.",
+              "task_type": "Task",
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Record the Core Web Vitals and PageSpeed baseline",
+              "description": "Run the key templates through PageSpeed Insights and note the Search Console Core Web Vitals report. Gives a before/after for the performance story at launch.",
+              "task_type": "Task",
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Note structured data and rich results in use",
+              "description": "Check the key templates with Google's Rich Results Test (Organisation, Product, Article, FAQ, Breadcrumb etc). Any rich results the site earns today must be preserved.",
+              "task_type": "Task",
+              "estimate_minutes": 15
+            }
+          ]
+        },
+        {
+          "title": "Analytics & Tracking",
+          "description": "Record current traffic and conversions, and everything that tracks visitors, so it can all be carried over.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Export the analytics traffic baseline",
+              "description": "From GA4: sessions, users, top landing pages, channels and conversions for the last 12 months. Pairs with the Search Console export as the post-launch benchmark.",
+              "task_type": "Task",
+              "priority": "High",
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Audit the conversions and events that must be preserved",
+              "description": "List every GA4 key event and what it measures (form submissions, purchases, downloads, phone clicks). Each one needs re-implementing and testing on the new site.",
+              "task_type": "Task",
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Inventory third-party scripts and tracking pixels",
+              "description": "Check GTM and the page source for everything that fires: Meta Pixel, LinkedIn Insight, Google Ads conversion tags, Clarity/Hotjar, chat widgets, review widgets. These are routinely forgotten on a relaunch, and the client's marketing team only notices when campaign reporting breaks.",
+              "task_type": "Task",
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Review the cookie consent setup",
+              "description": "Note the current consent platform (e.g. Cookiebot, CookieYes), which scripts it controls, and whether Google Consent Mode v2 is configured. The new site needs parity or better.",
+              "task_type": "Task",
+              "estimate_minutes": 15
+            }
+          ]
+        },
+        {
+          "title": "Technical & Integrations",
+          "description": "Document the current platform, hosting, DNS and every connected system.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Document the current platform and hosting",
+              "description": "CMS/platform and version, hosting provider, CDN/WAF, SSL, licences in use, and any custom functionality that must be replicated.",
+              "task_type": "Task",
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Integrations inventory",
+              "description": "Every system the site talks to: CRM, email marketing, payments, stock/ERP, booking, search, SSO, APIs. For each, record what data flows which way, who owns the account, and whether credentials or API access are available.",
+              "task_type": "Task",
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Snapshot the DNS zone and email records",
+              "description": "Export the current DNS zone for {{current_domain}}: MX, SPF, DKIM, DMARC, verification TXT records and subdomains. A DNS move that drops any of these takes the client's email or a third-party service down on launch day.",
+              "task_type": "Task",
+              "priority": "High",
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Accessibility baseline",
+              "description": "Automated scan of the key templates (axe or WAVE) to record the starting point, and confirm any compliance requirement (e.g. WCAG 2.2 AA for public sector clients).",
+              "task_type": "Task",
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Security and compliance requirements",
+              "description": "GDPR and data retention, PCI scope if taking payments, penetration testing requirements, and any sector-specific obligations.",
+              "task_type": "Task"
+            }
+          ]
+        },
+        {
+          "title": "Content & Information Architecture",
+          "description": "Decide what content moves, how the new site is structured, and how every old URL maps to a new one.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Content audit (keep / merge / rewrite / remove)",
+              "description": "Using the page inventory, agree the fate of each page or section with the client. This drives both the new sitemap and the migration effort.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Proposed sitemap and information architecture",
+              "description": "Draft the new site structure and navigation from the content audit and key user journeys, for client sign-off. The signed-off sitemap becomes the page-type list for the build (the tsd-site-scaffold skill can turn it into build tickets).",
+              "task_type": "Task"
+            },
+            {
+              "title": "Agree the content migration approach and ownership",
+              "description": "Who writes, who migrates, manual or scripted, and by when. Content is the most common cause of a slipped launch date - agree it now, in writing.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Forms inventory",
+              "description": "Every form on the current site: its fields, where submissions go (inbox, CRM, email marketing tool), auto-responders and spam protection. Each needs rebuilding with the same destination.",
+              "task_type": "Task",
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Draft the redirect map (old URL to new URL)",
+              "description": "Once the new sitemap is signed off, map every URL in the legacy inventory to its new equivalent, or the closest relevant page - never a blanket redirect to the homepage. Finalised and tested before go-live.",
+              "task_type": "Task"
+            }
+          ]
+        },
+        {
+          "title": "Discovery findings report and playback",
+          "description": "Write up the findings, baselines, recommendations and risks, and play them back to the client.",
+          "task_type": "Meeting"
+        },
+        {
+          "title": "Discovery sign-off",
+          "description": "Milestone: the client has signed off the discovery findings, sitemap and scope, and the build can be planned from them.",
+          "milestone": true
+        }
+      ]
+    }
+  ]
+}
