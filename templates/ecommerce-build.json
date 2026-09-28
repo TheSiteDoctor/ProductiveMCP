@@ -1,0 +1,211 @@
+{
+  "name": "ecommerce-build",
+  "title": "E-commerce Build (add-on)",
+  "description": "E-commerce page scaffolding layered on top of website-build: a Feature per shop page (PLP, PDP and the checkout steps), each with Design / Front-end / Back-end / QA / QC tasks. Pair with stripe-integration for the payment provider work.",
+  "variables": [
+    {
+      "name": "delivery_list",
+      "description": "Task list (project phase) for the core delivery",
+      "default": "Core Delivery"
+    }
+  ],
+  "task_lists": [
+    {
+      "name": "{{delivery_list}}",
+      "tasks": [
+        {
+          "title": "Product Listing Page (PLP)",
+          "description": "Product Listing Page (PLP) delivery, from design through to QC.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Design: Product Listing Page",
+              "description": "Category/listing design for desktop and mobile: product cards, filtering, sorting, pagination and empty states.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Front-end / CMS: Product Listing Page",
+              "description": "Build the PLP template: product cards, filtering, sorting, pagination, wired to the commerce catalogue. Responsive across breakpoints.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Back-end: Product Listing Page",
+              "description": "Category/catalogue queries, filtering and sorting logic, pagination, caching.",
+              "task_type": "Task"
+            },
+            {
+              "title": "QA: Product Listing Page",
+              "description": "Internal testing: filters and sorting return correct results, pagination works, empty states handled, responsive, cross-browser.",
+              "task_type": "Test Case"
+            },
+            {
+              "title": "QC: Product Listing Page",
+              "description": "Final quality control on UAT with the real catalogue: imagery, pricing and stock display correct.",
+              "task_type": "Test Case"
+            }
+          ]
+        },
+        {
+          "title": "Product Details Page (PDP)",
+          "description": "Product Details Page (PDP) delivery, from design through to QC.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Design: Product Details Page",
+              "description": "Product page design for desktop and mobile: gallery, pricing, variants, add-to-basket, stock states, related products.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Front-end / CMS: Product Details Page",
+              "description": "Build the PDP template: gallery, variant selection, pricing, add-to-basket, stock messaging, related products. Responsive across breakpoints.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Back-end: Product Details Page",
+              "description": "Product/variant models, pricing and stock lookups, add-to-basket behaviour, structured data (Product schema).",
+              "task_type": "Task"
+            },
+            {
+              "title": "QA: Product Details Page",
+              "description": "Internal testing: variants switch price/imagery/stock correctly, add-to-basket works for every variant state, out-of-stock handled, responsive, cross-browser.",
+              "task_type": "Test Case"
+            },
+            {
+              "title": "QC: Product Details Page",
+              "description": "Final quality control on UAT with real products: content, pricing and imagery correct; structured data validates.",
+              "task_type": "Test Case"
+            }
+          ]
+        },
+        {
+          "title": "Checkout - Basket",
+          "description": "Checkout - Basket delivery, from design through to QC.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Design: Basket",
+              "description": "Basket design for desktop and mobile: line items, quantity changes, removal, discount codes, totals, empty basket state.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Front-end / CMS: Basket",
+              "description": "Build the basket: line items, quantity update/remove, discount code entry, totals (including VAT and shipping estimate), proceed to checkout. Responsive.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Back-end: Basket",
+              "description": "Basket state management, price/total recalculation, discount code validation.",
+              "task_type": "Task"
+            },
+            {
+              "title": "QA: Basket",
+              "description": "Internal testing: quantities update totals correctly, removal works, discount codes apply and reject properly, basket persists as expected.",
+              "task_type": "Test Case"
+            },
+            {
+              "title": "QC: Basket",
+              "description": "Final quality control on UAT: totals, VAT and discount behaviour verified against real pricing.",
+              "task_type": "Test Case"
+            }
+          ]
+        },
+        {
+          "title": "Checkout - Shipping Details",
+          "description": "Checkout - Shipping Details delivery, from design through to QC.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Design: Shipping Details",
+              "description": "Shipping step design for desktop and mobile: address entry, shipping method selection with prices, validation states.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Front-end / CMS: Shipping Details",
+              "description": "Build the shipping step: address form with validation, shipping method selection updating the total. Responsive.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Back-end: Shipping Details",
+              "description": "Address validation, shipping method/price calculation per country, persistence into the order.",
+              "task_type": "Task"
+            },
+            {
+              "title": "QA: Shipping Details",
+              "description": "Internal testing: validation messages helpful, every shipping method prices correctly, country changes update available methods.",
+              "task_type": "Test Case"
+            },
+            {
+              "title": "QC: Shipping Details",
+              "description": "Final quality control on UAT: shipping methods and prices match the agreed rate card for every destination offered.",
+              "task_type": "Test Case"
+            }
+          ]
+        },
+        {
+          "title": "Checkout - Billing Details",
+          "description": "Checkout - Billing Details delivery, from design through to QC.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Design: Billing Details",
+              "description": "Billing/payment step design for desktop and mobile: billing address (same-as-shipping option), payment form, error states.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Front-end / CMS: Billing Details",
+              "description": "Build the billing step: billing address with same-as-shipping toggle, payment provider integration (see the stripe-integration template), clear error handling for declined payments. Responsive.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Back-end: Billing Details",
+              "description": "Payment intent creation and confirmation via the payment provider, order creation on success, failure handling without phantom orders.",
+              "task_type": "Task"
+            },
+            {
+              "title": "QA: Billing Details",
+              "description": "Internal testing with test cards: success, decline and 3DS flows all behave; failed payments leave no phantom order; validation is helpful.",
+              "task_type": "Test Case"
+            },
+            {
+              "title": "QC: Billing Details",
+              "description": "Final quality control on UAT: full checkout run-through, payment reaches the provider sandbox and the order records correctly.",
+              "task_type": "Test Case"
+            }
+          ]
+        },
+        {
+          "title": "Checkout - Order Complete Page",
+          "description": "Checkout - Order Complete Page delivery, from design through to QC.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Design: Order Complete Page",
+              "description": "Order confirmation design for desktop and mobile: order summary, number, delivery expectations, next steps.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Front-end / CMS: Order Complete Page",
+              "description": "Build the confirmation page: order summary and number, purchase tracking dataLayer event for GA4. Responsive.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Back-end: Order Complete Page",
+              "description": "Order retrieval for confirmation display, confirmation email trigger, analytics purchase event data.",
+              "task_type": "Task"
+            },
+            {
+              "title": "QA: Order Complete Page",
+              "description": "Internal testing: correct order shown after checkout (and not accessible for someone else's order), confirmation email sends, GA4 purchase event fires with correct value.",
+              "task_type": "Test Case"
+            },
+            {
+              "title": "QC: Order Complete Page",
+              "description": "Final quality control on UAT: end-to-end order with the confirmation email reviewed for content and formatting.",
+              "task_type": "Test Case"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

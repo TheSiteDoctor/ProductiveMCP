@@ -4,3 +4,6 @@ dist/
 productive.config.json
 *.log
 .DS_Store
+
+# Generated template planner (npm run templates:report)
+/template-report.html
