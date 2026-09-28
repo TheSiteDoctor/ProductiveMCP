@@ -245,6 +245,12 @@
               "description": "Record the outgoing SMTP host, port, username and password, plus any incoming server or inbound routing details the site needs. Store them in LastPass and share them with the team; UAT uses them for test mail.",
               "task_type": "Task",
               "estimate_minutes": 15
+            },
+            {
+              "title": "Capture outgoing email in development and UAT",
+              "description": "Route email from local and UAT environments to a mail catcher (such as Mailpit or smtp4dev) or the provider's sandbox, so testing can never email a real customer. Only production sends to real addresses.",
+              "task_type": "Task",
+              "estimate_minutes": 30
             }
           ]
         },

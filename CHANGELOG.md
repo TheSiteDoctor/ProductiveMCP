@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-09-28
+
+### Added
+
+- `authentication` template (add-on) - customer accounts for sites where people sign in. In the core delivery phase: Login, Registration, Forgotten & Reset Password and My Account Features with Design / Front-end / Back-end / QA / QC tasks; reCAPTCHA on registration as standard (keys added to Third-party accounts, verified on the server); email verification as standard; an Account deletion & data requests (GDPR) Feature; and Verify Email Address, Welcome and Password Reset email Features. Adds reCAPTCHA and live account email checks to Go-live Launch. Login includes a task to agree with the client whether social login is needed.
+- `social-login` template (add-on) - the provider-neutral OAuth work: agree the providers, register the apps in the client's own developer accounts, redirect URIs and secrets per environment (with a reminder that Microsoft Entra secrets expire), provider-branded buttons, account linking rules, QA and QC, plus a live redirect URI and keys check at go-live.
+- **Emails are delivered like pages.** Each transactional email is a Feature with Design / Front-end / Back-end / QA / QC tasks, built on a shared **Email: Base layout** Feature. Templates that share it (`ecommerce-build`, `authentication`) create it once when stacked. Email QA is a light-touch check on real devices: webmail (Gmail), Outlook and a phone mail app.
+- `ecommerce-build` adds the **Email: Order Confirmation** Feature (sent once when the order is paid, not from the Order Complete page) and a go-live check of the confirmation from the live test transaction.
+- `standard-delivery` adds "Capture outgoing email in development and UAT" to the Transactional email Feature, so testing can never email a real customer.
+- `tsd-site-scaffold` skill asks whether the site has customer accounts, which extra My Account sections are needed, and which social login providers to support, then adds a ticket set per provider (with Google, Microsoft, Apple and Facebook specifics) and a Feature per extra My Account section.
+- Template Planner: `authentication` and `social-login` added, with a "Site with accounts" preset; the E-commerce preset now includes `authentication`.
+
 ## [1.7.1] - 2026-09-28
 
 ### Fixed

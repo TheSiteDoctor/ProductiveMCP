@@ -245,12 +245,13 @@
 const TEMPLATES = /*__TEMPLATES__*/[];
 const GENERATED = "__GENERATED__";
 
-const ORDER = ["discovery", "standard-delivery", "umbraco-setup", "website-build", "ecommerce-build", "stripe-integration", "site-go-live"];
+const ORDER = ["discovery", "standard-delivery", "umbraco-setup", "website-build", "ecommerce-build", "authentication", "social-login", "stripe-integration", "site-go-live"];
 const SAMPLE_VALUES = { domain_name: "example.co.uk", current_domain: "oldsite.co.uk", sprint_count: "8" };
 const PRESET_DEFS = [
   { id: "rebuild", label: "Rebuild", names: ["discovery", "standard-delivery", "umbraco-setup", "website-build"] },
   { id: "brochure", label: "Brochure site", names: ["standard-delivery", "umbraco-setup", "website-build"] },
-  { id: "shop", label: "E-commerce site", names: ["standard-delivery", "umbraco-setup", "website-build", "ecommerce-build", "stripe-integration"] },
+  { id: "shop", label: "E-commerce site", names: ["standard-delivery", "umbraco-setup", "website-build", "ecommerce-build", "authentication", "stripe-integration"] },
+  { id: "accounts", label: "Site with accounts", names: ["standard-delivery", "umbraco-setup", "website-build", "authentication", "social-login"] },
   { id: "golive", label: "Go-live checklist", names: ["site-go-live"] },
   { id: "all", label: "Everything", names: null },
 ];
