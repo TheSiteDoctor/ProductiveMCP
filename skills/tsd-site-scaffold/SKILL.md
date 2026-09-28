@@ -1,6 +1,6 @@
 ---
 name: tsd-site-scaffold
-description: Interactively scaffold site build tickets in Productive from a list of page types. Use when starting a new website project and the user wants the page/feature tickets set up (e.g. "set up the build tickets for acme.com", "scaffold the pages for the new site", "create the page features"). Asks which page types are needed, spots entity types that may need separate list and detail pages (Case Studies, Products, News etc), then creates a Feature (epic) per page in the Core Delivery task list, with Design / Front-end / Back-end / QA / QC tasks beneath it. For Igloo builds it also scaffolds a Feature per Igloo widget (Front-end / Back-end / QA / QC - design is already done). Uses the ProductiveMCP template tools.
+description: Interactively scaffold site build tickets in Productive from a list of page types. Use when starting a new website project and the user wants the page/feature tickets set up (e.g. "set up the build tickets for acme.com", "scaffold the pages for the new site", "create the page features"). Asks which page types are needed, spots entity types that may need separate list and detail pages (Case Studies, Products, News etc), then creates a Feature (epic) per page in the Core Delivery task list, with Design / Front-end / Back-end / QA / QC tasks beneath it. For Igloo builds it also scaffolds a Feature per Igloo widget (Front-end / Back-end / QA / QC - design is already done). For sites with customer accounts it applies the authentication (and social-login) templates, then adds a ticket set per social login provider and a Feature per extra My Account section. Uses the ProductiveMCP template tools.
 ---
 
 # TSD Site Build Scaffolding
@@ -21,7 +21,7 @@ Resolve the target Productive project with `productive_list_projects` (search by
 
 ### 2. Check the base templates
 
-Run `productive_list_task_lists` for the project, and `productive_search_tasks` for a "Project Management" Feature. If the standard scaffolding is missing, offer to apply `standard-delivery` (and `umbraco-setup` / `stripe-integration` / `ecommerce-build` where relevant) first - pages sit on top of it, and `website-build` already covers Site-wide, Homepage and Content Page.
+Run `productive_list_task_lists` for the project, and `productive_search_tasks` for a "Project Management" Feature. If the standard scaffolding is missing, offer to apply `standard-delivery` (and `umbraco-setup` / `stripe-integration` / `ecommerce-build` / `authentication` where relevant) first - pages sit on top of it, and `website-build` already covers Site-wide, Homepage and Content Page.
 
 Identify the delivery phase list: the templates default it to **"Core Delivery"**. If the project uses a different name for that phase (e.g. "Phase 1 - Core Delivery"), use that name so the pages land in the existing list; if unclear, ask once. New Features are placed above the list's "Build Complete" milestone automatically.
 
@@ -56,6 +56,16 @@ Igloo is TSD's site builder: it plugs into the CMS, and each project needs speci
 > "Is this an Igloo build? If so, which widgets does the design need yet (e.g. Hero Banner, Card Grid, Testimonial Carousel)?"
 
 Widgets are usually only known once design is complete. If they aren't known yet, say the skill can be run again after design sign-off - re-running is safe, as existing Features are reused and only missing tasks are added.
+
+### 4c. Customer accounts
+
+Skip this if accounts are already settled (the `authentication` template's "Login" Feature exists and the user hasn't mentioned changes). Otherwise, if the pages named include Login, Register or My Account, or it's an e-commerce site, ask ONE batched question:
+
+> "Will customers have accounts? If so: beyond account details and change password, which My Account sections are needed (e.g. Order History, Saved Addresses, Wishlist)? And should they be able to sign in with Google, Microsoft, Apple or others?"
+
+- **Accounts**: apply the `authentication` template (dry run first, like everything else). It covers Login, Registration (with reCAPTCHA and email verification), Forgotten & Reset Password, My Account (dashboard, account details, change password and email), account deletion, and the verification, welcome and password reset emails - so don't scaffold those as pages yourself. If the user named them as pages, point out they're covered.
+- **Extra My Account sections**: one Feature per section, titled **`My Account: <Section>`**, with the standard five page roles (see step 6).
+- **Social login**: apply the `social-login` template, then add the per-provider tickets from step 6 inside its **"Social login (OAuth)"** Feature. If the client hasn't decided, leave it: `authentication` already includes a task to agree it.
 
 ### 5. Confirm the plan
 
@@ -131,9 +141,26 @@ Skeleton for the call:
 }
 ```
 
+**My Account sections** use the page Feature pattern above, titled `My Account: <Section>` (e.g. `My Account: Order History`), with "Every My Account page requires sign-in." appended to the Back-end description and "Signed-out visitors are sent to login." appended to QA.
+
+**Social login providers** go in the Core Delivery list inside a Feature titled exactly **`Social login (OAuth)`** (`task_type: "Feature"`, description "Sign in with third-party accounts, from agreeing the providers through to QC. Provider-specific tickets sit alongside these.") - the same title as the `social-login` template's Feature, so the provider tickets land inside it. Per provider, two children:
+
+- **`OAuth: <Provider>`** (task_type `Task`), description: "Register and configure <Provider> sign-in in the client's own account, with redirect URIs for local, UAT and live." followed by the provider's notes below.
+- **`QA: <Provider> login`** (task_type `Test Case`), description: "On UAT: a new customer, an existing customer being linked, and cancelling at <Provider>'s consent screen."
+
+Provider notes (append to the `OAuth: <Provider>` description):
+
+| Provider | Notes |
+| --- | --- |
+| Google | A Google Cloud project in the client's Google account. Set up the consent screen and publish it to production before go-live - in testing mode only listed test users can sign in. Brand verification can take several days. |
+| Microsoft | An app registration in Microsoft Entra ID. Decide the supported account types (personal Microsoft accounts, work or school accounts, or both). Client secrets expire: diary the renewal date. |
+| Apple | Needs a paid Apple Developer Program membership in the client's name, a Services ID, a key and domain verification. Customers can hide their email address: register the sending domain with Apple's private email relay so account emails still arrive. |
+| Facebook | A Meta developer app in the client's account, switched to Live mode before go-live. Meta may ask for business verification. |
+| Other | Register the app with the provider in the client's account; check its review or verification requirements early. |
+
 ### 7. Report
 
-Share the apply summary (created lists, task links, anything skipped). Suggest next steps only if obvious gaps exist (e.g. e-commerce pages named but `stripe-integration` not applied).
+Share the apply summary (created lists, task links, anything skipped). Suggest next steps only if obvious gaps exist (e.g. e-commerce pages named but `stripe-integration` not applied, or a Login page named but `authentication` not applied).
 
 ## Rules
 

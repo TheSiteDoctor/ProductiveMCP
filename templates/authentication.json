@@ -1,0 +1,341 @@
+{
+  "name": "authentication",
+  "title": "Authentication (add-on)",
+  "description": "Customer accounts for sites where people sign in: Login, Registration (with reCAPTCHA and email verification), Forgotten & Reset Password and My Account pages, account deletion, and the verification, welcome and password reset emails - each with Design / Front-end / Back-end / QA / QC tasks. Apply social-login on top if customers can sign in with Google, Microsoft, Apple and so on.",
+  "variables": [
+    {
+      "name": "delivery_list",
+      "description": "Task list (project phase) for the core delivery",
+      "default": "Core Delivery"
+    },
+    {
+      "name": "launch_list",
+      "description": "Task list (project phase) for go-live",
+      "default": "Go-live"
+    }
+  ],
+  "task_lists": [
+    {
+      "name": "{{delivery_list}}",
+      "tasks": [
+        {
+          "title": "Third-party accounts",
+          "description": "Accounts and keys for the third-party services the site uses, held in the client's name.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Get or create the Google reCAPTCHA keys",
+              "description": "Create the reCAPTCHA keys in the client's Google account (reCAPTCHA is managed through the Google Cloud console), allowing the live domain, the UAT domain and localhost. Share the site and secret keys through the password manager, never by email.",
+              "task_type": "Task",
+              "estimate_minutes": 15
+            }
+          ]
+        },
+        {
+          "title": "Login",
+          "description": "Login delivery, from design through to QC.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Agree with the client whether social login is needed",
+              "description": "Decide whether customers can sign in with Google, Microsoft, Apple or others. If they can, apply the social-login template (or run the site scaffold skill) to add those tickets.",
+              "task_type": "Task",
+              "estimate_minutes": 15
+            },
+            {
+              "title": "Design: Login",
+              "description": "Login page and form for desktop and mobile: email and password, forgotten password link, error states, and space for social login buttons if they're needed.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Front-end / CMS: Login",
+              "description": "Build the login page and form with CMS-editable content, accessible error messages and a working forgotten password link. Responsive across breakpoints.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Back-end: Login",
+              "description": "Sign-in with secure session cookies, lockout or throttling after repeated failed attempts, and safe return-URL handling (local redirects only). Unverified accounts are asked to verify their email address rather than signed in.",
+              "task_type": "Task"
+            },
+            {
+              "title": "QA: Login",
+              "description": "Valid and invalid logins, lockout after repeated failures, return to the page the customer came from, sign out, and 'remember me' if offered. Error messages don't reveal whether an email address has an account.",
+              "task_type": "Test Case"
+            },
+            {
+              "title": "QC: Login",
+              "description": "Final quality control on UAT: sign in and out with a real test account, checked against the signed-off design.",
+              "task_type": "Test Case"
+            }
+          ]
+        },
+        {
+          "title": "Registration",
+          "description": "Registration delivery, from design through to QC.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Design: Registration",
+              "description": "Registration page and form for desktop and mobile: the fields needed and no more, password rules shown up front, marketing consent, reCAPTCHA placement, and the 'check your email' and 'email verified' states.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Front-end / CMS: Registration",
+              "description": "Build the registration page and form with inline validation, the reCAPTCHA widget, and the 'check your email' and 'email verified' states. Responsive across breakpoints.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Back-end: Registration",
+              "description": "Create the account with password rules enforced, verify reCAPTCHA on the server (the widget alone stops nothing), record marketing consent separately from the account, and send the verification email. The account can't sign in until the email address is verified.",
+              "task_type": "Task"
+            },
+            {
+              "title": "QA: Registration",
+              "description": "Validation and password rules, duplicate email addresses, reCAPTCHA verified on the server, marketing consent unticked by default and stored correctly, and the verification link activating the account.",
+              "task_type": "Test Case"
+            },
+            {
+              "title": "QC: Registration",
+              "description": "Final quality control on UAT: register a new account end to end, from the form to the verified, signed-in state.",
+              "task_type": "Test Case"
+            }
+          ]
+        },
+        {
+          "title": "Forgotten & Reset Password",
+          "description": "Forgotten & Reset Password delivery, from design through to QC.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Design: Forgotten & Reset Password",
+              "description": "Forgotten password (request) and reset password pages for desktop and mobile, including the 'check your email', expired link and success states.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Front-end / CMS: Forgotten & Reset Password",
+              "description": "Build the request and reset pages with validation and every state from the design. Responsive across breakpoints.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Back-end: Forgotten & Reset Password",
+              "description": "Reset tokens are single-use and expire. The request page responds the same whether or not the email address has an account. A successful reset signs the customer out everywhere else.",
+              "task_type": "Task"
+            },
+            {
+              "title": "QA: Forgotten & Reset Password",
+              "description": "Request a reset for a real and an unknown address (same response for both), reset with a valid link, and check a used or expired link is rejected.",
+              "task_type": "Test Case"
+            },
+            {
+              "title": "QC: Forgotten & Reset Password",
+              "description": "Final quality control on UAT: reset a real test account's password end to end.",
+              "task_type": "Test Case"
+            }
+          ]
+        },
+        {
+          "title": "My Account",
+          "description": "My Account delivery, from design through to QC.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Design: My Account",
+              "description": "My Account for desktop and mobile: dashboard, account details, change password and change email address. Further sections (order history, saved addresses and so on) are separate Features.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Front-end / CMS: My Account",
+              "description": "Build the My Account pages and navigation with CMS-editable content. Responsive across breakpoints.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Back-end: My Account",
+              "description": "Account details updates; changing the password needs the current password; changing the email address re-verifies the new address before it takes effect. Every My Account page requires sign-in.",
+              "task_type": "Task"
+            },
+            {
+              "title": "QA: My Account",
+              "description": "Update details, change password and email address, and check each My Account page redirects to login when signed out.",
+              "task_type": "Test Case"
+            },
+            {
+              "title": "QC: My Account",
+              "description": "Final quality control on UAT with a real test account, checked against the signed-off design.",
+              "task_type": "Test Case"
+            }
+          ]
+        },
+        {
+          "title": "Account deletion & data requests (GDPR)",
+          "description": "Customers can close their account, and the client can answer data requests about it.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Agree how account deletion and data requests are handled",
+              "description": "Agree with the client whether customers close their own account from My Account or by request, what is deleted or anonymised (and what must be kept, such as order records), and who answers subject access requests.",
+              "task_type": "Task",
+              "estimate_minutes": 30
+            },
+            {
+              "title": "Back-end: Account deletion",
+              "description": "Delete or anonymise the account's personal data as agreed, sign the customer out, and remove them from any mailing list they joined through the account.",
+              "task_type": "Task"
+            },
+            {
+              "title": "QA: Account deletion",
+              "description": "Close a test account: it can no longer sign in, its personal data is gone or anonymised as agreed, and anything that had to be kept still is.",
+              "task_type": "Test Case"
+            }
+          ]
+        },
+        {
+          "title": "Email: Base layout",
+          "description": "The shared layout every transactional email is built on, so branding is designed and tested once rather than per email.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Design: Email base layout",
+              "description": "Branded header, footer, typography and colours for transactional emails, based on the site design. Keep it simple: single column, email-safe fonts, and a logo that still makes sense with images turned off.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Front-end: Email base layout",
+              "description": "Build the shared email layout: table-based markup with inline styles so Outlook renders it, checked in dark mode, with a plain-text fallback.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Back-end: Email base layout",
+              "description": "Rendering and sending: render templates with their merge fields, generate the plain-text version, send through the transactional email provider, and log send failures to Seq.",
+              "task_type": "Task"
+            },
+            {
+              "title": "QA: Email base layout",
+              "description": "Send a sample email on the base layout. Light-touch check on real devices: send it to webmail (Gmail), Outlook and a phone mail app. The layout holds up, the logo and images load, merge fields are filled in, links point at the right environment, and the subject line, sender and reply-to address are right.",
+              "task_type": "Test Case"
+            }
+          ]
+        },
+        {
+          "title": "Email: Verify Email Address",
+          "description": "Verify Email Address email delivery, from design through to QC. Sent when a customer registers or changes their email address.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Design: Verify Email Address email",
+              "description": "Design the Verify Email Address email on the base layout: subject line, preheader text, content and call to action. Get the client's sign-off on the wording before build starts.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Front-end: Verify Email Address email",
+              "description": "Build the Verify Email Address email template on the base layout, with its merge fields and a plain-text version.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Back-end: Verify Email Address email",
+              "description": "Send on registration, on request from the 'check your email' page, and when a customer changes their email address. The link is signed, single-use and expires; an expired link offers to send a new one.",
+              "task_type": "Task"
+            },
+            {
+              "title": "QA: Verify Email Address email",
+              "description": "Light-touch check on real devices: send it to webmail (Gmail), Outlook and a phone mail app. The layout holds up, the logo and images load, merge fields are filled in, links point at the right environment, and the subject line, sender and reply-to address are right. Check an expired or used link is rejected and offers a new one.",
+              "task_type": "Test Case"
+            },
+            {
+              "title": "QC: Verify Email Address email",
+              "description": "Final check on UAT: trigger the Verify Email Address email the way a customer would, with real content, and check it against the signed-off design and wording.",
+              "task_type": "Test Case"
+            }
+          ]
+        },
+        {
+          "title": "Email: Welcome",
+          "description": "Welcome email delivery, from design through to QC. Sent once the customer has verified their email address.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Design: Welcome email",
+              "description": "Design the Welcome email on the base layout: subject line, preheader text, content and call to action. Get the client's sign-off on the wording before build starts.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Front-end: Welcome email",
+              "description": "Build the Welcome email template on the base layout, with its merge fields and a plain-text version.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Back-end: Welcome email",
+              "description": "Send once, after the email address is verified - not at registration, and never again on a later sign-in.",
+              "task_type": "Task"
+            },
+            {
+              "title": "QA: Welcome email",
+              "description": "Light-touch check on real devices: send it to webmail (Gmail), Outlook and a phone mail app. The layout holds up, the logo and images load, merge fields are filled in, links point at the right environment, and the subject line, sender and reply-to address are right.",
+              "task_type": "Test Case"
+            },
+            {
+              "title": "QC: Welcome email",
+              "description": "Final check on UAT: trigger the Welcome email the way a customer would, with real content, and check it against the signed-off design and wording.",
+              "task_type": "Test Case"
+            }
+          ]
+        },
+        {
+          "title": "Email: Password Reset",
+          "description": "Password Reset email delivery, from design through to QC. Sent from the forgotten password page.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Design: Password Reset email",
+              "description": "Design the Password Reset email on the base layout: subject line, preheader text, content and call to action. Get the client's sign-off on the wording before build starts.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Front-end: Password Reset email",
+              "description": "Build the Password Reset email template on the base layout, with its merge fields and a plain-text version.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Back-end: Password Reset email",
+              "description": "Send from the forgotten password page with a single-use link that expires. The email says what to do if the customer didn't ask for it.",
+              "task_type": "Task"
+            },
+            {
+              "title": "QA: Password Reset email",
+              "description": "Light-touch check on real devices: send it to webmail (Gmail), Outlook and a phone mail app. The layout holds up, the logo and images load, merge fields are filled in, links point at the right environment, and the subject line, sender and reply-to address are right. Check a used or expired link is rejected.",
+              "task_type": "Test Case"
+            },
+            {
+              "title": "QC: Password Reset email",
+              "description": "Final check on UAT: trigger the Password Reset email the way a customer would, with real content, and check it against the signed-off design and wording.",
+              "task_type": "Test Case"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "{{launch_list}}",
+      "tasks": [
+        {
+          "title": "Go-live Launch",
+          "description": "The must-pass launch checks. Every task here is verified on the live site before the project is signed off.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Ensure the reCAPTCHA keys cover the live domain",
+              "description": "The live site uses the live keys, the live domain is allowed, and registering on live passes reCAPTCHA without errors.",
+              "task_type": "Test Case",
+              "estimate_minutes": 15
+            },
+            {
+              "title": "Check the account emails on the live site",
+              "description": "Register a test account on live: the verification, welcome and password reset emails arrive from the live sender, with links to the live domain. Delete the test account afterwards.",
+              "task_type": "Test Case",
+              "estimate_minutes": 30
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

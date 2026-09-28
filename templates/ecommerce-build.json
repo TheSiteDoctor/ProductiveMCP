@@ -1,12 +1,17 @@
 {
   "name": "ecommerce-build",
   "title": "E-commerce Build (add-on)",
-  "description": "E-commerce page scaffolding layered on top of website-build: a Feature per shop page (PLP, PDP and the checkout steps), each with Design / Front-end / Back-end / QA / QC tasks. Pair with stripe-integration for the payment provider work.",
+  "description": "E-commerce page scaffolding layered on top of website-build: a Feature per shop page (PLP, PDP and the checkout steps), each with Design / Front-end / Back-end / QA / QC tasks, plus the order confirmation email. Pair with stripe-integration for the payment provider work, and authentication if customers have accounts.",
   "variables": [
     {
       "name": "delivery_list",
       "description": "Task list (project phase) for the core delivery",
       "default": "Core Delivery"
+    },
+    {
+      "name": "launch_list",
+      "description": "Task list (project phase) for go-live",
+      "default": "Go-live"
     }
   ],
   "task_lists": [
@@ -202,6 +207,83 @@
               "title": "QC: Order Complete Page",
               "description": "Final quality control on UAT: end-to-end order with the confirmation email reviewed for content and formatting.",
               "task_type": "Test Case"
+            }
+          ]
+        },
+        {
+          "title": "Email: Base layout",
+          "description": "The shared layout every transactional email is built on, so branding is designed and tested once rather than per email.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Design: Email base layout",
+              "description": "Branded header, footer, typography and colours for transactional emails, based on the site design. Keep it simple: single column, email-safe fonts, and a logo that still makes sense with images turned off.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Front-end: Email base layout",
+              "description": "Build the shared email layout: table-based markup with inline styles so Outlook renders it, checked in dark mode, with a plain-text fallback.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Back-end: Email base layout",
+              "description": "Rendering and sending: render templates with their merge fields, generate the plain-text version, send through the transactional email provider, and log send failures to Seq.",
+              "task_type": "Task"
+            },
+            {
+              "title": "QA: Email base layout",
+              "description": "Send a sample email on the base layout. Light-touch check on real devices: send it to webmail (Gmail), Outlook and a phone mail app. The layout holds up, the logo and images load, merge fields are filled in, links point at the right environment, and the subject line, sender and reply-to address are right.",
+              "task_type": "Test Case"
+            }
+          ]
+        },
+        {
+          "title": "Email: Order Confirmation",
+          "description": "Order Confirmation email delivery, from design through to QC. Sent to the customer once their order is paid.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Design: Order Confirmation email",
+              "description": "Design the Order Confirmation email on the base layout: subject line, preheader text, content and call to action. Get the client's sign-off on the wording before build starts.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Front-end: Order Confirmation email",
+              "description": "Build the Order Confirmation email template on the base layout, with its merge fields and a plain-text version.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Back-end: Order Confirmation email",
+              "description": "Send the email once, when the order is confirmed as paid - not from the Order Complete page, so a refresh or a repeated payment webhook never sends it twice. Merge in the order number, lines, quantities, prices, discounts, delivery, VAT and totals, and the delivery and billing addresses.",
+              "task_type": "Task"
+            },
+            {
+              "title": "QA: Order Confirmation email",
+              "description": "Light-touch check on real devices: send it to webmail (Gmail), Outlook and a phone mail app. The layout holds up, the logo and images load, merge fields are filled in, links point at the right environment, and the subject line, sender and reply-to address are right. Place orders with several lines, a discount and free delivery: the totals and VAT match the order in the back office, and the email only sends once per order.",
+              "task_type": "Test Case"
+            },
+            {
+              "title": "QC: Order Confirmation email",
+              "description": "Final check on UAT: trigger the Order Confirmation email the way a customer would, with real content, and check it against the signed-off design and wording.",
+              "task_type": "Test Case"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "{{launch_list}}",
+      "tasks": [
+        {
+          "title": "Go-live Launch",
+          "description": "The must-pass launch checks. Every task here is verified on the live site before the project is signed off.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Check the order confirmation email from the live test transaction",
+              "description": "The confirmation for the live test transaction arrives once, from the live sender, with the right totals and links to the live domain. A quick look in Gmail and Outlook is enough.",
+              "task_type": "Test Case",
+              "estimate_minutes": 15
             }
           ]
         }

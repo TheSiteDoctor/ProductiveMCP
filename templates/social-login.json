@@ -1,0 +1,90 @@
+{
+  "name": "social-login",
+  "title": "Social Login / OAuth (add-on)",
+  "description": "Provider-neutral social login work, applied on top of authentication: agreeing the providers, registering the apps in the client's developer accounts, redirect URIs and secrets per environment, account linking and testing. The tsd-site-scaffold skill adds a ticket per provider (Google, Microsoft, Apple and so on) inside the same Feature.",
+  "variables": [
+    {
+      "name": "delivery_list",
+      "description": "Task list (project phase) for the core delivery",
+      "default": "Core Delivery"
+    },
+    {
+      "name": "launch_list",
+      "description": "Task list (project phase) for go-live",
+      "default": "Go-live"
+    }
+  ],
+  "task_lists": [
+    {
+      "name": "{{delivery_list}}",
+      "tasks": [
+        {
+          "title": "Social login (OAuth)",
+          "description": "Sign in with third-party accounts, from agreeing the providers through to QC. Provider-specific tickets sit alongside these.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Agree the social login providers with the client",
+              "description": "Agree which providers customers can sign in with. The apps are registered in the client's own developer accounts, not TSD's, so they survive handover - confirm who holds each account.",
+              "task_type": "Task",
+              "estimate_minutes": 15
+            },
+            {
+              "title": "Register the OAuth apps in the client's developer accounts",
+              "description": "Register an app with each provider and set up its consent screen: site name, logo, and privacy policy and terms URLs. Some providers review this (Google brand verification can take several days), so start early.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Configure OAuth redirect URIs and secrets per environment",
+              "description": "Register redirect URIs for local, UAT and live, and keep each environment's client secrets in configuration, never in source control. Diary any secret expiry dates - Microsoft Entra secrets expire, and sign-in stops working when they do.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Design: Social login buttons",
+              "description": "Social login buttons on the Login and Registration pages, following each provider's brand guidelines (Google and Apple set rules for their buttons).",
+              "task_type": "Task"
+            },
+            {
+              "title": "Front-end / CMS: Social login buttons",
+              "description": "Build the social login buttons on the Login and Registration pages, with the error state for a cancelled or failed sign-in.",
+              "task_type": "Task"
+            },
+            {
+              "title": "Back-end: Social login and account linking",
+              "description": "External sign-in for each provider. Account linking: when a provider returns an email address that already has an account, link them only if the provider has verified the address - otherwise ask the customer to sign in with their password first. Customers who signed up with a provider can still set a password and use password reset.",
+              "task_type": "Task"
+            },
+            {
+              "title": "QA: Social login",
+              "description": "Each provider on UAT: a new customer, an existing customer being linked, cancelling at the provider's consent screen, and a provider account that hides its email address (Apple).",
+              "task_type": "Test Case"
+            },
+            {
+              "title": "QC: Social login",
+              "description": "Final quality control on UAT: sign in with each provider using real accounts.",
+              "task_type": "Test Case"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "{{launch_list}}",
+      "tasks": [
+        {
+          "title": "Go-live Launch",
+          "description": "The must-pass launch checks. Every task here is verified on the live site before the project is signed off.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Ensure the live OAuth redirect URIs and keys are configured",
+              "description": "Each provider's app lists the live domain's redirect URI, the live site uses the live keys, and Google's consent screen is published to production (in testing mode only listed test users can sign in). Sign in with each provider on live.",
+              "task_type": "Test Case",
+              "estimate_minutes": 30
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
