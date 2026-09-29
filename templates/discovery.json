@@ -89,6 +89,14 @@
           "task_type": "Feature",
           "subtasks": [
             {
+              "title": "Set up StatusCake uptime monitoring on the current site",
+              "description": "Add uptime and SSL checks for https://{{current_domain}} in StatusCake, with alerts to TSD. This gives a baseline of the current site's uptime and response times to compare the new site against, shows hosting problems the rebuild shouldn't inherit, and warns us if the old site falls over during the project. Set it up **now** - StatusCake only records from the day the check starts. At go-live, remove this check or point it at the new site, so the domain isn't monitored twice once the live-site check takes over.",
+              "task_type": "Task",
+              "priority": "High",
+              "estimate_minutes": 15,
+              "due_in_days": 5
+            },
+            {
               "title": "Screaming Frog crawl of the current site",
               "description": "Full crawl of https://{{current_domain}}.\n\nBefore crawling:\n* Check with the client whether a WAF/CDN will block or rate-limit the crawler (whitelist the IP or lower the crawl speed)\n* Enable JavaScript rendering if the site is JS-heavy\n* Add the XML sitemap(s) as a crawl source so orphan pages are picked up\n\nSave the crawl file and these exports to the project folder: Internal (all), Response Codes, Redirects, Page Titles, Meta Descriptions, H1, Canonicals, Images missing alt text.",
               "task_type": "Task",
