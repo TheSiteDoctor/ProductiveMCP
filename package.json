@@ -14,7 +14,8 @@
     "build": "tsc",
     "setup": "node setup.js",
     "clean": "rm -rf dist",
-    "templates:report": "node scripts/template-report.mjs"
+    "templates:report": "node scripts/template-report.mjs",
+    "test": "tsc && node --test test/*.test.mjs"
   },
   "engines": {
     "node": ">=18"

@@ -2251,6 +2251,7 @@ export function formatService(
     expense_tracking_enabled: attributes.expense_tracking_enabled,
     booking_tracking_enabled: attributes.booking_tracking_enabled,
     budget_cap_enabled: attributes.budget_cap_enabled,
+    estimated_time: attributes.estimated_time ?? null,
     budgeted_time: attributes.budgeted_time || null,
     worked_time: attributes.worked_time || null,
     revenue: attributes.revenue || null,
@@ -2305,6 +2306,12 @@ export function formatServiceListMarkdown(
       lines.push(`  Price: ${service.price}${unitLabel}`);
     }
 
+    if (service.estimated_time !== null) {
+      lines.push(`  Estimate: ${formatEstimate(service.estimated_time)}`);
+    }
+
+    lines.push(`  Quantity: ${service.quantity ?? "—"}`);
+
     if (service.person_name) {
       lines.push(`  Person: ${service.person_name}`);
     }
@@ -2324,6 +2331,13 @@ export function formatServiceListMarkdown(
 }
 
 /**
+ * Render a service estimate as `103h 7m (6187 min)`.
+ */
+function formatEstimate(minutes: number): string {
+  return `${formatDuration(minutes)} (${minutes} min)`;
+}
+
+/**
  * Format a single service as markdown
  */
 export function formatSingleServiceMarkdown(service: FormattedService): string {
@@ -2340,6 +2354,10 @@ export function formatSingleServiceMarkdown(service: FormattedService): string {
 
   if (service.price) {
     lines.push(`**Price**: ${service.price}`);
+  }
+
+  if (service.estimated_time !== null) {
+    lines.push(`**Estimate**: ${formatEstimate(service.estimated_time)}`);
   }
 
   if (service.quantity) {

@@ -234,11 +234,11 @@ Productive scopes statuses to a **workflow**, and most organisations have an unu
 
 ### Task Templates
 
-| Tool                              | Description                                        |
-| --------------------------------- | -------------------------------------------------- |
-| `productive_list_task_templates`  | List the reusable ticket templates                 |
-| `productive_get_task_template`    | Preview a template's structure and variables       |
-| `productive_apply_task_template`  | Create a template's task lists/tasks in a project  |
+| Tool                             | Description                                       |
+| -------------------------------- | ------------------------------------------------- |
+| `productive_list_task_templates` | List the reusable ticket templates                |
+| `productive_get_task_template`   | Preview a template's structure and variables      |
+| `productive_apply_task_template` | Create a template's task lists/tasks in a project |
 
 Templates are JSON files in `templates/` describing a standard set of task lists, tasks and subtasks (e.g. the core delivery tickets for a new project), with `{{variable}}` placeholders filled in at apply time. See [docs/templates.md](docs/templates.md). Run `npm run templates:report` for an interactive preview of what each template (or a stack of them) creates.
 
@@ -301,6 +301,15 @@ Templates are JSON files in `templates/` describing a standard set of task lists
 | `productive_create_service_type`  | Create a service type             |
 | `productive_update_service_type`  | Update a service type             |
 | `productive_archive_service_type` | Archive a service type            |
+
+**Estimate vs Quantity.** A service's Estimate (the "Estimate" column in a deal's Services view) is the planned time, stored by Productive as `estimated_time` in minutes. Quantity is the billable quantity and affects revenue: on Fixed hourly services it drives `budgeted_time` and the deal value, so don't use it to record time estimates. Set the estimate on create or update with `estimated_time_minutes` (whole minutes) or `estimated_time_hours` (rounded to the nearest minute), but not both:
+
+```bash
+productive update-service --service_id 12345 --estimated_time_minutes 6187   # 103h 7m
+productive update-service --service_id 12345 --estimated_time_hours 103.12   # also 6187
+```
+
+Get and list responses show it as `estimated_time` (JSON) and **Estimate** (markdown).
 
 ### Dependencies
 
