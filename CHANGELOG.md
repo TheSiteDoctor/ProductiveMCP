@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.1] - 2026-10-02
+
+### Fixed
+
+- **CLI `--format markdown` was ignored**, so output was always JSON, whether the flag came after the subcommand (`productive get-service --service_id 1 --format markdown`) or before it (`productive --format markdown get-service ...`). The root program and every subcommand each declared `--format` with a `"json"` default. Commander hands the flag to the root program wherever it appears, so the subcommand's default always won. Neither option has a default now, and the CLI falls back to JSON only when no format is given.
+
 ## [1.9.0] - 2026-10-02
 
 ### Added

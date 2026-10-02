@@ -252,13 +252,15 @@ const program = new Command()
   .name("productive")
   .description("CLI for the Productive.io API")
   .version(version)
-  .option("--format <format>", "Output format: json or markdown", "json");
+  .option("--format <format>", "Output format: json or markdown (default: json)");
 
 // Register a subcommand for each tool in the registry
 for (const [toolName, entry] of Object.entries(toolRegistry)) {
   const cmdName = toCommandName(toolName);
   const cmd = program.command(cmdName);
-  cmd.option("--format <format>", "Output format: json or markdown", "json");
+  // No default on either --format: Commander lets the root program claim
+  // --format wherever it appears, so a default here would shadow the user's value.
+  cmd.option("--format <format>", "Output format: json or markdown (default: json)");
 
   registerOptions(cmd, entry.schema);
 
@@ -290,7 +292,10 @@ for (const [toolName, entry] of Object.entries(toolRegistry)) {
 
       // Inject response_format — prefer subcommand --format, fall back to global
       if (!args.response_format) {
-        args.response_format = (opts.format as string) || program.opts().format;
+        args.response_format =
+          (opts.format as string | undefined) ??
+          (program.opts().format as string | undefined) ??
+          "json";
       }
 
       // Coerce string values to numbers for z.number() fields
