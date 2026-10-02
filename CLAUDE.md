@@ -17,7 +17,7 @@ npm run setup    # Auto-discover Productive.io custom fields → productive.conf
 npm run clean    # Remove dist/
 ```
 
-There are no tests or linting configured in this project.
+`npm test` builds, then runs `node:test` unit tests in `test/*.test.mjs` against `dist/` (pass a stub client exposing `get`/`patch`/`post` to inspect request bodies without hitting the API). There is no linting.
 
 ## Architecture
 
@@ -140,6 +140,10 @@ Productive deals have **three** value-shaped attributes:
 **Setting `deal_value` without `deal_value_source: "manual"` silently zeroes the deal** — `from_services` mode ignores the manual value and recomputes from services. `createDeal` and `updateDeal` auto-set `deal_value_source: "manual"` when `deal_value` is supplied; pass the source explicitly to override.
 
 The schema also exposes `deal_value` as a **number in minor units** at the tool boundary (e.g. `60000`) and converts to the API's stringified format internally. The API reads it back as `"60000.0"`.
+
+### Service Estimate vs Quantity
+
+A service's **Estimate** (the "Estimate" column in a deal's Services view, shown as "worked / estimate" under "Estimated time usage") is the writable attribute `estimated_time`, in **minutes** (103:07 = 6187). It is independent of `quantity`. On Fixed hourly services, `quantity` drives `budgeted_time`, `budget_total` and the deal value, so writing hours into quantity inflates the deal. The tools expose `estimated_time_minutes` / `estimated_time_hours` (mutually exclusive) and map them to `estimated_time`. Confirmed by a live PATCH round trip.
 
 ### Date Attribute on Deals
 

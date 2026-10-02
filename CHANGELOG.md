@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-10-02
+
+### Added
+
+- **Service Estimate.** `productive_create_service` and `productive_update_service` accept `estimated_time_minutes` (whole minutes) or `estimated_time_hours` (rounded to the nearest minute), sent to Productive as `estimated_time`. Passing both is rejected. `productive_get_service` and `productive_list_services` return `estimated_time` and show it as **Estimate** in markdown. The Estimate is the planned time for the service and is separate from `quantity`, which is the billable quantity: on Fixed hourly services quantity drives `budgeted_time` and the deal value, so it must not be used for time estimates. Tool descriptions and the README now say so.
+- **Commit reference custom field.** `npm run setup` discovers a "Commit reference" (or "Ticket reference" / "Branch reference") task custom field. Tasks expose it as `commit_reference` (shown as **Ref** in markdown), and `productive_search_tasks` accepts `commit_reference` to find a task by it (e.g. `IT-204`).
+- `npm test`: unit tests using Node's built-in test runner (`test/*.test.mjs`, run against `dist/`).
+
+### Changed
+
+- `productive_search_tasks` documents that `query` is an exact title match, not a substring search.
+
 ## [1.8.0] - 2026-09-28
 
 ### Added
