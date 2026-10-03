@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0] - 2026-10-03
+
+### Added
+
+- `discovery` adds "Set up StatusCake uptime monitoring on the current site" to the Current Site Audit Feature (high priority, due in five days): uptime and SSL checks on the current domain from day one, as a baseline to compare the new site against and an early warning if the old site falls over mid-project.
+
+### Changed
+
+- `standard-delivery`'s go-live StatusCake check now includes removing any check left over from discovery on the old site.
+
 ## [1.9.1] - 2026-10-02
 
 ### Fixed

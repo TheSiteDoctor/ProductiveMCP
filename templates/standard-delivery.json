@@ -331,7 +331,7 @@
             },
             {
               "title": "Ensure StatusCake is configured for the production URL",
-              "description": "The uptime and SSL checks must point at https://{{domain_name}} (not the pre-launch/holding URL) with alerts going to the support channel. Confirm a green check after DNS has switched.",
+              "description": "The uptime and SSL checks must point at https://{{domain_name}} (not the pre-launch/holding URL) with alerts going to the support channel. Confirm a green check after DNS has switched, and remove any check left over from discovery on the old site.",
               "task_type": "Test Case",
               "estimate_minutes": 15
             },
