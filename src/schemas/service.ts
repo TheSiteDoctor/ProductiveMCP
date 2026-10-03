@@ -22,6 +22,27 @@ export const BILLING_TYPES = [
 export const UNITS = ["Hour", "Piece", "Day"] as const;
 
 /**
+ * Service estimate fields. Productive stores the estimate as
+ * `estimated_time` in minutes; hours is a convenience that is rounded to
+ * whole minutes. Estimate is separate from quantity, which drives revenue.
+ */
+const EstimateFields = {
+  estimated_time_minutes: z.number().int().min(0).optional(),
+  estimated_time_hours: z.number().min(0).optional(),
+};
+
+const ESTIMATE_EXCLUSIVE = {
+  message: "Pass either estimated_time_minutes or estimated_time_hours, not both.",
+};
+
+const hasSingleEstimate = (v: {
+  estimated_time_minutes?: number;
+  estimated_time_hours?: number;
+}) =>
+  v.estimated_time_minutes === undefined ||
+  v.estimated_time_hours === undefined;
+
+/**
  * Schema for listing services
  */
 export const ListServicesSchema = z
@@ -61,13 +82,15 @@ export const CreateServiceSchema = z
     unit: z.enum(UNITS).default("Hour"),
     price: z.string().optional(),
     quantity: z.string().optional(),
+    ...EstimateFields,
     person_id: z.string().optional(),
     time_tracking_enabled: z.boolean().default(true),
     expense_tracking_enabled: z.boolean().default(false),
     booking_tracking_enabled: z.boolean().default(false),
     response_format: ResponseFormatSchema,
   })
-  .strict();
+  .strict()
+  .refine(hasSingleEstimate, ESTIMATE_EXCLUSIVE);
 
 /**
  * Schema for updating a service
@@ -81,12 +104,14 @@ export const UpdateServiceSchema = z
     unit: z.enum(UNITS).optional(),
     price: z.string().optional(),
     quantity: z.string().optional(),
+    ...EstimateFields,
     time_tracking_enabled: z.boolean().optional(),
     expense_tracking_enabled: z.boolean().optional(),
     booking_tracking_enabled: z.boolean().optional(),
     response_format: ResponseFormatSchema,
   })
-  .strict();
+  .strict()
+  .refine(hasSingleEstimate, ESTIMATE_EXCLUSIVE);
 
 // --- Service Type Schemas ---
 

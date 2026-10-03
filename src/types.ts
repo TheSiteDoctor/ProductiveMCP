@@ -961,6 +961,7 @@ export interface CreateServicePayload {
       unit_id: number;
       price?: string;
       quantity?: string;
+      estimated_time?: number; // minutes
       time_tracking_enabled?: boolean;
       expense_tracking_enabled?: boolean;
       booking_tracking_enabled?: boolean;
@@ -999,6 +1000,7 @@ export interface UpdateServicePayload {
       unit_id?: number;
       price?: string;
       quantity?: string;
+      estimated_time?: number; // minutes
       time_tracking_enabled?: boolean;
       expense_tracking_enabled?: boolean;
       booking_tracking_enabled?: boolean;
@@ -1019,6 +1021,8 @@ export interface FormattedService {
   expense_tracking_enabled: boolean;
   booking_tracking_enabled: boolean;
   budget_cap_enabled: boolean;
+  /** Planned time for the service in minutes ("Estimate" in the UI). Not quantity. */
+  estimated_time: number | null;
   budgeted_time: number | null;
   worked_time: number | null;
   revenue: string | null;

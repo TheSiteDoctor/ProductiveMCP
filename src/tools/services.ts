@@ -52,6 +52,23 @@ const UNIT_IDS: Record<string, number> = {
 };
 
 /**
+ * Resolve the estimate args to whole minutes for `estimated_time`.
+ * The schemas reject passing both; hours are rounded to the nearest minute.
+ */
+export function resolveEstimatedMinutes(args: {
+  estimated_time_minutes?: number;
+  estimated_time_hours?: number;
+}): number | undefined {
+  if (args.estimated_time_minutes !== undefined) {
+    return args.estimated_time_minutes;
+  }
+  if (args.estimated_time_hours !== undefined) {
+    return Math.round(args.estimated_time_hours * 60);
+  }
+  return undefined;
+}
+
+/**
  * List services
  */
 export async function listServices(
@@ -177,6 +194,11 @@ export async function createService(
     payload.data.attributes.quantity = args.quantity;
   }
 
+  const estimatedTime = resolveEstimatedMinutes(args);
+  if (estimatedTime !== undefined) {
+    payload.data.attributes.estimated_time = estimatedTime;
+  }
+
   if (args.time_tracking_enabled !== undefined) {
     payload.data.attributes.time_tracking_enabled = args.time_tracking_enabled;
   }
@@ -257,6 +279,11 @@ export async function updateService(
 
   if (args.quantity !== undefined) {
     payload.data.attributes!.quantity = args.quantity;
+  }
+
+  const estimatedTime = resolveEstimatedMinutes(args);
+  if (estimatedTime !== undefined) {
+    payload.data.attributes!.estimated_time = estimatedTime;
   }
 
   if (args.time_tracking_enabled !== undefined) {

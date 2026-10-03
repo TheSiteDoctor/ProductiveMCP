@@ -5,16 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.9.0] - 2026-09-29
+## [1.10.0] - 2026-10-03
 
 ### Added
 
-- **Commit reference custom field on tasks**: `npm run setup` discovers a "Commit reference" / "Ticket reference" / "Branch reference" custom field and writes `custom_field_ids.commit_reference`. Tasks expose `commit_reference` (shown as **Ref** in markdown output), and `productive_search_tasks` accepts `commit_reference`, filtering via `filter[custom_fields][<id>]`, with a clear error if the field isn't configured. The `query` parameter's description now says it is an exact title match, not a substring search.
 - `discovery` adds "Set up StatusCake uptime monitoring on the current site" to the Current Site Audit Feature (high priority, due in five days): uptime and SSL checks on the current domain from day one, as a baseline to compare the new site against and an early warning if the old site falls over mid-project.
 
 ### Changed
 
 - `standard-delivery`'s go-live StatusCake check now includes removing any check left over from discovery on the old site.
+
+## [1.9.1] - 2026-10-02
+
+### Fixed
+
+- **CLI `--format markdown` was ignored**, so output was always JSON, whether the flag came after the subcommand (`productive get-service --service_id 1 --format markdown`) or before it (`productive --format markdown get-service ...`). The root program and every subcommand each declared `--format` with a `"json"` default. Commander hands the flag to the root program wherever it appears, so the subcommand's default always won. Neither option has a default now, and the CLI falls back to JSON only when no format is given.
+
+## [1.9.0] - 2026-10-02
+
+### Added
+
+- **Service Estimate.** `productive_create_service` and `productive_update_service` accept `estimated_time_minutes` (whole minutes) or `estimated_time_hours` (rounded to the nearest minute), sent to Productive as `estimated_time`. Passing both is rejected. `productive_get_service` and `productive_list_services` return `estimated_time` and show it as **Estimate** in markdown. The Estimate is the planned time for the service and is separate from `quantity`, which is the billable quantity: on Fixed hourly services quantity drives `budgeted_time` and the deal value, so it must not be used for time estimates. Tool descriptions and the README now say so.
+- **Commit reference custom field.** `npm run setup` discovers a "Commit reference" (or "Ticket reference" / "Branch reference") task custom field. Tasks expose it as `commit_reference` (shown as **Ref** in markdown), and `productive_search_tasks` accepts `commit_reference` to find a task by it (e.g. `IT-204`).
+- `npm test`: unit tests using Node's built-in test runner (`test/*.test.mjs`, run against `dist/`).
+
+### Changed
+
+- `productive_search_tasks` documents that `query` is an exact title match, not a substring search.
 
 ## [1.8.0] - 2026-09-28
 
