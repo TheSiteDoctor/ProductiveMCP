@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `npm run release:tag` (`scripts/tag-releases.mjs`) tags every changelog release that has no git tag, on the commit where `package.json` reached that version (a PR's merge commit). It is a dry run by default; `--apply` creates the tags and `--push` also pushes them. Existing tags are never moved, and a local tag that differs from the remote's is reported rather than overwritten.
+
 ## [1.10.0] - 2026-10-03
 
 ### Added

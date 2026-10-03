@@ -235,7 +235,9 @@ We follow [Semantic Versioning](https://semver.org/). For each release:
 
 1. Add an entry to `CHANGELOG.md` following [Keep a Changelog](https://keepachangelog.com) format
 2. Bump the `version` in `package.json`
-3. Commit the version bump, then tag with `git tag vX.Y.Z`
+3. Commit the version bump. Once it is on `main` (for a PR, once it has merged), tag it with `npm run release:tag -- --push`
+
+`scripts/tag-releases.mjs` tags every `CHANGELOG.md` release that has no tag yet. It tags the first commit on `main` (following first parents, so a PR's merge commit) where `package.json` reached that version, and never moves an existing tag. Without `--apply` or `--push` it is a dry run. Releases whose version never reached `package.json` (such as 1.2.0) are skipped.
 
 ## ES Modules
 
