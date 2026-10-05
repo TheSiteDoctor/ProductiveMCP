@@ -208,6 +208,13 @@ console.log("missing from index.ts:", keys.filter(k=>!listed.has(k)));
 console.log("listed but not registered:", [...listed].filter(k=>!keys.includes(k)));'
 ```
 
+### "The client doesn't see my new parameter"
+
+MCP clients load tool definitions when a conversation starts, so restarting the server doesn't update a conversation that's already open: start a new one. Before changing code, confirm what the server actually advertised:
+
+- Claude Desktop logs every exchange to `~/Library/Logs/Claude/mcp-server-productive.log`. Look for `method="tools/list"` after the restart, and check the server start time is later than the `dist/` build.
+- `npm test` fails if any tool's advertised schema drifts from its zod schema, so a passing suite means the server side is consistent.
+
 ## CLI Usage
 
 The CLI mirrors the MCP tools as subcommands. Tool name `productive_search_tasks` becomes `search-tasks`:
