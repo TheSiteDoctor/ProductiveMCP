@@ -2252,6 +2252,10 @@ export function formatService(
     booking_tracking_enabled: attributes.booking_tracking_enabled,
     budget_cap_enabled: attributes.budget_cap_enabled,
     estimated_time: attributes.estimated_time ?? null,
+    estimated_time_hours:
+      attributes.estimated_time === null || attributes.estimated_time === undefined
+        ? null
+        : Math.round((attributes.estimated_time / 60) * 100) / 100,
     budgeted_time: attributes.budgeted_time || null,
     worked_time: attributes.worked_time || null,
     revenue: attributes.revenue || null,
@@ -2331,10 +2335,11 @@ export function formatServiceListMarkdown(
 }
 
 /**
- * Render a service estimate as `103h 7m (6187 min)`.
+ * Render a service estimate as `103h 7m (6187 min, 103.12 h)`.
  */
 function formatEstimate(minutes: number): string {
-  return `${formatDuration(minutes)} (${minutes} min)`;
+  const hours = Math.round((minutes / 60) * 100) / 100;
+  return `${formatDuration(minutes)} (${minutes} min, ${hours} h)`;
 }
 
 /**

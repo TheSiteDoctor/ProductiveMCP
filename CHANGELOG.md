@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.1] - 2026-10-05
+
+### Added
+
+- `productive_get_service` and `productive_list_services` also return `estimated_time_hours` (2 decimal places) next to `estimated_time` (minutes), so read fields match the write parameter names. The markdown Estimate line shows both, e.g. `103h 7m (6187 min, 103.12 h)`.
+- Test that starts the built MCP server, calls `tools/list` and fails if any tool advertises a parameter its zod schema doesn't accept, or accepts one it doesn't advertise. This catches the kind of drift that hid `productive_get_todo` before 1.7.1.
+- Tests that both service write tools advertise `estimated_time_minutes` / `estimated_time_hours`, and reject both units together or an unknown parameter.
+
+### Changed
+
+- Clearer service tool descriptions: the update description names the estimate parameters, both carry an `estimated_time_hours: 168.75` example, and the estimate parameters state that they do not affect quantity, price or revenue.
+
 ## [1.10.0] - 2026-10-03
 
 ### Added
