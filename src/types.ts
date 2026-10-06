@@ -1023,6 +1023,8 @@ export interface FormattedService {
   budget_cap_enabled: boolean;
   /** Planned time for the service in minutes ("Estimate" in the UI). Not quantity. */
   estimated_time: number | null;
+  /** estimated_time in hours, 2 decimal places. Matches the estimated_time_hours write param. */
+  estimated_time_hours: number | null;
   budgeted_time: number | null;
   worked_time: number | null;
   revenue: string | null;

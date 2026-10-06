@@ -196,7 +196,7 @@ All tool responses are capped at 25,000 characters (`CHARACTER_LIMIT` in constan
 
 The CLI automatically picks up new registry entries — no CLI-specific changes needed.
 
-**Don't skip step 4.** A tool missing from `src/index.ts` still works via the CLI, so the gap goes unnoticed, but MCP clients never see it (this happened to `productive_get_todo`, fixed in 1.7.1). After `npm run build`, check for drift:
+**Don't skip step 4.** A tool missing from `src/index.ts` still works via the CLI, so the gap goes unnoticed, but MCP clients never see it (this happened to `productive_get_todo`, fixed in 1.7.1). `npm test` catches this: `test/tool-schemas.test.mjs` calls `tools/list` on the built server and fails if any tool's advertised properties differ from its zod schema keys. For a quick manual check:
 
 ```bash
 node --input-type=module -e '

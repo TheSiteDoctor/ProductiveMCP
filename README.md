@@ -309,7 +309,7 @@ productive update-service --service_id 12345 --estimated_time_minutes 6187   # 1
 productive update-service --service_id 12345 --estimated_time_hours 103.12   # also 6187
 ```
 
-Get and list responses show it as `estimated_time` (JSON) and **Estimate** (markdown).
+Get and list responses return `estimated_time` (minutes) and `estimated_time_hours` (2 decimal places) in JSON, and an **Estimate** line in markdown.
 
 ### Dependencies
 

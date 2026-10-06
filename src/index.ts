@@ -2625,7 +2625,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_list_services",
       description:
-        'List services in Productive.io. Services are line items for budgets that form the basis for resourcing, time and expense tracking. Filter by budget, project, person, or billing type. Each service reports its Estimate (estimated_time, in minutes) separately from quantity and budgeted_time. Estimate is the planned time for the service. Quantity is the billable quantity and affects revenue. Do not use quantity to record time estimates.\n\nExample:\n{\n  "deal_id": "5678",\n  "limit": 20\n}',
+        'List services in Productive.io. Services are line items for budgets that form the basis for resourcing, time and expense tracking. Filter by budget, project, person, or billing type. Each service reports its Estimate (estimated_time in minutes, estimated_time_hours in hours) separately from quantity and budgeted_time. Estimate is the planned time for the service. Quantity is the billable quantity and affects revenue. Do not use quantity to record time estimates.\n\nExample:\n{\n  "deal_id": "5678",\n  "limit": 20\n}',
       inputSchema: {
         type: "object",
         properties: {
@@ -2697,7 +2697,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_create_service",
       description:
-        'Create a new service (budget line item) in Productive.io. Services belong to a budget/deal and require a service type.\n\nBilling types: Fixed, Time and Materials, Non-Billable\nUnits: Hour, Piece, Day\n\nIMPORTANT: Both deal_id and service_type_id are REQUIRED. Use productive_list_budgets and productive_list_service_types to find valid IDs.\n\nEstimate is the planned time for the service. Quantity is the billable quantity and affects revenue. Do not use quantity to record time estimates.\n\nExample:\n{\n  "name": "Development",\n  "deal_id": "5678",\n  "service_type_id": "1234",\n  "billing_type": "Time and Materials",\n  "unit": "Hour",\n  "price": "150.00"\n}',
+        'Create a new service (budget line item) in Productive.io. Services belong to a budget/deal and require a service type.\n\nBilling types: Fixed, Time and Materials, Non-Billable\nUnits: Hour, Piece, Day\n\nIMPORTANT: Both deal_id and service_type_id are REQUIRED. Use productive_list_budgets and productive_list_service_types to find valid IDs.\n\nSet the estimate with estimated_time_minutes or estimated_time_hours. Estimate is the planned time; quantity is the billable quantity and affects revenue - never use quantity to record a time estimate.\n\nExample:\n{\n  "name": "Development",\n  "deal_id": "5678",\n  "service_type_id": "1234",\n  "billing_type": "Time and Materials",\n  "unit": "Hour",\n  "price": "150.00",\n  "estimated_time_hours": 168.75\n}',
       inputSchema: {
         type: "object",
         properties: {
@@ -2744,13 +2744,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             type: "integer",
             minimum: 0,
             description:
-              "Estimate in whole minutes (the 'Estimate' column in the deal's Services view, stored as estimated_time). E.g. 6187 = 103h 7m. Cannot be combined with estimated_time_hours",
+              "Estimate in whole minutes, e.g. 6187 = 103h 7m. This is the 'Estimate' column in Productive. It does not affect quantity, price or revenue. Use either this or estimated_time_hours, not both.",
           },
           estimated_time_hours: {
             type: "number",
             minimum: 0,
             description:
-              "Estimate in hours, rounded to whole minutes. E.g. 103.12 = 6187 min. Cannot be combined with estimated_time_minutes",
+              "Estimate in hours (converted to whole minutes, rounded). Use either this or estimated_time_minutes, not both.",
           },
           person_id: {
             type: "string",
@@ -2785,7 +2785,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_update_service",
       description:
-        'Update an existing service. You can update the name, description, billing type, unit, price, quantity, estimate, or tracking settings.\n\nEstimate is the planned time for the service. Quantity is the billable quantity and affects revenue. Do not use quantity to record time estimates.\n\nExample:\n{\n  "service_id": "12345",\n  "price": "175.00",\n  "time_tracking_enabled": true\n}\n\nSet the estimate only:\n{\n  "service_id": "12345",\n  "estimated_time_minutes": 6187\n}',
+        'Update an existing service: name, description, billing type, unit, price, quantity, estimate (estimated_time_minutes / estimated_time_hours) or tracking settings. Estimate is the planned time; quantity is the billable quantity and affects revenue - never use quantity to record a time estimate.\n\nExample:\n{\n  "service_id": "12345",\n  "price": "175.00",\n  "time_tracking_enabled": true\n}\n\nSet the estimate only:\n{\n  "service_id": "12345",\n  "estimated_time_hours": 168.75\n}',
       inputSchema: {
         type: "object",
         properties: {
@@ -2824,13 +2824,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             type: "integer",
             minimum: 0,
             description:
-              "Estimate in whole minutes (the 'Estimate' column in the deal's Services view, stored as estimated_time). E.g. 6187 = 103h 7m. Cannot be combined with estimated_time_hours",
+              "Estimate in whole minutes, e.g. 6187 = 103h 7m. This is the 'Estimate' column in Productive. It does not affect quantity, price or revenue. Use either this or estimated_time_hours, not both.",
           },
           estimated_time_hours: {
             type: "number",
             minimum: 0,
             description:
-              "Estimate in hours, rounded to whole minutes. E.g. 103.12 = 6187 min. Cannot be combined with estimated_time_minutes",
+              "Estimate in hours (converted to whole minutes, rounded). Use either this or estimated_time_minutes, not both.",
           },
           time_tracking_enabled: {
             type: "boolean",
