@@ -5,10 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.11.0] - 2026-10-06
 
 ### Added
 
+- `umbraco-setup` adds a **CMS handover readiness** Feature to the core delivery phase, for work to finish before the client's CMS training: "Review document type permissions" (Allow at root and Allowed child node types, so editors can't, for example, create a second Search or Sitemap page under the Homepage) and "Create CMS logins for the client's administrators" (one Umbraco user per person, no shared logins). The Client CMS training & handover meeting now says both should be done first.
 - `npm run release:tag` (`scripts/tag-releases.mjs`) tags every changelog release that has no git tag, on the commit where `package.json` reached that version (a PR's merge commit). It is a dry run by default; `--apply` creates the tags and `--push` also pushes them. Existing tags are never moved, and a local tag that differs from the remote's is reported rather than overwritten.
 
 ## [1.10.0] - 2026-10-03

@@ -1,7 +1,7 @@
 {
   "name": "umbraco-setup",
   "title": "Umbraco Setup (add-on)",
-  "description": "Umbraco-specific tasks layered on top of standard-delivery. Its Features share standard-delivery's names, so applying it afterwards adds these tasks inside the existing Infrastructure setup and Project Management tickets in the core delivery phase.",
+  "description": "Umbraco-specific tasks layered on top of standard-delivery. Its Features share standard-delivery's names, so applying it afterwards adds these tasks inside the existing Infrastructure setup and Project Management tickets in the core delivery phase. It also adds a CMS handover readiness Feature: the document type permissions review and the client's CMS logins, done before the CMS training.",
   "variables": [
     {
       "name": "domain_name",
@@ -35,13 +35,32 @@
           ]
         },
         {
+          "title": "CMS handover readiness",
+          "description": "Umbraco configuration to finish once the page types are built and before the client's CMS training, so editors are trained on the site as they'll use it, with their own logins.",
+          "task_type": "Feature",
+          "subtasks": [
+            {
+              "title": "Review document type permissions",
+              "description": "Once every page type is built, go through each document type's **Structure** settings (**Allow at root** and **Allowed child node types**) so editors can only create pages that make sense where they are. Pay particular attention to the Homepage and Content Page: right-clicking the Homepage should not offer a second Search, Sitemap or similar page. One-off pages (Search, Sitemap, 404 and so on) are created during the build, so don't allow them as a child type anywhere, and listing pages should only allow their own item types. Check each document type has a sensible icon while you're there. Do this before the CMS training so the trainer isn't showing options editors shouldn't use.",
+              "task_type": "Task",
+              "estimate_minutes": 60
+            },
+            {
+              "title": "Create CMS logins for the client's administrators",
+              "description": "Get the list of people who'll manage the site from the client and create an Umbraco user for each one - no shared logins. Put each person in the right user group (Administrators only where they need it, otherwise Editors) with suitable start nodes, and send the invitations before the CMS training so everyone can log in with their own account on the day. If the users are created on UAT, make sure they exist on the live site at go-live.",
+              "task_type": "Task",
+              "estimate_minutes": 30
+            }
+          ]
+        },
+        {
           "title": "Project Management",
           "description": "Project management and ceremonies for the life of the project.",
           "task_type": "Feature",
           "subtasks": [
             {
               "title": "Client CMS training & handover",
-              "description": "Train the customer's editors on Umbraco, hand over credentials and documentation, and confirm who to contact for support.",
+              "description": "Train the customer's editors on Umbraco, hand over credentials and documentation, and confirm who to contact for support. Before the session, the document type permissions review and the client's CMS logins (CMS handover readiness) should be done, so everyone logs in with their own account.",
               "task_type": "Meeting"
             }
           ]
