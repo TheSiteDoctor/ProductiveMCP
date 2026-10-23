@@ -27,13 +27,34 @@ function attachment(id, name, content_type, size = PNG.length) {
   };
 }
 
-// Minimal stand-in for ProductiveClient that records downloads.
-function fakeClient(attachments) {
+const comment = (id, attachments) => ({
+  type: "comments",
+  id,
+  relationships: {
+    attachments: { data: attachments.map((a) => ({ type: "attachments", id: a.id })) },
+  },
+});
+
+// Minimal stand-in for ProductiveClient that records requests and downloads.
+// commentAttachments: { [commentId]: attachment[] } for the task's comments.
+function fakeClient(attachments, commentAttachments = {}) {
   const downloads = [];
+  const gets = [];
+  const comments = Object.entries(commentAttachments).map(([id, atts]) => comment(id, atts));
+  const allCommentAttachments = Object.values(commentAttachments).flat();
   return {
     downloads,
-    async get(endpoint) {
+    gets,
+    async get(endpoint, params) {
+      gets.push({ endpoint, params });
       if (endpoint.startsWith("/attachments/")) return { data: attachments[0] };
+      if (endpoint.startsWith("/comments/")) {
+        const id = endpoint.split("/")[2];
+        return { data: comment(id, commentAttachments[id]), included: commentAttachments[id] };
+      }
+      if (endpoint === "/comments") {
+        return { data: comments, included: allCommentAttachments, meta: { total_pages: 1 } };
+      }
       return { data: { type: "tasks", id: "1" }, included: attachments };
     },
     async downloadFile(url, maxBytes) {
@@ -43,13 +64,42 @@ function fakeClient(attachments) {
   };
 }
 
-test("exactly one of attachment_id or task_id is required", () => {
+test("exactly one of attachment_id, comment_id or task_id is required", () => {
   assert.equal(GetAttachmentSchema.safeParse({}).success, false);
   assert.equal(
     GetAttachmentSchema.safeParse({ attachment_id: "1", task_id: "2" }).success,
     false,
   );
+  assert.equal(
+    GetAttachmentSchema.safeParse({ comment_id: "1", task_id: "2" }).success,
+    false,
+  );
   assert.equal(GetAttachmentSchema.safeParse({ task_id: "2" }).success, true);
+  assert.equal(GetAttachmentSchema.safeParse({ comment_id: "3" }).success, true);
+});
+
+test("comment_id returns that comment's attachments", async () => {
+  const client = fakeClient([], { 7: [attachment("5", "bug.jpg", "image/jpeg")] });
+  const result = await getAttachment(client, { comment_id: "7" });
+
+  assert.equal(client.gets[0].endpoint, "/comments/7");
+  assert.match(result.content[0].text, /bug\.jpg.*on comment 7/);
+  assert.equal(result.content[1].mimeType, "image/jpeg");
+});
+
+test("task_id also returns attachments on the task's comments, once each", async () => {
+  const shared = attachment("1", "shot.png", "image/png");
+  const client = fakeClient([shared], {
+    7: [attachment("5", "bug.jpg", "image/jpeg")],
+    8: [shared],
+  });
+  const result = await getAttachment(client, { task_id: "9" });
+
+  const commentsCall = client.gets.find((g) => g.endpoint === "/comments");
+  assert.equal(commentsCall.params["filter[task_id]"], "9");
+  const headings = result.content.filter((c) => c.type === "text").map((c) => c.text);
+  assert.equal(headings.length, 2);
+  assert.match(headings[1], /bug\.jpg.*on comment 7/);
 });
 
 test("images come back as base64 image content", async () => {

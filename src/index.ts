@@ -1516,7 +1516,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_get_attachment",
       description:
-        'Download attachments so you can see them. Attachment URLs from Productive need a logged-in session, so fetching them directly returns the login page; this tool downloads them with the API token instead.\n\nImages (PNG, JPEG, GIF, WebP, up to 5 MB) are returned as image content. Other files are skipped unless save_dir is given, in which case every file is written there and its path reported.\n\nProvide exactly one of attachment_id or task_id (task_id returns every attachment on the task, including inline description images).\n\nExample:\n{\n  "task_id": "12345"\n}',
+        'Download attachments so you can see them. Attachment URLs from Productive need a logged-in session, so fetching them directly returns the login page; this tool downloads them with the API token instead.\n\nImages (PNG, JPEG, GIF, WebP, up to 5 MB) are returned as image content. Other files are skipped unless save_dir is given, in which case every file is written there and its path reported.\n\nProvide exactly one of attachment_id, comment_id or task_id. task_id returns every attachment on the task (including inline description images) and on all its comments.\n\nExample:\n{\n  "task_id": "12345"\n}',
       inputSchema: {
         type: "object",
         properties: {
@@ -1525,9 +1525,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             description:
               "Attachment ID (from productive_get_task or productive_list_attachments)",
           },
+          comment_id: {
+            type: "string",
+            description: "Comment ID: download every attachment on this comment",
+          },
           task_id: {
             type: "string",
-            description: "Task ID: download every attachment on this task",
+            description:
+              "Task ID: download every attachment on this task and its comments",
           },
           save_dir: {
             type: "string",

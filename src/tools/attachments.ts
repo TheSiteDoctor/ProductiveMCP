@@ -252,27 +252,92 @@ const MAX_INLINE_IMAGE_BYTES = 5 * 1024 * 1024;
 /** Largest file saved to save_dir */
 const MAX_SAVED_FILE_BYTES = 50 * 1024 * 1024;
 
+/** An attachment plus the comment it belongs to, if any */
+interface FoundAttachment {
+  attachment: Attachment;
+  commentId?: string;
+}
+
+/** Attachments from a response's `included` array */
+function includedAttachments(response: {
+  included?: Array<{ type: string }>;
+}): Attachment[] {
+  return (response.included ?? []).filter(
+    (item) => item.type === "attachments",
+  ) as unknown as Attachment[];
+}
+
+/** Attachment IDs a comment links to */
+function commentAttachmentIds(comment: {
+  relationships?: Record<string, unknown>;
+}): string[] {
+  const rel = comment.relationships?.attachments as
+    | { data?: Array<{ id: string }> }
+    | undefined;
+  return rel?.data?.map((a) => a.id) ?? [];
+}
+
 /**
- * Fetch one attachment, or every attachment on a task
+ * Fetch one attachment, a comment's attachments, or every attachment on a
+ * task including those on its comments (task includes don't cover comments)
  */
 async function fetchAttachments(
   client: ProductiveClient,
   args: z.infer<typeof GetAttachmentSchema>,
-): Promise<Attachment[]> {
+): Promise<FoundAttachment[]> {
   if (args.attachment_id) {
     const response = await client.get(`/attachments/${args.attachment_id}`);
     const data = Array.isArray(response.data)
       ? response.data[0]
       : response.data;
-    return data ? [data as unknown as Attachment] : [];
+    return data ? [{ attachment: data as unknown as Attachment }] : [];
   }
 
-  const response = await client.get(`/tasks/${args.task_id}`, {
+  if (args.comment_id) {
+    const response = await client.get(`/comments/${args.comment_id}`, {
+      include: "attachments",
+    });
+    return includedAttachments(response).map((attachment) => ({
+      attachment,
+      commentId: args.comment_id,
+    }));
+  }
+
+  const found = new Map<string, FoundAttachment>();
+  const taskResponse = await client.get(`/tasks/${args.task_id}`, {
     include: "attachments",
   });
-  return (response.included ?? []).filter(
-    (item) => item.type === "attachments",
-  ) as unknown as Attachment[];
+  for (const attachment of includedAttachments(taskResponse)) {
+    found.set(attachment.id, { attachment });
+  }
+
+  for (let page = 1, totalPages = 1; page <= totalPages; page++) {
+    const response = await client.get("/comments", {
+      "filter[task_id]": args.task_id,
+      include: "attachments",
+      "page[size]": 200,
+      "page[number]": page,
+    });
+    totalPages = Number(response.meta?.total_pages ?? 1);
+
+    const byId = new Map(
+      includedAttachments(response).map((a) => [a.id, a] as const),
+    );
+    const comments = Array.isArray(response.data)
+      ? response.data
+      : [response.data];
+    for (const comment of comments) {
+      if (!comment) continue;
+      for (const id of commentAttachmentIds(comment)) {
+        const attachment = byId.get(id);
+        if (attachment && !found.has(id)) {
+          found.set(id, { attachment, commentId: comment.id });
+        }
+      }
+    }
+  }
+
+  return [...found.values()];
 }
 
 /**
@@ -285,7 +350,7 @@ export async function getAttachment(
   args: z.infer<typeof GetAttachmentSchema>,
 ): Promise<ToolResult> {
   const attachments = (await fetchAttachments(client, args)).filter(
-    (a) => !a.attributes.deleted_at,
+    (a) => !a.attachment.attributes.deleted_at,
   );
 
   if (attachments.length === 0) {
@@ -294,8 +359,10 @@ export async function getAttachment(
         {
           type: "text",
           text: args.task_id
-            ? "No attachments found for this task."
-            : "Attachment not found.",
+            ? "No attachments found on this task or its comments."
+            : args.comment_id
+              ? "No attachments found on this comment."
+              : "Attachment not found.",
         },
       ],
     };
@@ -306,11 +373,16 @@ export async function getAttachment(
   }
 
   const content: ToolContent[] = [];
-  for (const att of attachments) {
+  for (const { attachment: att, commentId } of attachments) {
     const attrs = att.attributes;
     const contentType = attrs.content_type?.toLowerCase() ?? "";
     const inlineable = INLINE_IMAGE_TYPES.has(contentType);
-    const heading = `${attrs.name} (attachment ${att.id}, ${contentType || "unknown type"}, ${formatBytes(attrs.size)}${attrs.attachment_type === "inline" ? ", inline in description" : ""})`;
+    const where = commentId
+      ? `, on comment ${commentId}`
+      : attrs.attachment_type === "inline"
+        ? ", inline in description"
+        : "";
+    const heading = `${attrs.name} (attachment ${att.id}, ${contentType || "unknown type"}, ${formatBytes(attrs.size)}${where})`;
 
     const fitsInline = inlineable && attrs.size <= MAX_INLINE_IMAGE_BYTES;
     if (!args.save_dir && !fitsInline) {
