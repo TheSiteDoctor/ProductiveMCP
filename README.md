@@ -331,6 +331,7 @@ Get and list responses return `estimated_time` (minutes) and `estimated_time_hou
 | `productive_get_page` / `productive_create_page` / `productive_update_page` / `productive_delete_page`   | Page CRUD          |
 | `productive_list_comments`                                                                               | List task comments |
 | `productive_list_attachments` / `productive_upload_attachment`                                           | Manage attachments |
+| `productive_get_attachment`                                                                              | View attachments   |
 | `productive_create_todo` / `productive_list_todos` / `productive_update_todo` / `productive_delete_todo` | Checklist items    |
 | `productive_list_subtasks`                                                                               | List child tasks   |
 
