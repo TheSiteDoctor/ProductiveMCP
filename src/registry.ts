@@ -5,6 +5,7 @@
 
 import { z } from "zod";
 import type { ProductiveClient } from "./client.js";
+import type { ToolResult } from "./types.js";
 
 // Schemas
 import {
@@ -70,6 +71,7 @@ import {
   MarkAsDuplicateSchema,
 } from "./schemas/workflow.js";
 import {
+  GetAttachmentSchema,
   ListAttachmentsSchema,
   UploadAttachmentSchema,
 } from "./schemas/attachment.js";
@@ -182,7 +184,11 @@ import {
   deleteTaskDependency,
 } from "./tools/dependencies.js";
 import { markAsBlockedBy, markAsDuplicate } from "./tools/workflows.js";
-import { listAttachments, uploadAttachment } from "./tools/attachments.js";
+import {
+  getAttachment,
+  listAttachments,
+  uploadAttachment,
+} from "./tools/attachments.js";
 import {
   listComments,
   createComment,
@@ -246,7 +252,10 @@ import {
 
 export interface ToolRegistryEntry {
   schema: z.ZodTypeAny;
-  handler: (client: ProductiveClient, args: any) => Promise<string>;
+  handler: (
+    client: ProductiveClient,
+    args: any,
+  ) => Promise<string | ToolResult>;
 }
 
 export const toolRegistry: Record<string, ToolRegistryEntry> = {
@@ -360,6 +369,10 @@ export const toolRegistry: Record<string, ToolRegistryEntry> = {
   productive_list_attachments: {
     schema: ListAttachmentsSchema,
     handler: listAttachments,
+  },
+  productive_get_attachment: {
+    schema: GetAttachmentSchema,
+    handler: getAttachment,
   },
   productive_upload_attachment: {
     schema: UploadAttachmentSchema,

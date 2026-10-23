@@ -1514,6 +1514,30 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
+      name: "productive_get_attachment",
+      description:
+        'Download attachments so you can see them. Attachment URLs from Productive need a logged-in session, so fetching them directly returns the login page; this tool downloads them with the API token instead.\n\nImages (PNG, JPEG, GIF, WebP, up to 5 MB) are returned as image content. Other files are skipped unless save_dir is given, in which case every file is written there and its path reported.\n\nProvide exactly one of attachment_id or task_id (task_id returns every attachment on the task, including inline description images).\n\nExample:\n{\n  "task_id": "12345"\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          attachment_id: {
+            type: "string",
+            description:
+              "Attachment ID (from productive_get_task or productive_list_attachments)",
+          },
+          task_id: {
+            type: "string",
+            description: "Task ID: download every attachment on this task",
+          },
+          save_dir: {
+            type: "string",
+            description:
+              "Optional local directory to also save the files to (created if missing). Needed for non-image files.",
+          },
+        },
+      },
+    },
+    {
       name: "productive_upload_attachment",
       description:
         'Upload an attachment to a task, comment, or page. Supports three input sources: local file path, URL to download from, or base64-encoded content.\n\nExactly one of file_path, url, or base64_content must be provided.\n\nExample (file path):\n{\n  "attachable_type": "task",\n  "attachable_id": "12345",\n  "file_path": "/path/to/file.pdf",\n  "filename": "report.pdf"\n}\n\nExample (URL):\n{\n  "attachable_type": "task",\n  "attachable_id": "12345",\n  "url": "https://example.com/image.png",\n  "filename": "screenshot.png"\n}\n\nExample (base64):\n{\n  "attachable_type": "comment",\n  "attachable_id": "67890",\n  "base64_content": "iVBORw0KGgo...",\n  "filename": "diagram.png",\n  "content_type": "image/png"\n}',
@@ -3348,7 +3372,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const validated = entry.schema.parse(args);
     const result = await entry.handler(client, validated);
     safeLog("[MCP Tool Success]", { tool: name });
-    return { content: [{ type: "text", text: result }] };
+    return typeof result === "string"
+      ? { content: [{ type: "text", text: result }] }
+      : result;
   } catch (error) {
     // Log detailed error information
     safeLog("[MCP Tool Error]", {

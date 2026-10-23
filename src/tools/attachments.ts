@@ -9,11 +9,17 @@ import axios from "axios";
 import FormData from "form-data";
 import type { ProductiveClient } from "../client.js";
 import {
+  GetAttachmentSchema,
   ListAttachmentsSchema,
   UploadAttachmentSchema,
 } from "../schemas/attachment.js";
 import { formatResponse } from "../utils/formatting.js";
-import type { AttachmentAttributes } from "../types.js";
+import type {
+  Attachment,
+  AttachmentAttributes,
+  ToolContent,
+  ToolResult,
+} from "../types.js";
 
 /**
  * Common MIME types by file extension
@@ -228,6 +234,139 @@ export async function listAttachments(
   }
 
   return lines.join("\n");
+}
+
+/**
+ * Image types MCP clients can render as image content
+ */
+const INLINE_IMAGE_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+]);
+
+/** Largest image returned inline (base64 grows it by a third) */
+const MAX_INLINE_IMAGE_BYTES = 5 * 1024 * 1024;
+
+/** Largest file saved to save_dir */
+const MAX_SAVED_FILE_BYTES = 50 * 1024 * 1024;
+
+/**
+ * Fetch one attachment, or every attachment on a task
+ */
+async function fetchAttachments(
+  client: ProductiveClient,
+  args: z.infer<typeof GetAttachmentSchema>,
+): Promise<Attachment[]> {
+  if (args.attachment_id) {
+    const response = await client.get(`/attachments/${args.attachment_id}`);
+    const data = Array.isArray(response.data)
+      ? response.data[0]
+      : response.data;
+    return data ? [data as unknown as Attachment] : [];
+  }
+
+  const response = await client.get(`/tasks/${args.task_id}`, {
+    include: "attachments",
+  });
+  return (response.included ?? []).filter(
+    (item) => item.type === "attachments",
+  ) as unknown as Attachment[];
+}
+
+/**
+ * Download attachments so the model can see them. Images (PNG, JPEG, GIF,
+ * WebP) come back as MCP image content; with save_dir, every file is also
+ * written to disk and its path reported.
+ */
+export async function getAttachment(
+  client: ProductiveClient,
+  args: z.infer<typeof GetAttachmentSchema>,
+): Promise<ToolResult> {
+  const attachments = (await fetchAttachments(client, args)).filter(
+    (a) => !a.attributes.deleted_at,
+  );
+
+  if (attachments.length === 0) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: args.task_id
+            ? "No attachments found for this task."
+            : "Attachment not found.",
+        },
+      ],
+    };
+  }
+
+  if (args.save_dir) {
+    await fs.mkdir(args.save_dir, { recursive: true });
+  }
+
+  const content: ToolContent[] = [];
+  for (const att of attachments) {
+    const attrs = att.attributes;
+    const contentType = attrs.content_type?.toLowerCase() ?? "";
+    const inlineable = INLINE_IMAGE_TYPES.has(contentType);
+    const heading = `${attrs.name} (attachment ${att.id}, ${contentType || "unknown type"}, ${formatBytes(attrs.size)}${attrs.attachment_type === "inline" ? ", inline in description" : ""})`;
+
+    const fitsInline = inlineable && attrs.size <= MAX_INLINE_IMAGE_BYTES;
+    if (!args.save_dir && !fitsInline) {
+      const reason = inlineable
+        ? `larger than ${formatBytes(MAX_INLINE_IMAGE_BYTES)}`
+        : "not an image that can be shown inline";
+      content.push({
+        type: "text",
+        text: `${heading}\nSkipped: ${reason}. Pass save_dir to save it to disk.`,
+      });
+      continue;
+    }
+
+    try {
+      const { buffer } = await client.downloadFile(
+        attrs.url,
+        args.save_dir ? MAX_SAVED_FILE_BYTES : MAX_INLINE_IMAGE_BYTES,
+      );
+
+      const notes: string[] = [];
+      if (args.save_dir) {
+        const filePath = path.join(
+          args.save_dir,
+          `${att.id}-${path.basename(attrs.name).replace(/[<>:"/\\|?*]/g, "_")}`,
+        );
+        await fs.writeFile(filePath, buffer);
+        notes.push(`Saved to ${filePath}`);
+      }
+
+      const showImage = inlineable && buffer.length <= MAX_INLINE_IMAGE_BYTES;
+      if (inlineable && !showImage) {
+        notes.push(
+          `Not shown inline: larger than ${formatBytes(MAX_INLINE_IMAGE_BYTES)}`,
+        );
+      }
+
+      content.push({
+        type: "text",
+        text: [heading, ...notes].join("\n"),
+      });
+      if (showImage) {
+        content.push({
+          type: "image",
+          data: buffer.toString("base64"),
+          mimeType: contentType,
+        });
+      }
+    } catch (error) {
+      content.push({
+        type: "text",
+        text: `${heading}\nFailed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      });
+    }
+  }
+
+  return { content };
 }
 
 /**

@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] - 2026-10-23
+
+### Added
+
+- `productive_get_attachment` downloads attachments so the model can see them. Pass an `attachment_id`, or a `task_id` for every attachment on a task (inline description images included). PNG, JPEG, GIF and WebP images up to 5 MB come back as MCP image content; `save_dir` also writes every file (up to 50 MB) to disk. Attachment URLs need a logged-in session, so it downloads with the API token as a `token` query parameter, sent only to `https://files.productive.io` and never logged.
+- Tool handlers can return text and image content blocks (`ToolResult`) as well as a string. The CLI prints the text blocks.
+
 ## [1.10.1] - 2026-10-05
 
 ### Added

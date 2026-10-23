@@ -16,6 +16,20 @@ export const ListAttachmentsSchema = z
   .strict();
 
 /**
+ * Schema for downloading attachments (one attachment, or every one on a task)
+ */
+export const GetAttachmentSchema = z
+  .object({
+    attachment_id: z.string().min(1).optional(),
+    task_id: z.string().min(1).optional(),
+    save_dir: z.string().min(1).optional(),
+  })
+  .strict()
+  .refine((data) => Boolean(data.attachment_id) !== Boolean(data.task_id), {
+    message: "Exactly one of attachment_id or task_id must be provided",
+  });
+
+/**
  * Attachable types supported for uploads
  */
 export const AttachableTypeSchema = z.enum(["task", "comment", "page"]);

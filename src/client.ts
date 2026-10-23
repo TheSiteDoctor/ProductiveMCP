@@ -8,12 +8,19 @@ import { RateLimiter } from "./utils/rate-limiter.js";
 import { handleAxiosError, ProductiveAPIError } from "./utils/errors.js";
 import type { JSONAPIResponse } from "./types.js";
 
+/**
+ * Host that serves attachment files. The API token is only ever sent here.
+ */
+const FILES_HOST = "files.productive.io";
+
 export class ProductiveClient {
   private readonly axios: AxiosInstance;
+  private readonly apiToken: string;
   private readonly orgId: string;
   private readonly rateLimiter: RateLimiter;
 
   constructor(apiToken: string, orgId: string) {
+    this.apiToken = apiToken;
     this.orgId = orgId;
     this.rateLimiter = new RateLimiter();
 
@@ -131,6 +138,74 @@ export class ProductiveClient {
    */
   async delete<T = JSONAPIResponse>(endpoint: string): Promise<T> {
     return this.request<T>("DELETE", endpoint);
+  }
+
+  /**
+   * Download an attachment file from files.productive.io.
+   *
+   * Attachment URLs need a logged-in session: auth headers get a 302 to the
+   * login page and the S3 temp_url returns 403. Passing the API token as a
+   * `token` query parameter returns the file (undocumented, confirmed live).
+   * The token is never logged and only sent to FILES_HOST.
+   */
+  async downloadFile(
+    fileUrl: string,
+    maxBytes: number,
+  ): Promise<{ buffer: Buffer; contentType: string }> {
+    const url = new URL(fileUrl);
+    if (url.protocol !== "https:" || url.hostname !== FILES_HOST) {
+      throw new Error(
+        `Refusing to download from ${url.host}: only https://${FILES_HOST} URLs are supported`,
+      );
+    }
+    url.searchParams.set("token", this.apiToken);
+
+    await this.rateLimiter.waitForRateLimit();
+
+    try {
+      console.error("[Productive File Download]", { path: url.pathname });
+    } catch {
+      // Ignore logging errors
+    }
+
+    let response;
+    try {
+      response = await axios.get<ArrayBuffer>(url.toString(), {
+        responseType: "arraybuffer",
+        maxRedirects: 0,
+        maxContentLength: maxBytes,
+        timeout: 30000,
+        validateStatus: (status) => status === 200,
+      });
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        // Never surface the request URL: it carries the token
+        const status = error.response?.status;
+        const reason =
+          status === 302
+            ? "redirected to the login page (token rejected)"
+            : status
+              ? `HTTP ${status}`
+              : /maxContentLength/.test(error.message)
+                ? `file is larger than ${maxBytes} bytes`
+                : error.code || "request failed";
+        throw new ProductiveAPIError(`File download failed: ${reason}`, status);
+      }
+      throw error;
+    } finally {
+      this.rateLimiter.recordRequest();
+    }
+
+    const contentType = String(
+      response.headers["content-type"] || "application/octet-stream",
+    );
+    if (contentType.startsWith("text/html")) {
+      throw new ProductiveAPIError(
+        "File download failed: got an HTML page instead of the file (token rejected?)",
+      );
+    }
+
+    return { buffer: Buffer.from(response.data), contentType };
   }
 
   /**

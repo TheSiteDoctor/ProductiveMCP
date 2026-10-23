@@ -192,3 +192,18 @@ When working in a sandbox environment:
 The Productive MCP server (v1.3.0+) handles the entire 5-step flow via the `productive_upload_attachment` tool in `src/tools/attachments.ts`. It accepts file content from a local path, URL, or base64 string and handles the S3 upload and linking automatically.
 
 The `productive_list_attachments` tool lists attachments for a task, though attachments are also included in standard task responses.
+
+## Downloading Attachments
+
+Attachment `url`s (`https://files.productive.io/attachments/files/...`) need a logged-in Productive session. Tested live:
+
+| Request                                               | Result                          |
+| ----------------------------------------------------- | ------------------------------- |
+| `url` with `X-Auth-Token` / `X-Organization-Id` headers | 302 to the login page           |
+| `url` with `&token=<API token>` query parameter       | 200, the file                   |
+| S3 `temp_url`                                         | 403                             |
+| `/api/v2/attachments/{id}/download` (and similar)     | 404                             |
+
+The `token` query parameter is undocumented, so Productive could change it.
+
+`productive_get_attachment` uses it: given an `attachment_id` or a `task_id`, it downloads each file (`ProductiveClient.downloadFile`, which only ever sends the token to `https://files.productive.io` and never logs the URL) and returns PNG, JPEG, GIF and WebP images up to 5 MB as MCP image content, so the model can see them. With `save_dir`, every file (up to 50 MB) is also written to disk as `<attachment id>-<name>`; other file types are skipped without it. In the CLI, images can't be printed, so use `--save_dir`.
