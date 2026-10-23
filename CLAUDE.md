@@ -185,7 +185,7 @@ Results come back in position/creation order natively. The new tools omit `sort`
 
 ### Attachment Downloads
 
-Attachment URLs on `files.productive.io` reject the API auth headers (302 to login) but accept the API token as a `?token=` query parameter (undocumented, confirmed live). `ProductiveClient.downloadFile()` does this, only for `https://files.productive.io` URLs, and never logs the URL. `productive_get_attachment` is the one handler that returns a `ToolResult` (text and image content blocks) instead of a string; `index.ts` passes it through and the CLI prints its text blocks. See `docs/attachments.md`.
+Attachment URLs on `files.productive.io` reject the API auth headers (302 to login) but accept the API token as a `?token=` query parameter (documented under "Accessing attachments" in https://developer.productive.io/working_with_attachments.html). `ProductiveClient.downloadFile()` does this, only for `https://files.productive.io` URLs, and never logs the URL. `productive_get_attachment` is the one handler that returns a `ToolResult` (text and image content blocks) instead of a string; `index.ts` passes it through and the CLI prints its text blocks. See `docs/attachments.md`.
 
 ### Response Constraints
 

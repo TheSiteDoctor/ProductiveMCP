@@ -145,7 +145,8 @@ export class ProductiveClient {
    *
    * Attachment URLs need a logged-in session: auth headers get a 302 to the
    * login page and the S3 temp_url returns 403. Passing the API token as a
-   * `token` query parameter returns the file (undocumented, confirmed live).
+   * `token` query parameter returns the file, as documented in
+   * https://developer.productive.io/working_with_attachments.html.
    * The token is never logged and only sent to FILES_HOST.
    */
   async downloadFile(

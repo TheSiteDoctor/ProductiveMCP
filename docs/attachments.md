@@ -204,6 +204,6 @@ Attachment `url`s (`https://files.productive.io/attachments/files/...`) need a l
 | S3 `temp_url`                                         | 403                             |
 | `/api/v2/attachments/{id}/download` (and similar)     | 404                             |
 
-The `token` query parameter is undocumented, so Productive could change it.
+The `token` query parameter is the documented method: see "Accessing attachments" in [Working with attachments](https://developer.productive.io/working_with_attachments.html).
 
 `productive_get_attachment` uses it: given an `attachment_id` or a `task_id`, it downloads each file (`ProductiveClient.downloadFile`, which only ever sends the token to `https://files.productive.io` and never logs the URL) and returns PNG, JPEG, GIF and WebP images up to 5 MB as MCP image content, so the model can see them. With `save_dir`, every file (up to 50 MB) is also written to disk as `<attachment id>-<name>`; other file types are skipped without it. In the CLI, images can't be printed, so use `--save_dir`.
