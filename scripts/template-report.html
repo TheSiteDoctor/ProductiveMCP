@@ -245,7 +245,7 @@
 const TEMPLATES = /*__TEMPLATES__*/[];
 const GENERATED = "__GENERATED__";
 
-const ORDER = ["discovery", "standard-delivery", "umbraco-setup", "website-build", "ecommerce-build", "authentication", "social-login", "stripe-integration", "site-go-live"];
+const ORDER = ["discovery", "standard-delivery", "umbraco-setup", "website-build", "ecommerce-build", "authentication", "social-login", "stripe-integration", "site-go-live", "document-delivery"];
 const SAMPLE_VALUES = { domain_name: "example.co.uk", current_domain: "oldsite.co.uk", sprint_count: "8" };
 const PRESET_DEFS = [
   { id: "rebuild", label: "Rebuild", names: ["discovery", "standard-delivery", "umbraco-setup", "website-build"] },
@@ -253,6 +253,7 @@ const PRESET_DEFS = [
   { id: "shop", label: "E-commerce site", names: ["standard-delivery", "umbraco-setup", "website-build", "ecommerce-build", "authentication", "stripe-integration"] },
   { id: "accounts", label: "Site with accounts", names: ["standard-delivery", "umbraco-setup", "website-build", "authentication", "social-login"] },
   { id: "golive", label: "Go-live checklist", names: ["site-go-live"] },
+  { id: "document", label: "Document", names: ["document-delivery"] },
   { id: "all", label: "Everything", names: null },
 ];
 const TYPE_CLASS = { "Feature": "feature", "Task": "", "Test Case": "test", "Meeting": "meeting", "Bug": "bug", "Question": "" };

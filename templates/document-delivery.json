@@ -1,0 +1,172 @@
+{
+  "name": "document-delivery",
+  "title": "Document Delivery",
+  "description": "Fixed-fee document projects (contingency plans, audits, reports, policies): Project Management, then Gather requirements, Produce the document and Finalise, with milestones for draft issued and sign-off. Acceptance criteria sit in each description because templates can't create todos. Apply it before adding tickets by hand: a ticket created by hand is only reused if its title matches the template's exactly.",
+  "variables": [
+    {
+      "name": "document_name",
+      "description": "What the document is, in lower case, e.g. security contingency plan"
+    },
+    {
+      "name": "client_name",
+      "description": "Client name, e.g. Taster Wine"
+    },
+    {
+      "name": "contributor_count",
+      "description": "Number of third parties who need to provide input (agency, host, client teams). One Question ticket is created per contributor.",
+      "default": "3"
+    },
+    {
+      "name": "section_count",
+      "description": "Number of main content sections to write. One Write ticket is created per section.",
+      "default": "4"
+    },
+    {
+      "name": "delivery_list",
+      "description": "Task list (project phase) for the work",
+      "default": "Core Delivery"
+    }
+  ],
+  "task_lists": [
+    {
+      "name": "{{delivery_list}}",
+      "tasks": [
+        {
+          "title": "Project Management",
+          "task_type": "Feature",
+          "description": "### Overview\n\nProject management for the {{client_name}} {{document_name}}: kick-off, client updates, invoicing and handover.\n\n### Acceptance Criteria\n\n- Kick-off held and owner, reviewer and dates agreed\n- Contributor contacts received\n- Time tracked within the fixed-fee budget\n- Document signed off by the client\n- Invoice raised and sent\n- Handover complete\n- All subtasks completed",
+          "subtasks": [
+            {
+              "title": "Internal kick-off: agree owner, reviewer and dates",
+              "task_type": "Meeting",
+              "estimate_minutes": 15,
+              "description": "### Overview\n\nConfirm the author and an independent technical reviewer, set target dates and split the fixed-fee budget across the tickets.\n\n### Acceptance Criteria\n\n- Author and reviewer named\n- Target dates set, working back from sign-off\n- Budget split confirmed against the ticket estimates"
+            },
+            {
+              "title": "Ask the client for contributor contacts",
+              "task_type": "Task",
+              "priority": "High",
+              "estimate_minutes": 15,
+              "description": "### Overview\n\nGet named contacts for every third party who needs to provide input. Delivery timelines often start from this point, so send it first.\n\n### Acceptance Criteria\n\n- Request sent to the client\n- All contributor contacts received\n- Date received logged here"
+            },
+            {
+              "title": "Weekly status update to the client",
+              "task_type": "Task",
+              "estimate_minutes": 30,
+              "description": "### Overview\n\nShort weekly note on progress, blockers and next steps.\n\n### Acceptance Criteria\n\n- Update sent each week until sign-off\n- Blockers named with the party they are waiting on"
+            },
+            {
+              "title": "Raise and send the {{document_name}} invoice",
+              "task_type": "Task",
+              "estimate_minutes": 15,
+              "description": "### Overview\n\nRaise the invoice per the SoW terms. Check billing contact, address and VAT treatment.\n\n### Acceptance Criteria\n\n- Invoicing trigger met (e.g. sign-off)\n- Invoice raised with the correct VAT treatment\n- Invoice sent to the client's accounts contact"
+            },
+            {
+              "title": "Hand over to ongoing support or service",
+              "task_type": "Task",
+              "estimate_minutes": 15,
+              "description": "### Overview\n\nMake sure whoever uses the document day to day has it and is briefed. Close this if there is no follow-on service.\n\n### Acceptance Criteria\n\n- Final document stored in the project\n- Relevant team briefed"
+            }
+          ]
+        },
+        {
+          "title": "1. Gather the requirements for the {{document_name}}",
+          "task_type": "Feature",
+          "description": "### Overview\n\nGather everything needed to write the {{document_name}}: the current state and input from each contributor. Paste the agreed scope from the SoW here.\n\n### Acceptance Criteria\n\n- Current-state inventory complete\n- Input received from every contributor\n- Gaps and open questions logged for the writing stage\n- All subtasks completed",
+          "subtasks": [
+            {
+              "title": "Compile the current-state inventory",
+              "task_type": "Task",
+              "estimate_minutes": 45,
+              "description": "### Overview\n\nList everything the document needs to cover from existing notes, calls and our own checks.\n\n### Acceptance Criteria\n\n- Every in-scope item listed with version, owner and location\n- Open questions passed to the contributor questions"
+            },
+            {
+              "title": "Question: contributor {{repeat_index}} input",
+              "task_type": "Question",
+              "estimate_minutes": 30,
+              "repeat": "{{contributor_count}}",
+              "description": "### Overview\n\nRename with the contributor's name and list the questions for them.\n\n### Acceptance Criteria\n\n- Questions sent\n- Answers received\n- Any commitments (e.g. response times) recorded"
+            }
+          ]
+        },
+        {
+          "title": "2. Produce the {{document_name}} document",
+          "task_type": "Feature",
+          "description": "### Overview\n\nWrite the {{document_name}} from the gathered inputs, with an independent technical review and a proofread before it goes to the client.\n\n### Acceptance Criteria\n\n- Structure agreed\n- Inputs reviewed and assumptions logged\n- All sections written\n- Technical review complete and comments addressed\n- Proofread complete\n- All subtasks completed",
+          "subtasks": [
+            {
+              "title": "Agree the document structure and template",
+              "task_type": "Task",
+              "estimate_minutes": 15,
+              "description": "### Acceptance Criteria\n\n- Headings map to each part of the agreed scope\n- Document started in the TSD branded template"
+            },
+            {
+              "title": "Review the inputs and log gaps and assumptions",
+              "task_type": "Task",
+              "estimate_minutes": 30,
+              "description": "### Acceptance Criteria\n\n- All inputs read and cross-checked\n- Gaps chased or written in as assumptions"
+            },
+            {
+              "title": "Write: section {{repeat_index}}",
+              "task_type": "Task",
+              "estimate_minutes": 30,
+              "repeat": "{{section_count}}",
+              "description": "### Overview\n\nRename with the section heading and add its acceptance criteria."
+            },
+            {
+              "title": "QC: Technical review of the draft",
+              "task_type": "Task",
+              "estimate_minutes": 30,
+              "description": "### Overview\n\nIndependent review by someone other than the author.\n\n### Acceptance Criteria\n\n- Technical accuracy checked\n- Comments addressed by the author"
+            },
+            {
+              "title": "Proofread for UK English and plain wording",
+              "task_type": "Task",
+              "estimate_minutes": 15,
+              "description": "### Acceptance Criteria\n\n- UK English spelling throughout\n- Plain wording for the audience\n- Names, contacts and versions consistent"
+            }
+          ]
+        },
+        {
+          "title": "Draft issued for review",
+          "milestone": true
+        },
+        {
+          "title": "3. Finalise and sign off the {{document_name}}",
+          "task_type": "Feature",
+          "description": "### Overview\n\nShare the draft, run the agreed review round and get written sign-off.\n\n### Acceptance Criteria\n\n- Draft issued\n- Feedback consolidated\n- Amendments applied\n- Final version issued as a PDF\n- Written sign-off received\n- All subtasks completed",
+          "subtasks": [
+            {
+              "title": "Issue the draft for review",
+              "task_type": "Task",
+              "estimate_minutes": 15,
+              "description": "### Acceptance Criteria\n\n- Draft sent with a feedback deadline\n- Number of included review rounds stated"
+            },
+            {
+              "title": "Consolidate feedback from the review round",
+              "task_type": "Task",
+              "estimate_minutes": 15,
+              "description": "### Acceptance Criteria\n\n- All feedback in one list\n- Out-of-scope requests flagged as change requests"
+            },
+            {
+              "title": "Apply amendments",
+              "task_type": "Task",
+              "estimate_minutes": 45,
+              "description": "### Acceptance Criteria\n\n- Every agreed comment addressed\n- Version number and date updated"
+            },
+            {
+              "title": "Issue the final version and get written sign-off",
+              "task_type": "Task",
+              "estimate_minutes": 15,
+              "description": "### Acceptance Criteria\n\n- Final version sent as a PDF\n- Editable source stored in the project\n- Written sign-off received"
+            }
+          ]
+        },
+        {
+          "title": "{{client_name}} {{document_name}} signed off",
+          "milestone": true
+        }
+      ]
+    }
+  ]
+}

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `document-delivery` template for fixed-fee document projects (contingency plans, audits, reports, policies): Project Management, then Gather the requirements (a Question ticket per contributor from `contributor_count`), Produce the document (a Write ticket per section from `section_count`, technical review and proofread), a "Draft issued for review" milestone, Finalise and sign off, and a sign-off milestone. Acceptance criteria are in each ticket's description. The Template Planner has a "Document" preset.
 - `umbraco-setup` adds a **CMS handover readiness** Feature to the core delivery phase, for work to finish before the client's CMS training: "Review document type permissions" (Allow at root and Allowed child node types, so editors can't, for example, create a second Search or Sitemap page under the Homepage) and "Create CMS logins for the client's administrators" (one Umbraco user per person, no shared logins). The Client CMS training & handover meeting now says both should be done first.
 - `npm run release:tag` (`scripts/tag-releases.mjs`) tags every changelog release that has no git tag, on the commit where `package.json` reached that version (a PR's merge commit). It is a dry run by default; `--apply` creates the tags and `--push` also pushes them. Existing tags are never moved, and a local tag that differs from the remote's is reported rather than overwritten.
 
