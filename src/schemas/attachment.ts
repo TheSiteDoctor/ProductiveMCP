@@ -16,6 +16,28 @@ export const ListAttachmentsSchema = z
   .strict();
 
 /**
+ * Schema for downloading attachments: one attachment, a comment's, or every
+ * one on a task and its comments
+ */
+export const GetAttachmentSchema = z
+  .object({
+    attachment_id: z.string().min(1).optional(),
+    comment_id: z.string().min(1).optional(),
+    task_id: z.string().min(1).optional(),
+    save_dir: z.string().min(1).optional(),
+  })
+  .strict()
+  .refine(
+    (data) =>
+      [data.attachment_id, data.comment_id, data.task_id].filter(Boolean)
+        .length === 1,
+    {
+      message:
+        "Exactly one of attachment_id, comment_id or task_id must be provided",
+    },
+  );
+
+/**
  * Attachable types supported for uploads
  */
 export const AttachableTypeSchema = z.enum(["task", "comment", "page"]);

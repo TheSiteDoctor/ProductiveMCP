@@ -1386,3 +1386,16 @@ export interface CreateDealPayload {
     };
   };
 }
+
+/**
+ * Rich MCP tool result for handlers that return more than text (e.g. images).
+ * Most handlers return a plain string, which the server wraps as one text block.
+ */
+export type ToolContent =
+  | { type: "text"; text: string }
+  | { type: "image"; data: string; mimeType: string };
+
+// A type alias (not an interface) so it satisfies the SDK's index-signature result type
+export type ToolResult = {
+  content: ToolContent[];
+};

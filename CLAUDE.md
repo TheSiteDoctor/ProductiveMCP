@@ -183,6 +183,10 @@ These endpoints **400 with `sort_param_unsupported`** if you send any `sort=` va
 
 Results come back in position/creation order natively. The new tools omit `sort`. The error reporter surfaces this clearly: `[sort_param_unsupported] (param sort)`.
 
+### Attachment Downloads
+
+Attachment URLs on `files.productive.io` reject the API auth headers (302 to login) but accept the API token as a `?token=` query parameter (documented under "Accessing attachments" in https://developer.productive.io/working_with_attachments.html). `ProductiveClient.downloadFile()` does this, only for `https://files.productive.io` URLs, and never logs the URL. Comment attachments are not in a task's `include=attachments`, so `productive_get_attachment` with `task_id` also pages through the task's comments. It is the one handler that returns a `ToolResult` (text and image content blocks) instead of a string; `index.ts` passes it through and the CLI prints its text blocks. See `docs/attachments.md`.
+
 ### Response Constraints
 
 All tool responses are capped at 25,000 characters (`CHARACTER_LIMIT` in constants.ts) with pagination hints when truncated.
@@ -207,6 +211,13 @@ const keys = Object.keys(toolRegistry);
 console.log("missing from index.ts:", keys.filter(k=>!listed.has(k)));
 console.log("listed but not registered:", [...listed].filter(k=>!keys.includes(k)));'
 ```
+
+### "The client doesn't see my new parameter"
+
+MCP clients load tool definitions when a conversation starts, so restarting the server doesn't update a conversation that's already open: start a new one. Before changing code, confirm what the server actually advertised:
+
+- Claude Desktop logs every exchange to `~/Library/Logs/Claude/mcp-server-productive.log`. Look for `method="tools/list"` after the restart, and check the server start time is later than the `dist/` build.
+- `npm test` fails if any tool's advertised schema drifts from its zod schema, so a passing suite means the server side is consistent.
 
 ## CLI Usage
 

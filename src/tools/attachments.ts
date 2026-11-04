@@ -9,11 +9,17 @@ import axios from "axios";
 import FormData from "form-data";
 import type { ProductiveClient } from "../client.js";
 import {
+  GetAttachmentSchema,
   ListAttachmentsSchema,
   UploadAttachmentSchema,
 } from "../schemas/attachment.js";
 import { formatResponse } from "../utils/formatting.js";
-import type { AttachmentAttributes } from "../types.js";
+import type {
+  Attachment,
+  AttachmentAttributes,
+  ToolContent,
+  ToolResult,
+} from "../types.js";
 
 /**
  * Common MIME types by file extension
@@ -228,6 +234,211 @@ export async function listAttachments(
   }
 
   return lines.join("\n");
+}
+
+/**
+ * Image types MCP clients can render as image content
+ */
+const INLINE_IMAGE_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+]);
+
+/** Largest image returned inline (base64 grows it by a third) */
+const MAX_INLINE_IMAGE_BYTES = 5 * 1024 * 1024;
+
+/** Largest file saved to save_dir */
+const MAX_SAVED_FILE_BYTES = 50 * 1024 * 1024;
+
+/** An attachment plus the comment it belongs to, if any */
+interface FoundAttachment {
+  attachment: Attachment;
+  commentId?: string;
+}
+
+/** Attachments from a response's `included` array */
+function includedAttachments(response: {
+  included?: Array<{ type: string }>;
+}): Attachment[] {
+  return (response.included ?? []).filter(
+    (item) => item.type === "attachments",
+  ) as unknown as Attachment[];
+}
+
+/** Attachment IDs a comment links to */
+function commentAttachmentIds(comment: {
+  relationships?: Record<string, unknown>;
+}): string[] {
+  const rel = comment.relationships?.attachments as
+    | { data?: Array<{ id: string }> }
+    | undefined;
+  return rel?.data?.map((a) => a.id) ?? [];
+}
+
+/**
+ * Fetch one attachment, a comment's attachments, or every attachment on a
+ * task including those on its comments (task includes don't cover comments)
+ */
+async function fetchAttachments(
+  client: ProductiveClient,
+  args: z.infer<typeof GetAttachmentSchema>,
+): Promise<FoundAttachment[]> {
+  if (args.attachment_id) {
+    const response = await client.get(`/attachments/${args.attachment_id}`);
+    const data = Array.isArray(response.data)
+      ? response.data[0]
+      : response.data;
+    return data ? [{ attachment: data as unknown as Attachment }] : [];
+  }
+
+  if (args.comment_id) {
+    const response = await client.get(`/comments/${args.comment_id}`, {
+      include: "attachments",
+    });
+    return includedAttachments(response).map((attachment) => ({
+      attachment,
+      commentId: args.comment_id,
+    }));
+  }
+
+  const found = new Map<string, FoundAttachment>();
+  const taskResponse = await client.get(`/tasks/${args.task_id}`, {
+    include: "attachments",
+  });
+  for (const attachment of includedAttachments(taskResponse)) {
+    found.set(attachment.id, { attachment });
+  }
+
+  for (let page = 1, totalPages = 1; page <= totalPages; page++) {
+    const response = await client.get("/comments", {
+      "filter[task_id]": args.task_id,
+      include: "attachments",
+      "page[size]": 200,
+      "page[number]": page,
+    });
+    totalPages = Number(response.meta?.total_pages ?? 1);
+
+    const byId = new Map(
+      includedAttachments(response).map((a) => [a.id, a] as const),
+    );
+    const comments = Array.isArray(response.data)
+      ? response.data
+      : [response.data];
+    for (const comment of comments) {
+      if (!comment) continue;
+      for (const id of commentAttachmentIds(comment)) {
+        const attachment = byId.get(id);
+        if (attachment && !found.has(id)) {
+          found.set(id, { attachment, commentId: comment.id });
+        }
+      }
+    }
+  }
+
+  return [...found.values()];
+}
+
+/**
+ * Download attachments so the model can see them. Images (PNG, JPEG, GIF,
+ * WebP) come back as MCP image content; with save_dir, every file is also
+ * written to disk and its path reported.
+ */
+export async function getAttachment(
+  client: ProductiveClient,
+  args: z.infer<typeof GetAttachmentSchema>,
+): Promise<ToolResult> {
+  const attachments = (await fetchAttachments(client, args)).filter(
+    (a) => !a.attachment.attributes.deleted_at,
+  );
+
+  if (attachments.length === 0) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: args.task_id
+            ? "No attachments found on this task or its comments."
+            : args.comment_id
+              ? "No attachments found on this comment."
+              : "Attachment not found.",
+        },
+      ],
+    };
+  }
+
+  if (args.save_dir) {
+    await fs.mkdir(args.save_dir, { recursive: true });
+  }
+
+  const content: ToolContent[] = [];
+  for (const { attachment: att, commentId } of attachments) {
+    const attrs = att.attributes;
+    const contentType = attrs.content_type?.toLowerCase() ?? "";
+    const inlineable = INLINE_IMAGE_TYPES.has(contentType);
+    const where = commentId
+      ? `, on comment ${commentId}`
+      : attrs.attachment_type === "inline"
+        ? ", inline in description"
+        : "";
+    const heading = `${attrs.name} (attachment ${att.id}, ${contentType || "unknown type"}, ${formatBytes(attrs.size)}${where})`;
+
+    const fitsInline = inlineable && attrs.size <= MAX_INLINE_IMAGE_BYTES;
+    if (!args.save_dir && !fitsInline) {
+      const reason = inlineable
+        ? `larger than ${formatBytes(MAX_INLINE_IMAGE_BYTES)}`
+        : "not an image that can be shown inline";
+      content.push({
+        type: "text",
+        text: `${heading}\nSkipped: ${reason}. Pass save_dir to save it to disk.`,
+      });
+      continue;
+    }
+
+    try {
+      const { buffer } = await client.downloadFile(
+        attrs.url,
+        args.save_dir ? MAX_SAVED_FILE_BYTES : MAX_INLINE_IMAGE_BYTES,
+      );
+
+      const notes: string[] = [];
+      if (args.save_dir) {
+        const filePath = path.join(
+          args.save_dir,
+          `${att.id}-${path.basename(attrs.name).replace(/[<>:"/\\|?*]/g, "_")}`,
+        );
+        await fs.writeFile(filePath, buffer);
+        notes.push(`Saved to ${filePath}`);
+      }
+
+      const showImage = inlineable && buffer.length <= MAX_INLINE_IMAGE_BYTES;
+      if (inlineable && !showImage) {
+        notes.push(
+          `Not shown inline: larger than ${formatBytes(MAX_INLINE_IMAGE_BYTES)}`,
+        );
+      }
+
+      content.push({
+        type: "text",
+        text: [heading, ...notes].join("\n"),
+      });
+      if (showImage) {
+        content.push({
+          type: "image",
+          data: buffer.toString("base64"),
+          mimeType: contentType,
+        });
+      }
+    } catch (error) {
+      content.push({
+        type: "text",
+        text: `${heading}\nFailed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      });
+    }
+  }
+
+  return { content };
 }
 
 /**

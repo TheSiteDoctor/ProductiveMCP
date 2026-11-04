@@ -316,7 +316,18 @@ for (const [toolName, entry] of Object.entries(toolRegistry)) {
 
       // Call the tool handler
       const result = await entry.handler(client, validated);
-      console.log(result);
+      if (typeof result === "string") {
+        console.log(result);
+      } else {
+        // Rich results: print text blocks; images can't go to a terminal
+        for (const block of result.content) {
+          console.log(
+            block.type === "text"
+              ? block.text
+              : `[${block.mimeType} image: shown inline to MCP clients only; use --save_dir to save it]`,
+          );
+        }
+      }
     } catch (error) {
       if (error instanceof z.ZodError) {
         console.error("Validation error:");
