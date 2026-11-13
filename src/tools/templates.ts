@@ -600,6 +600,9 @@ export async function applyTaskTemplate(
     while (true) {
       const response = await client.get<JSONAPIResponse>("/tasks", {
         ...filter,
+        // Without the include, Productive omits parent_task's data, so every
+        // subtask would look top-level and could be wrongly reused.
+        ...(topLevelOnly ? { include: "parent_task" } : {}),
         "page[number]": pageNumber,
         "page[size]": pageSize,
       });

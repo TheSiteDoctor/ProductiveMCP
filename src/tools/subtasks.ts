@@ -4,6 +4,7 @@
 
 import { z } from "zod";
 import type { ProductiveClient } from "../client.js";
+import { TASK_INCLUDE } from "./tasks.js";
 import type { JSONAPIResponse, Task } from "../types.js";
 import { ListSubtasksSchema } from "../schemas/subtask.js";
 import {
@@ -77,7 +78,7 @@ export async function listSubtasks(
     "filter[parent_task_id]": args.parent_task_id,
     "page[number]": pageNumber,
     "page[size]": args.limit,
-    include: "project,task_list,assignee,workflow_status,attachments",
+    include: TASK_INCLUDE,
   };
 
   // Add closed filter if specified

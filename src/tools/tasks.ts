@@ -39,6 +39,14 @@ import {
 } from "../constants.js";
 
 /**
+ * Relationships to include on every task read. parent_task must be listed:
+ * Productive only returns a relationship's data when it's included, so
+ * without it every subtask came back with parent_task_id: null.
+ */
+export const TASK_INCLUDE =
+  "project,task_list,assignee,workflow_status,attachments,parent_task";
+
+/**
  * Cached label options fetched from the Productive API.
  * Refreshed every 5 minutes to avoid stale lookups without excessive API calls.
  */
@@ -467,7 +475,7 @@ export async function createTask(
   }
 
   const response = await client.post<JSONAPIResponse>("/tasks", payload, {
-    include: "project,task_list,assignee,workflow_status,attachments",
+    include: TASK_INCLUDE,
   });
 
   const taskData = Array.isArray(response.data)
@@ -621,7 +629,7 @@ export async function createMilestone(
   }
 
   const response = await client.post<JSONAPIResponse>("/tasks", payload, {
-    include: "project,task_list,assignee,workflow_status,attachments",
+    include: TASK_INCLUDE,
   });
 
   const taskData = Array.isArray(response.data)
@@ -653,7 +661,7 @@ export async function searchTasks(
   const params: Record<string, unknown> = {
     "page[number]": pageNumber,
     "page[size]": args.limit,
-    include: "project,task_list,assignee,workflow_status,attachments",
+    include: TASK_INCLUDE,
   };
 
   // Add filters
@@ -726,7 +734,7 @@ export async function getTask(
   args: z.infer<typeof GetTaskSchema>,
 ): Promise<string> {
   const response = await client.get<JSONAPIResponse>(`/tasks/${args.task_id}`, {
-    include: "project,task_list,assignee,workflow_status,attachments",
+    include: TASK_INCLUDE,
   });
 
   const taskData = Array.isArray(response.data)
@@ -944,7 +952,7 @@ export async function updateTask(
   const response = await client.patch<JSONAPIResponse>(
     `/tasks/${args.task_id}`,
     payload,
-    { include: "project,task_list,assignee,workflow_status,attachments" },
+    { include: TASK_INCLUDE },
   );
 
   const taskData = Array.isArray(response.data)
@@ -981,7 +989,7 @@ export async function listMyTasksDueToday(
     "filter[assignee_id]": personId,
     "filter[status]": 1, // 1 = open in Productive
     sort: "due_date",
-    include: "project,task_list,assignee,workflow_status,attachments",
+    include: TASK_INCLUDE,
     "page[size]": args.limit,
   };
 
