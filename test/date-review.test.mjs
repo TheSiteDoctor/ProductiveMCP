@@ -9,8 +9,6 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { fakeProject } from "./helpers.mjs";
 
-// No fake reference automation here, so don't wait for Commit references.
-process.env.PRODUCTIVE_COMMIT_REFERENCE_WAIT_MS = "0";
 process.env.PRODUCTIVE_CONFIG_PATH = fileURLToPath(new URL("./fixtures/productive.config.json", import.meta.url));
 const feed = JSON.parse(readFileSync(new URL("./fixtures/gov-uk-bank-holidays.json", import.meta.url), "utf-8"));
 

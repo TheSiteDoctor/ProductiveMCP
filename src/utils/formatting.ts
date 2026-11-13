@@ -3,7 +3,6 @@
  */
 
 import { marked, Token, Tokens } from "marked";
-import { formatCommitReferenceReport } from "./commit-reference.js";
 import {
   CHARACTER_LIMIT,
   CUSTOM_FIELD_IDS,
@@ -1123,10 +1122,6 @@ export function formatBatchSummaryMarkdown(
         lines.push("");
       }
     }
-  }
-
-  if (summary.commit_references) {
-    lines.push(...formatCommitReferenceReport(summary.commit_references));
   }
 
   if (summary.failed > 0) {

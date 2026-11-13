@@ -31,42 +31,6 @@ import {
 import { resolveCurrentPersonId } from "./timers.js";
 import { mergeCustomFieldsForPatch } from "../utils/custom-fields.js";
 import {
-  waitForCommitReference,
-  summariseCommitReferences,
-  commitReferencesClean,
-  formatCommitReferenceReport,
-} from "../utils/commit-reference.js";
-
-/**
- * Wait for a new ticket's Commit reference, reflect it in the formatted
- * ticket, and return any duplicate/missing/mismatch report to show with it.
- */
-async function settleCommitReference(
-  client: ProductiveClient,
-  task: FormattedTask,
-): Promise<ReturnType<typeof summariseCommitReferences> | undefined> {
-  const check = await waitForCommitReference(client, task.id);
-  if (check.reference) task.commit_reference = check.reference;
-  if (check.title) task.title = check.title;
-  // A single ticket can't clash with itself here, but it can be missing a
-  // reference or carry a title prefix that disagrees with the field.
-  const report = summariseCommitReferences([check]);
-  return commitReferencesClean(report) ? undefined : report;
-}
-
-/** Format a newly created ticket, with its Commit reference report if any. */
-function formatCreatedTicket(
-  task: FormattedTask,
-  report: ReturnType<typeof summariseCommitReferences> | undefined,
-  format: "markdown" | "json",
-): string {
-  return formatResponse(
-    report ? { ...task, commit_reference_report: report } : task,
-    format,
-    () => [formatTaskMarkdown(task), ...(report ? ["", ...formatCommitReferenceReport(report)] : [])].join("\n"),
-  );
-}
-import {
   CUSTOM_FIELD_IDS,
   PRIORITY_OPTIONS,
   DEFAULT_TASK_TYPE,
@@ -523,7 +487,6 @@ export async function createTask(
     client.getOrgId(),
     response.included,
   );
-  const referenceReport = await settleCommitReference(client, task);
 
   // Create todos if provided
   if (args.todos && args.todos.length > 0) {
@@ -594,10 +557,11 @@ export async function createTask(
     }
   }
 
-  return truncateResponse(
-    formatCreatedTicket(task, referenceReport, args.response_format),
-    args.response_format,
+  const result = formatResponse(task, args.response_format, () =>
+    formatTaskMarkdown(task),
   );
+
+  return truncateResponse(result, args.response_format);
 }
 
 /**
@@ -678,10 +642,8 @@ export async function createMilestone(
     response.included,
   );
 
-  const referenceReport = await settleCommitReference(client, task);
-
   return truncateResponse(
-    formatCreatedTicket(task, referenceReport, args.response_format),
+    formatResponse(task, args.response_format, () => formatTaskMarkdown(task)),
     args.response_format,
   );
 }

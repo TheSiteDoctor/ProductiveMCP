@@ -20,12 +20,6 @@ import {
 } from "../utils/formatting.js";
 import { CreateTasksBatchSchema } from "../schemas/task.js";
 import {
-  waitForCommitReference,
-  summariseCommitReferences,
-  commitReferencesClean,
-  type CommitReferenceCheck,
-} from "../utils/commit-reference.js";
-import {
   resolveLabelOptionIds,
   resolveWorkflowStatusIdForProject,
 } from "./tasks.js";
@@ -44,7 +38,6 @@ export async function createTasksBatch(
   args: z.infer<typeof CreateTasksBatchSchema>,
 ): Promise<string> {
   const results: BatchTaskResult[] = [];
-  const referenceChecks: CommitReferenceCheck[] = [];
   let successful = 0;
   let failed = 0;
 
@@ -175,13 +168,6 @@ export async function createTasksBatch(
         response.included,
       );
 
-      // Wait for the Commit reference before creating the next task, so the
-      // automation never hands two tasks the same reference.
-      const check = await waitForCommitReference(client, task.id);
-      referenceChecks.push(check);
-      if (check.reference) task.commit_reference = check.reference;
-      if (check.title) task.title = check.title;
-
       results.push({
         success: true,
         task,
@@ -213,13 +199,11 @@ export async function createTasksBatch(
     }
   }
 
-  const references = summariseCommitReferences(referenceChecks);
   const summary: BatchOperationSummary = {
     total: args.tasks.length,
     successful,
     failed,
     results,
-    ...(commitReferencesClean(references) ? {} : { commit_references: references }),
   };
 
   console.error(
