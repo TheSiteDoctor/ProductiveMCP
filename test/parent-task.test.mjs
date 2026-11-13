@@ -10,7 +10,6 @@ import { fakeProject, applyArgs } from "./helpers.mjs";
 
 process.env.PRODUCTIVE_CONFIG_PATH = fileURLToPath(new URL("./fixtures/productive.config.json", import.meta.url));
 process.env.PRODUCTIVE_DATE_REVIEW = "off";
-process.env.PRODUCTIVE_COMMIT_REFERENCE_WAIT_MS = "0";
 const { searchTasks, getTask } = await import("../dist/tools/tasks.js");
 const { SearchTasksSchema, GetTaskSchema } = await import("../dist/schemas/task.js");
 const { applyTaskTemplate } = await import("../dist/tools/templates.js");

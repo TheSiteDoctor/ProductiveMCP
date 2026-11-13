@@ -108,7 +108,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_create_task",
       description:
-        'Create a single task in Productive.io. Use this to create individual tasks with specific details. For creating multiple tasks at once, use productive_create_tasks_batch instead. For a Milestone (Key Task) use productive_create_milestone.\n\nAfter creating, it waits (up to 10s) for Productive to stamp the Commit reference and returns it, reporting a missing reference or a [REF] title prefix that disagrees with the field.\n\nIMPORTANT: Both project_id and task_list_id are REQUIRED. Use productive_list_task_lists to get valid task list IDs for a project.\n\nSupports custom fields:\n- task_type: one of the organisation\'s Task types (from productive.config.json)\n- priority: Highest, High, Medium, Low, Lowest\n- labels: Array of label strings\n- parent_task_id: ID of parent task (for creating sub-tasks)\n\nExample:\n{\n  "title": "Fix login bug on staging",\n  "description": "Users are unable to login after password reset",\n  "project_id": "1234",\n  "task_list_id": "5678",\n  "task_type": "Bug",\n  "priority": "High",\n  "due_date": "2025-11-20"\n}',
+        'Create a single task in Productive.io. Use this to create individual tasks with specific details. For creating multiple tasks at once, use productive_create_tasks_batch instead. For a Milestone (Key Task) use productive_create_milestone.\n\nIMPORTANT: Both project_id and task_list_id are REQUIRED. Use productive_list_task_lists to get valid task list IDs for a project.\n\nSupports custom fields:\n- task_type: one of the organisation\'s Task types (from productive.config.json)\n- priority: Highest, High, Medium, Low, Lowest\n- labels: Array of label strings\n- parent_task_id: ID of parent task (for creating sub-tasks)\n\nExample:\n{\n  "title": "Fix login bug on staging",\n  "description": "Users are unable to login after password reset",\n  "project_id": "1234",\n  "task_list_id": "5678",\n  "task_type": "Bug",\n  "priority": "High",\n  "due_date": "2025-11-20"\n}',
       inputSchema: {
         type: "object",
         properties: {
@@ -835,7 +835,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_create_tasks_batch",
       description:
-        'Create multiple tasks efficiently in a single operation. This is the recommended way to create multiple tasks at once. Automatically handles rate limiting and reports successes/failures. Tasks are created one at a time, each waiting (up to 10s) for Productive to stamp its Commit reference, so no two get the same reference; any duplicate, missing or mismatched reference is reported.\n\nExample:\n{\n  "tasks": [\n    {"title": "Migrate database to PostgreSQL"},\n    {"title": "Update API documentation", "due_date": "2025-11-25"},\n    {"title": "Write integration tests"}\n  ],\n  "project_id": "1234"\n}',
+        'Create multiple tasks efficiently in a single operation. This is the recommended way to create multiple tasks at once. Automatically handles rate limiting and reports successes/failures.\n\nExample:\n{\n  "tasks": [\n    {"title": "Migrate database to PostgreSQL"},\n    {"title": "Update API documentation", "due_date": "2025-11-25"},\n    {"title": "Write integration tests"}\n  ],\n  "project_id": "1234"\n}',
       inputSchema: {
         type: "object",
         properties: {

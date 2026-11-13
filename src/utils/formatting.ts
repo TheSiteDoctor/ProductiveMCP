@@ -659,6 +659,10 @@ export function formatTask(
     task_type: taskType,
     priority: priority,
     commit_reference: commitReference,
+    commit_reference_title_mismatch: (() => {
+      const prefix = attributes.title?.match(/^\[([^\]]+)\]/)?.[1]?.trim();
+      return commitReference && prefix && prefix !== commitReference ? prefix : null;
+    })(),
     workflow_status: workflowStatus,
     closed: attributes.closed,
     due_date: attributes.due_date || null,
@@ -702,7 +706,14 @@ export function formatTaskMarkdown(task: FormattedTask): string {
     task.is_milestone ? "# Milestone Details" : "# Task Details",
     "",
     `**ID**: ${task.number ? `#${task.number}` : task.id}`,
-    ...(task.commit_reference ? [`**Ref**: ${task.commit_reference}`] : []),
+    ...(task.commit_reference
+      ? [
+          `**Ref**: ${task.commit_reference}` +
+            (task.commit_reference_title_mismatch
+              ? ` (the title says [${task.commit_reference_title_mismatch}]; the Commit reference field is the one to trust)`
+              : ""),
+        ]
+      : []),
     `**Title**: ${task.title}`,
   ];
 

@@ -24,11 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Milestones are top-level only.** Templates may combine `"milestone": true` with `task_type`, description, `due_in_days`, `repeat`, `repeat_every_days`, labels and priority, but validation rejects a milestone nested under another ticket or one with `subtasks`. `productive_update_task` refuses to give a Milestone a parent.
 - `standard-delivery`: "Show & Tell: Sprint N" is now a top-level Milestone with Task type "Show & Tell" (it was a Meeting task under Project Management), and "Agree the Product Owners and Project Team" is now "Confirm the stakeholders", including the countries they're in. Re-applying the template to a project created with an earlier version adds the new tickets alongside the old ones, so remove the old Show & Tell meetings by hand.
 - `website-build`'s "Site go-live" Milestone has Task type "Release".
-- Every create path waits for Productive to stamp the Commit reference before the next create.
 
 ### Fixed
 
-- **Duplicate Commit references.** Creating tickets faster than Productive's automation stamps them gave several tickets the same reference (one 21-ticket template run produced WGL-8714 seven times). `create_task`, `create_milestone`, `create_tasks_batch` and `apply_task_template` now wait up to 10 seconds for each reference and report duplicate, missing or mismatched ones, including a `[REF]` title prefix that disagrees with the field (written by the automation, not this server).
+- Task reads flag a `[REF]` title prefix that disagrees with the Commit reference field (`commit_reference_title_mismatch`), for information. Duplicate references from fast creates are left to the existing clean-up process: creates don't wait for the reference.
 - **`parent_task_id` was always null** on task reads, because Productive only returns relationship data that's included. Task reads now include `parent_task`. The same gap could make a template reuse a subtask as a top-level ticket with the same title.
 - **"Null to clear" parameters** sent the string "null" to Productive (e.g. `update_task` with `parent_task_id: null` failed with "attribute is invalid"). `null`, `"null"` and `""` now all clear the value. Rewriting a ticket's custom fields never sends a null Commit reference, which would regenerate it.
 - `create_task` failed on an install with no Task types configured, because it defaulted to "Task" and then couldn't resolve it.

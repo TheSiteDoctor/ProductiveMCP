@@ -60,9 +60,13 @@ the title with `[REF]`, so the title prefix mirrors the field.
 - The reference is the identity developers use, so it must not change. It
   only changes when it clashes with another ticket's reference, or when the
   field is cleared, which makes the automation stamp a new one.
-- Creating tickets faster than the automation stamps them produces clashes,
-  so every create path waits for the reference before creating the next
-  ticket and reports any duplicate, missing or mismatched reference.
+- Creating tickets quickly can give two tickets the same reference. **This is
+  known and deliberately not handled here**: TSD resolves clashes separately
+  (see `dedupe_commit_references.py`), and creating tickets quickly matters
+  more, so create paths never wait for the automation. Don't add a wait.
+- Task reads flag a `[REF]` title prefix that disagrees with the field
+  (`commit_reference_title_mismatch`). That's informational: the field is the
+  one to trust, and nothing is changed.
 - This server never clears the field. When it rewrites a ticket's custom
   fields it sends the existing reference back unchanged, and it never sends
   `null` for it.
