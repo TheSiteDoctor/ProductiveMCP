@@ -11,7 +11,7 @@ import {
   OptionalISO8601DateSchema,
   clearable,
 } from "./common.js";
-import { PRIORITIES } from "../constants.js";
+import { PRIORITIES, WORKFLOW_STATUSES } from "../constants.js";
 import { TodoItemSchema } from "./todo.js";
 
 /**
@@ -20,6 +20,19 @@ import { TodoItemSchema } from "./todo.js";
  * handler, which lists the valid options on a miss, not by a hard-coded enum.
  */
 export const TaskTypeNameSchema = z.string().min(1, "Task type must not be empty");
+
+/**
+ * The workflow_status parameter, only when statuses are configured.
+ *
+ * src/index.ts omits workflow_status from the advertised tools when no
+ * statuses are configured (so it isn't offered and then rejected), and the
+ * zod schemas match that: advertised and accepted parameters must agree
+ * (test/tool-schemas.test.mjs). The type still declares it, so handlers
+ * compile either way.
+ */
+const workflowStatusField = (
+  WORKFLOW_STATUSES.length > 0 ? { workflow_status: z.string().optional() } : {}
+) as { workflow_status: z.ZodOptional<z.ZodString> };
 
 /**
  * Schema for creating a single task
@@ -46,7 +59,7 @@ export const CreateTaskSchema = z
       .optional(),
     task_type: TaskTypeNameSchema.optional(),
     priority: z.enum(PRIORITIES).default("Medium"),
-    workflow_status: z.string().optional(),
+    ...workflowStatusField,
     labels: z.array(z.string()).optional(),
     parent_task_id: z.string().optional(),
     todos: z.array(TodoItemSchema).optional(),
@@ -72,7 +85,7 @@ export const CreateMilestoneSchema = z
     assignee_id: z.string().optional(),
     due_date: ISO8601DateSchema.optional(),
     start_date: ISO8601DateSchema.optional(),
-    workflow_status: z.string().optional(),
+    ...workflowStatusField,
     // A Milestone can carry a Task type (e.g. "Show & Tell", "Release"), but
     // never a parent: Milestones are always top-level (docs/domain.md).
     task_type: TaskTypeNameSchema.optional(),
@@ -148,7 +161,7 @@ export const UpdateTaskSchema = z
     estimate_minutes: z.coerce.number().int().min(0).optional(),
     priority: z.enum(PRIORITIES).optional(),
     task_type: TaskTypeNameSchema.optional(),
-    workflow_status: z.string().optional(),
+    ...workflowStatusField,
     task_list_id: z.string().optional(),
     parent_task_id: clearable(z.string()),
     labels: z.array(z.string()).optional(),
@@ -180,7 +193,7 @@ export const BatchTaskItemSchema = z
     assignee_id: z.string().optional(),
     task_type: TaskTypeNameSchema.optional(),
     priority: z.enum(PRIORITIES).default("Medium"),
-    workflow_status: z.string().optional(),
+    ...workflowStatusField,
     labels: z.array(z.string()).optional(),
   })
   .strict();
