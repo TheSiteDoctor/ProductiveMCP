@@ -519,6 +519,8 @@ export interface BatchOperationSummary {
   successful: number;
   failed: number;
   results: BatchTaskResult[];
+  /** Duplicate, missing or mismatched Commit references from this batch */
+  commit_references?: import("./utils/commit-reference.js").CommitReferenceReport;
 }
 
 // Task dependency types

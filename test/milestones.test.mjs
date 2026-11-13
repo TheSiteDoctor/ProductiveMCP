@@ -7,6 +7,8 @@ import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { fakeProject, applyArgs } from "./helpers.mjs";
 
+// No fake reference automation here, so don't wait for Commit references.
+process.env.PRODUCTIVE_COMMIT_REFERENCE_WAIT_MS = "0";
 process.env.PRODUCTIVE_CONFIG_PATH = fileURLToPath(
   new URL("./fixtures/productive.config.json", import.meta.url),
 );

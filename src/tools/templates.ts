@@ -39,6 +39,13 @@ import {
 } from "../utils/templates.js";
 import { resolveLabelOptionIds } from "./tasks.js";
 import { mergeCustomFieldsForPatch } from "../utils/custom-fields.js";
+import {
+  waitForCommitReference,
+  summariseCommitReferences,
+  commitReferencesClean,
+  formatCommitReferenceReport,
+  type CommitReferenceCheck,
+} from "../utils/commit-reference.js";
 import { runMilestoneDateReview, milestoneFromTask } from "./milestone-review.js";
 import type { MilestoneToReview } from "../utils/date-review.js";
 
@@ -312,6 +319,7 @@ export async function applyTaskTemplate(
   const listResults: AppliedListResult[] = [];
   const taskResults: AppliedTaskResult[] = [];
   const reviewMilestones: MilestoneToReview[] = [];
+  const referenceChecks: CommitReferenceCheck[] = [];
   const today = new Date();
 
   const createOneTask = async (
@@ -460,6 +468,11 @@ export async function applyTaskTemplate(
       if (moveBeforeId && !task.milestone) {
         await keepMilestoneLast(createdId, moveBeforeId, taskListName);
       }
+
+      // Wait for Productive to stamp the Commit reference before creating the
+      // next ticket: creating faster than the automation stamps is what gave
+      // one 21-ticket run WGL-8714 seven times.
+      referenceChecks.push(await waitForCommitReference(client, createdId));
 
       if (task.milestone && payload.data.attributes.due_date) {
         reviewMilestones.push({
@@ -706,6 +719,8 @@ export async function applyTaskTemplate(
         })
       : undefined;
 
+  const references = summariseCommitReferences(referenceChecks);
+
   const created = taskResults.filter((t) => t.status === "created");
   const failed = taskResults.filter((t) => t.status === "failed");
   const skipped = taskResults.filter((t) => t.status === "skipped");
@@ -722,6 +737,7 @@ export async function applyTaskTemplate(
     failed: failed.length,
     skipped: skipped.length,
     warnings,
+    commit_references: commitReferencesClean(references) ? undefined : references,
     date_review: review
       ? { ...(review.result ?? {}), annotations: review.annotations, error: review.error }
       : undefined,
@@ -755,6 +771,7 @@ export async function applyTaskTemplate(
     if (warnings.length > 0) {
       lines.push("## Warnings", "", ...warnings.map((w) => `- ${w}`), "");
     }
+    lines.push(...formatCommitReferenceReport(references));
     if (failed.length > 0) {
       lines.push("## Failures", "");
       for (const t of failed) {

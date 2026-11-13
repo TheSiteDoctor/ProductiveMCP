@@ -8,9 +8,9 @@
  * the next. Optionally simulates the Commit reference automation.
  *
  * reference: { prefix, delayMs, start } stamps `${prefix}-${n}` onto each new
- * task after delayMs, choosing n from the highest reference that exists when
- * it stamps - so creating a task before the previous one is stamped produces a
- * duplicate, just like the real automation.
+ * task after delayMs, choosing n from the highest reference stamped when the
+ * task was created - so creating a task before the previous one is stamped
+ * produces a duplicate, just like the real automation.
  */
 export function fakeProject({ reference, refFieldId = "160540", titlePrefix = true } = {}) {
   const lists = [];
@@ -19,11 +19,15 @@ export function fakeProject({ reference, refFieldId = "160540", titlePrefix = tr
   const calls = [];
   let next = 5000;
 
-  const stampReference = (task) => {
+  // The automation reads the highest stamped reference when it picks up a new
+  // task, then writes delayMs later - so two tasks picked up before either is
+  // written get the same number.
+  const nextReference = () => {
     const used = tasks.map((t) => t.custom_fields[refFieldId]).filter(Boolean)
       .map((r) => parseInt(String(r).split("-")[1], 10));
-    const n = used.length > 0 ? Math.max(...used) + 1 : reference.start;
-    const ref = `${reference.prefix}-${n}`;
+    return `${reference.prefix}-${used.length > 0 ? Math.max(...used) + 1 : reference.start}`;
+  };
+  const stampReference = (task, ref) => {
     task.custom_fields[refFieldId] = ref;
     if (titlePrefix) task.title = `[${ref}] ${task.title}`;
   };
@@ -94,8 +98,9 @@ export function fakeProject({ reference, refFieldId = "160540", titlePrefix = tr
         };
         tasks.push(task);
         if (reference) {
-          if (reference.delayMs > 0) setTimeout(() => stampReference(task), reference.delayMs);
-          else stampReference(task);
+          const ref = nextReference();
+          if (reference.delayMs > 0) setTimeout(() => stampReference(task, ref), reference.delayMs);
+          else stampReference(task, ref);
         }
         return { data: taskResource(task) };
       }
