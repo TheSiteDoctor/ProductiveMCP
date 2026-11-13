@@ -31,8 +31,9 @@ import {
 import { resolveCurrentPersonId } from "./timers.js";
 import {
   CUSTOM_FIELD_IDS,
-  TASK_TYPE_OPTIONS,
   PRIORITY_OPTIONS,
+  DEFAULT_TASK_TYPE,
+  resolveTaskType,
   LABEL_OPTIONS,
   resolveWorkflowStatusId as resolveConfiguredWorkflowStatusId,
 } from "../constants.js";
@@ -424,15 +425,11 @@ export async function createTask(
   // Add custom fields (task_type, priority, labels)
   const customFields: Record<string, string | string[]> = {};
 
-  if (args.task_type) {
-    const optionId = TASK_TYPE_OPTIONS[args.task_type];
-    if (optionId) {
-      customFields[CUSTOM_FIELD_IDS.TASK_TYPE] = optionId;
-    } else {
-      throw new Error(
-        `Task type "${args.task_type}" does not have a configured option ID. Please update TASK_TYPE_OPTIONS in constants.ts`,
-      );
-    }
+  // An explicit Task type must be valid (throws listing the options); with
+  // none given, new tickets default to "Task" where the organisation has it.
+  const taskType = args.task_type ?? DEFAULT_TASK_TYPE;
+  if (taskType) {
+    customFields[CUSTOM_FIELD_IDS.TASK_TYPE] = resolveTaskType(taskType).optionId;
   }
 
   if (args.priority) {
@@ -783,15 +780,9 @@ export async function updateTask(
   let hasCustomFieldChanges = false;
 
   if (args.task_type !== undefined) {
-    const optionId = TASK_TYPE_OPTIONS[args.task_type];
-    if (optionId) {
-      customFieldUpdates[CUSTOM_FIELD_IDS.TASK_TYPE] = optionId;
-      hasCustomFieldChanges = true;
-    } else {
-      throw new Error(
-        `Task type "${args.task_type}" does not have a configured option ID. Please update TASK_TYPE_OPTIONS in constants.ts`,
-      );
-    }
+    customFieldUpdates[CUSTOM_FIELD_IDS.TASK_TYPE] =
+      resolveTaskType(args.task_type).optionId;
+    hasCustomFieldChanges = true;
   }
 
   if (args.priority !== undefined) {

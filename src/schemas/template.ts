@@ -9,7 +9,7 @@
 
 import { z } from "zod";
 import { ResponseFormatSchema } from "./common.js";
-import { TASK_TYPES, PRIORITIES } from "../constants.js";
+import { PRIORITIES } from "../constants.js";
 
 /**
  * A single task inside a template. Tasks nest arbitrarily deep via
@@ -18,7 +18,8 @@ import { TASK_TYPES, PRIORITIES } from "../constants.js";
 export interface TemplateTask {
   title: string;
   description?: string;
-  task_type?: (typeof TASK_TYPES)[number];
+  /** Task type name; checked against the configured options when applied */
+  task_type?: string;
   priority?: (typeof PRIORITIES)[number];
   labels?: string[];
   estimate_minutes?: number;
@@ -52,7 +53,7 @@ export const TemplateTaskSchema: z.ZodType<TemplateTask> = z.lazy(() =>
         .string()
         .max(10000, "Task description must be 10000 characters or less")
         .optional(),
-      task_type: z.enum(TASK_TYPES).optional(),
+      task_type: z.string().min(1, "task_type must not be empty").optional(),
       priority: z.enum(PRIORITIES).optional(),
       labels: z.array(z.string()).optional(),
       estimate_minutes: z.coerce

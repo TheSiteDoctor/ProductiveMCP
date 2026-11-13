@@ -1,0 +1,33 @@
+{
+  "custom_field_ids": {
+    "task_type": "158673",
+    "priority": "158674",
+    "estimate": "",
+    "labels": "",
+    "commit_reference": "160540"
+  },
+  "task_type_options": {
+    "Bug": "357515",
+    "Task": "357517",
+    "Question": "357518",
+    "Meeting": "357519",
+    "Feature": "368960",
+    "Test Case": "375333",
+    "Release": "479115",
+    "Show & Tell": "479116",
+    "Presentation": "485960",
+    "Outage": "600950"
+  },
+  "priority_options": {
+    "Highest": "1",
+    "High": "2",
+    "Medium": "3",
+    "Low": "4",
+    "Lowest": "5"
+  },
+  "label_options": {},
+  "workflow_status_ids": {},
+  "date_review": {
+    "regions": ["england-and-wales", "us-federal"]
+  }
+}

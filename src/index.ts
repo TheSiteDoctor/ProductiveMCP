@@ -40,6 +40,34 @@ function workflowStatusProperty(intro: string): Record<string, unknown> {
   };
 }
 
+/**
+ * Build the `task_type` property for a tool's input schema.
+ *
+ * Task types are the Task type custom field's active options, read from
+ * productive.config.json, not a hard-coded list. When none are configured the
+ * property is still advertised (the schema accepts it) but without an enum,
+ * and the handler explains that `npm run setup` is needed.
+ */
+function taskTypeProperty(intro = "Task type (TSD's classification, a custom field)."): Record<string, unknown> {
+  const guidance =
+    "Use Feature for an epic (a top-level ticket whose children deliver it), Bug for defects, Task for general work, Question for queries and Meeting for meetings. It's independent of whether the ticket is a Milestone. An unknown name returns an error listing the valid options.";
+  if (TASK_TYPES.length === 0) {
+    return {
+      task_type: {
+        type: "string",
+        description: `${intro} No Task types are configured: run \`npm run setup\` to discover them. ${guidance}`,
+      },
+    };
+  }
+  return {
+    task_type: {
+      type: "string",
+      enum: [...TASK_TYPES],
+      description: `${intro} New tickets default to Task. ${guidance}`,
+    },
+  };
+}
+
 // Read version from package.json
 const require = createRequire(import.meta.url);
 const { version: SERVER_VERSION } = require("../package.json");
@@ -80,7 +108,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_create_task",
       description:
-        'Create a single task in Productive.io. Use this to create individual tasks with specific details. For creating multiple tasks at once, use productive_create_tasks_batch instead.\n\nIMPORTANT: Both project_id and task_list_id are REQUIRED. Use productive_list_task_lists to get valid task list IDs for a project.\n\nSupports custom fields:\n- task_type: Bug, Task, Feature, Question, Meeting, Test Case\n- priority: Highest, High, Medium, Low, Lowest\n- labels: Array of label strings\n- parent_task_id: ID of parent task (for creating sub-tasks)\n\nExample:\n{\n  "title": "Fix login bug on staging",\n  "description": "Users are unable to login after password reset",\n  "project_id": "1234",\n  "task_list_id": "5678",\n  "task_type": "Bug",\n  "priority": "High",\n  "due_date": "2025-11-20"\n}',
+        'Create a single task in Productive.io. Use this to create individual tasks with specific details. For creating multiple tasks at once, use productive_create_tasks_batch instead.\n\nIMPORTANT: Both project_id and task_list_id are REQUIRED. Use productive_list_task_lists to get valid task list IDs for a project.\n\nSupports custom fields:\n- task_type: one of the organisation\'s Task types (from productive.config.json)\n- priority: Highest, High, Medium, Low, Lowest\n- labels: Array of label strings\n- parent_task_id: ID of parent task (for creating sub-tasks)\n\nExample:\n{\n  "title": "Fix login bug on staging",\n  "description": "Users are unable to login after password reset",\n  "project_id": "1234",\n  "task_list_id": "5678",\n  "task_type": "Bug",\n  "priority": "High",\n  "due_date": "2025-11-20"\n}',
       inputSchema: {
         type: "object",
         properties: {
@@ -121,13 +149,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             description:
               "Optional initial estimate in minutes. For example, use 90 for 1.5 hours, 120 for 2 hours.",
           },
-          task_type: {
-            type: "string",
-            enum: [...TASK_TYPES],
-            default: "Task",
-            description:
-              "Task type classification (default: Task). Always set this appropriately: Bug for defects, Feature for new functionality, Task for general work, Question for queries, Meeting for meetings, Test Case for test items.",
-          },
+          ...taskTypeProperty(),
           priority: {
             type: "string",
             enum: [...PRIORITIES],
@@ -841,13 +863,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
                   description:
                     "Optional assignee ID (overrides default_assignee_id)",
                 },
-                task_type: {
-                  type: "string",
-                  enum: [...TASK_TYPES],
-                  default: "Task",
-                  description:
-                    "Task type classification (default: Task). Always set appropriately: Bug for defects, Feature for new functionality, Task for general work.",
-                },
+                ...taskTypeProperty(),
                 priority: {
                   type: "string",
                   enum: [...PRIORITIES],
@@ -1049,12 +1065,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             description:
               "Initial estimate in minutes. For example, use 90 for 1.5 hours, 120 for 2 hours.",
           },
-          task_type: {
-            type: "string",
-            enum: [...TASK_TYPES],
-            description:
-              "Task type classification. Set appropriately: Bug for defects, Feature for new functionality, Task for general work, Question for queries, Meeting for meetings, Test Case for test items.",
-          },
+          ...taskTypeProperty(),
           priority: {
             type: "string",
             enum: [...PRIORITIES],

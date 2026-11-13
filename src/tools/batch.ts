@@ -25,8 +25,9 @@ import {
 } from "./tasks.js";
 import {
   CUSTOM_FIELD_IDS,
-  TASK_TYPE_OPTIONS,
   PRIORITY_OPTIONS,
+  DEFAULT_TASK_TYPE,
+  resolveTaskType,
 } from "../constants.js";
 
 /**
@@ -100,10 +101,13 @@ export async function createTasksBatch(
       // Add custom fields (task_type, priority, labels)
       const customFields: Record<string, string | string[]> = {};
 
-      // task_type has a default from schema, so it will always be present
-      const taskTypeOptionId = TASK_TYPE_OPTIONS[taskInput.task_type];
-      if (taskTypeOptionId) {
-        customFields[CUSTOM_FIELD_IDS.TASK_TYPE] = taskTypeOptionId;
+      // An unknown Task type throws (listing the options); the surrounding
+      // try/catch records it as this task's failure. With none given, default
+      // to "Task" where the organisation has it.
+      const taskType = taskInput.task_type ?? DEFAULT_TASK_TYPE;
+      if (taskType) {
+        customFields[CUSTOM_FIELD_IDS.TASK_TYPE] =
+          resolveTaskType(taskType).optionId;
       }
 
       // priority has a default from schema, so it will always be present

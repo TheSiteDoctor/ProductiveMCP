@@ -2,6 +2,7 @@ node_modules/
 dist/
 .env
 productive.config.json
+!test/fixtures/productive.config.json
 *.log
 .DS_Store
 

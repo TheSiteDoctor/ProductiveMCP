@@ -10,8 +10,15 @@ import {
   ISO8601DateSchema,
   OptionalISO8601DateSchema,
 } from "./common.js";
-import { TASK_TYPES, PRIORITIES } from "../constants.js";
+import { PRIORITIES } from "../constants.js";
 import { TodoItemSchema } from "./todo.js";
+
+/**
+ * A Task type name. Valid names come from productive.config.json (the Task
+ * type field's active options), so they're checked by resolveTaskType() in the
+ * handler, which lists the valid options on a miss, not by a hard-coded enum.
+ */
+export const TaskTypeNameSchema = z.string().min(1, "Task type must not be empty");
 
 /**
  * Schema for creating a single task
@@ -36,7 +43,7 @@ export const CreateTaskSchema = z
       .int()
       .min(0, "Initial estimate must be a positive number")
       .optional(),
-    task_type: z.enum(TASK_TYPES).default("Task"),
+    task_type: TaskTypeNameSchema.optional(),
     priority: z.enum(PRIORITIES).default("Medium"),
     workflow_status: z.string().optional(),
     labels: z.array(z.string()).optional(),
@@ -136,7 +143,7 @@ export const UpdateTaskSchema = z
     assignee_id: z.string().optional().nullable(),
     estimate_minutes: z.coerce.number().int().min(0).optional(),
     priority: z.enum(PRIORITIES).optional(),
-    task_type: z.enum(TASK_TYPES).optional(),
+    task_type: TaskTypeNameSchema.optional(),
     workflow_status: z.string().optional(),
     task_list_id: z.string().optional(),
     parent_task_id: z.string().optional().nullable(),
@@ -167,7 +174,7 @@ export const BatchTaskItemSchema = z
       .optional(),
     task_list_id: z.string().optional(),
     assignee_id: z.string().optional(),
-    task_type: z.enum(TASK_TYPES).default("Task"),
+    task_type: TaskTypeNameSchema.optional(),
     priority: z.enum(PRIORITIES).default("Medium"),
     workflow_status: z.string().optional(),
     labels: z.array(z.string()).optional(),

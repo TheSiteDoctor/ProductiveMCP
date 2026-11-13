@@ -40,9 +40,35 @@ import {
 import { resolveLabelOptionIds } from "./tasks.js";
 import {
   CUSTOM_FIELD_IDS,
-  TASK_TYPE_OPTIONS,
   PRIORITY_OPTIONS,
+  TASK_TYPES,
+  resolveTaskType,
 } from "../constants.js";
+
+/**
+ * Check every Task type a template uses against the organisation's options
+ * before anything is created, so an unknown name fails the whole apply up
+ * front (listing the valid options) instead of half-creating the structure.
+ *
+ * With no Task types configured at all (no `npm run setup`), types are
+ * skipped with a warning instead, so templates stay usable on a bare install.
+ */
+function checkTemplateTaskTypes(template: TaskTemplate): string[] {
+  const used = new Set<string>();
+  const walk = (task: TemplateTask): void => {
+    if (task.task_type) used.add(task.task_type);
+    for (const sub of task.subtasks || []) walk(sub);
+  };
+  for (const list of template.task_lists) list.tasks.forEach(walk);
+  if (used.size === 0) return [];
+  if (TASK_TYPES.length === 0) {
+    return [
+      `No Task type options are configured, so Task types were not set (${[...used].join(", ")}). Run \`npm run setup\` to enable them.`,
+    ];
+  }
+  for (const name of used) resolveTaskType(name);
+  return [];
+}
 
 /** Format minutes as a compact human-readable duration (e.g. "1h 30m"). */
 function formatMinutes(minutes: number): string {
@@ -207,9 +233,10 @@ export async function applyTaskTemplate(
     : loadTemplate(args.template!).template;
   const values = resolveVariables(rawTemplate, args.variables);
   const template = substituteTemplate(rawTemplate, values);
+  const taskTypeWarnings = checkTemplateTaskTypes(template);
 
   if (args.dry_run) {
-    return dryRunReport(template, values, args);
+    return dryRunReport(template, values, args, taskTypeWarnings);
   }
 
   // Fetch active task lists once so same-named lists can be reused
@@ -336,9 +363,10 @@ export async function applyTaskTemplate(
       // configured — an unconfigured option is skipped, not an error, so a
       // template stays portable across organisations.
       const customFields: Record<string, string | string[]> = {};
-      if (task.task_type && TASK_TYPE_OPTIONS[task.task_type]) {
-        customFields[CUSTOM_FIELD_IDS.TASK_TYPE] =
-          TASK_TYPE_OPTIONS[task.task_type];
+      if (task.task_type && TASK_TYPES.length > 0) {
+        customFields[CUSTOM_FIELD_IDS.TASK_TYPE] = resolveTaskType(
+          task.task_type,
+        ).optionId;
       }
       if (task.priority && PRIORITY_OPTIONS[task.priority]) {
         customFields[CUSTOM_FIELD_IDS.PRIORITY] =
@@ -454,7 +482,7 @@ export async function applyTaskTemplate(
   // A milestone marks the end of its phase, so a ticket added to a list that
   // already holds one is moved above it. If the API refuses, warn once and
   // leave the ticket at the end of the list.
-  const warnings: string[] = [];
+  const warnings: string[] = [...taskTypeWarnings];
   let taskRepositionFailed = false;
   const keepMilestoneLast = async (
     taskId: string,
@@ -686,6 +714,7 @@ function dryRunReport(
   template: TaskTemplate,
   values: Record<string, string>,
   args: z.infer<typeof ApplyTaskTemplateSchema>,
+  warnings: string[],
 ): string {
   const summary = {
     dry_run: true,
@@ -695,6 +724,7 @@ function dryRunReport(
     task_lists: template.task_lists.length,
     tasks: countTasks(template),
     total_estimate_minutes: totalEstimateMinutes(template),
+    warnings,
     structure: template.task_lists,
   };
 
@@ -714,12 +744,17 @@ function dryRunReport(
           "",
         );
       }
+      if (warnings.length > 0) {
+        lines.push("## Warnings", "", ...warnings.map((w) => `- ${w}`), "");
+      }
       const renderTask = (task: TemplateTask, depth: number): void => {
         const indent = "  ".repeat(depth);
-        const estimate = task.estimate_minutes
-          ? ` _(${formatMinutes(task.estimate_minutes)})_`
-          : "";
-        lines.push(`${indent}- ${task.title}${estimate}`);
+        const extras: string[] = [];
+        if (task.milestone) extras.push("Milestone");
+        if (task.task_type) extras.push(task.task_type);
+        if (task.estimate_minutes) extras.push(formatMinutes(task.estimate_minutes));
+        const suffix = extras.length > 0 ? ` _(${extras.join(", ")})_` : "";
+        lines.push(`${indent}- ${task.title}${suffix}`);
         for (const sub of task.subtasks || []) renderTask(sub, depth + 1);
       };
       for (const list of template.task_lists) {

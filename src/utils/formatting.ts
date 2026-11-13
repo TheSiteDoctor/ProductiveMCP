@@ -6,7 +6,7 @@ import { marked, Token, Tokens } from "marked";
 import {
   CHARACTER_LIMIT,
   CUSTOM_FIELD_IDS,
-  TASK_TYPE_OPTIONS,
+  taskTypeNameForOption,
   PRIORITY_OPTIONS,
   LABEL_OPTIONS,
 } from "../constants.js";
@@ -561,14 +561,7 @@ export function formatTask(
   // Extract task type from custom field
   let taskType: string | null = null;
   if (CUSTOM_FIELD_IDS.TASK_TYPE) {
-    const taskTypeOptionId = customFields[CUSTOM_FIELD_IDS.TASK_TYPE];
-    if (taskTypeOptionId) {
-      // Reverse lookup from TASK_TYPE_OPTIONS
-      const taskTypeEntry = Object.entries(TASK_TYPE_OPTIONS).find(
-        ([, optionId]) => optionId === String(taskTypeOptionId),
-      );
-      taskType = taskTypeEntry ? taskTypeEntry[0] : null;
-    }
+    taskType = taskTypeNameForOption(customFields[CUSTOM_FIELD_IDS.TASK_TYPE]);
   }
 
   // Extract priority from custom field

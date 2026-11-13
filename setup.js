@@ -209,14 +209,17 @@ async function discoverCustomFields(token, orgId) {
 }
 
 async function discoverFieldOptions(fieldId, token, orgId) {
+  // Only active options: an archived Task type (say) can't be set on new
+  // tickets, so offering it would make every call using it fail.
   const options = await fetchAllPages("/custom_field_options", token, orgId, {
     "filter[custom_field_id]": fieldId,
+    "filter[archived]": "false",
   });
 
   const mapping = {};
   for (const option of options) {
     const name = option.attributes?.name;
-    if (name) {
+    if (name && !option.attributes?.archived_at && option.attributes?.archived !== true) {
       mapping[name] = option.id;
     }
   }
@@ -596,8 +599,23 @@ async function main() {
     config.dominant_workflow = dominantWorkflow;
   }
 
-  // Write config
+  // Milestone date review: keep regions someone has already chosen, otherwise
+  // default to England and Wales bank holidays plus US federal holidays.
   const configPath = join(__dirname, "productive.config.json");
+  let previousDateReview;
+  if (existsSync(configPath)) {
+    try {
+      previousDateReview = JSON.parse(readFileSync(configPath, "utf-8")).date_review;
+    } catch {
+      // A corrupt previous config is simply replaced.
+    }
+  }
+  config.date_review = previousDateReview?.regions?.length
+    ? previousDateReview
+    : { regions: ["england-and-wales", "us-federal"] };
+  console.log(`  Date review regions: ${config.date_review.regions.join(", ")}`);
+
+  // Write config
   writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
 
   console.log("\n" + "=".repeat(60));
