@@ -38,6 +38,7 @@ import {
   getTemplatesDir,
 } from "../utils/templates.js";
 import { resolveLabelOptionIds } from "./tasks.js";
+import { mergeCustomFieldsForPatch } from "../utils/custom-fields.js";
 import {
   CUSTOM_FIELD_IDS,
   PRIORITY_OPTIONS,
@@ -387,6 +388,30 @@ export async function applyTaskTemplate(
         ? response.data[0]
         : response.data;
       createdId = (data as Task).id;
+
+      // A Milestone is created top-level (validation guarantees it) and then
+      // must carry its Task type, e.g. "Show & Tell". If Productive didn't
+      // keep the type from the create, set it now.
+      const typeOption = customFields[CUSTOM_FIELD_IDS.TASK_TYPE];
+      const returnedFields = (data as Task).attributes?.custom_fields;
+      if (
+        task.milestone &&
+        typeOption &&
+        returnedFields &&
+        String(returnedFields[CUSTOM_FIELD_IDS.TASK_TYPE] ?? "") !== String(typeOption)
+      ) {
+        await client.patch<JSONAPIResponse>(`/tasks/${createdId}`, {
+          data: {
+            type: "tasks",
+            id: createdId,
+            attributes: {
+              custom_fields: mergeCustomFieldsForPatch(returnedFields, {
+                [CUSTOM_FIELD_IDS.TASK_TYPE]: typeOption,
+              }),
+            },
+          },
+        });
+      }
 
       if (moveBeforeId && !task.milestone) {
         await keepMilestoneLast(createdId, moveBeforeId, taskListName);

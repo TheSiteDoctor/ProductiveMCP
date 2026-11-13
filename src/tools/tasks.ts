@@ -340,6 +340,38 @@ export async function resolveLabelOptionIds(
 }
 
 /**
+ * Build the custom_fields hash for a new ticket from its Task type, priority
+ * and labels. An explicit Task type must be valid (throws listing the
+ * options); an unconfigured priority is skipped with a warning, as before.
+ */
+export async function buildNewTicketCustomFields(
+  client: ProductiveClient,
+  fields: { task_type?: string; priority?: string; labels?: string[] },
+): Promise<Record<string, string | string[]>> {
+  const customFields: Record<string, string | string[]> = {};
+  if (fields.task_type) {
+    customFields[CUSTOM_FIELD_IDS.TASK_TYPE] = resolveTaskType(fields.task_type).optionId;
+  }
+  if (fields.priority) {
+    const optionId = PRIORITY_OPTIONS[fields.priority as keyof typeof PRIORITY_OPTIONS];
+    if (optionId) {
+      customFields[CUSTOM_FIELD_IDS.PRIORITY] = optionId;
+    } else {
+      console.error(
+        `Warning: Priority "${fields.priority}" is not configured in Productive. Skipping priority field.`,
+      );
+    }
+  }
+  if (fields.labels && fields.labels.length > 0 && CUSTOM_FIELD_IDS.LABELS) {
+    const optionIds = await resolveLabelOptionIds(client, fields.labels);
+    if (optionIds.length > 0) {
+      customFields[CUSTOM_FIELD_IDS.LABELS] = optionIds;
+    }
+  }
+  return customFields;
+}
+
+/**
  * Create a single task
  */
 export async function createTask(
@@ -422,38 +454,13 @@ export async function createTask(
     };
   }
 
-  // Add custom fields (task_type, priority, labels)
-  const customFields: Record<string, string | string[]> = {};
-
-  // An explicit Task type must be valid (throws listing the options); with
-  // none given, new tickets default to "Task" where the organisation has it.
-  const taskType = args.task_type ?? DEFAULT_TASK_TYPE;
-  if (taskType) {
-    customFields[CUSTOM_FIELD_IDS.TASK_TYPE] = resolveTaskType(taskType).optionId;
-  }
-
-  if (args.priority) {
-    const optionId = PRIORITY_OPTIONS[args.priority];
-    if (optionId) {
-      customFields[CUSTOM_FIELD_IDS.PRIORITY] = optionId;
-    } else {
-      try {
-        console.error(
-          `Warning: Priority "${args.priority}" is not configured in Productive. Skipping priority field.`,
-        );
-      } catch {
-        // Ignore logging errors
-      }
-      // Skip priority if not configured - don't throw error
-    }
-  }
-
-  if (args.labels && args.labels.length > 0 && CUSTOM_FIELD_IDS.LABELS) {
-    const optionIds = await resolveLabelOptionIds(client, args.labels);
-    if (optionIds.length > 0) {
-      customFields[CUSTOM_FIELD_IDS.LABELS] = optionIds;
-    }
-  }
+  // Custom fields. An explicit Task type must be valid; with none given, new
+  // tickets default to "Task" where the organisation has it.
+  const customFields = await buildNewTicketCustomFields(client, {
+    task_type: args.task_type ?? DEFAULT_TASK_TYPE,
+    priority: args.priority,
+    labels: args.labels,
+  });
 
   if (Object.keys(customFields).length > 0) {
     payload.data.attributes.custom_fields = customFields;
@@ -604,6 +611,13 @@ export async function createMilestone(
         ),
       },
     };
+  }
+
+  // Kind (Milestone) and Task type are independent: a Milestone can be a
+  // "Show & Tell" or a "Release". No default type for Milestones.
+  const customFields = await buildNewTicketCustomFields(client, args);
+  if (Object.keys(customFields).length > 0) {
+    payload.data.attributes.custom_fields = customFields;
   }
 
   const response = await client.post<JSONAPIResponse>("/tasks", payload, {
@@ -898,7 +912,21 @@ export async function updateTask(
     };
   }
 
-  // Handle parent task relationship (null to clear, string to set)
+  // Handle parent task relationship (null to clear, string to set).
+  // Milestones are always top-level, so giving one a parent is refused here
+  // rather than left for the API to reject (or accept) without explanation.
+  if (args.parent_task_id) {
+    const current = await client.get<JSONAPIResponse>(`/tasks/${args.task_id}`);
+    const currentTask = (
+      Array.isArray(current.data) ? current.data[0] : current.data
+    ) as Task;
+    if (currentTask?.attributes?.type_id === 3) {
+      throw new Error(
+        `Task ${args.task_id} is a Milestone, and Milestones are always top-level tickets in their task list, so it can't have a parent (parent_task_id). ` +
+          `To group it with other work, put it in the same task list instead.`,
+      );
+    }
+  }
   if (args.parent_task_id !== undefined) {
     if (!payload.data.relationships) {
       payload.data.relationships = {};

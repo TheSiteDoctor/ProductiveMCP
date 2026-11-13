@@ -212,7 +212,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_create_milestone",
       description:
-        'Create a milestone in Productive.io. Milestones are a special task type (type_id=3) used to mark key dates or deliverables in a project.\n\nBoth project_id and task_list_id are REQUIRED. Use productive_list_task_lists to find valid task list IDs.\n\nExample:\n{\n  "title": "v2.0 Release",\n  "project_id": "1234",\n  "task_list_id": "5678",\n  "due_date": "2026-04-01"\n}',
+        'Create a Milestone in Productive.io (type_id=3, shown as "Key Task" in the UI) to mark a key date such as a release, a phase end or a Show & Tell. Milestones are always top-level tickets in a task list: they have no parent and no subtasks, so there is no parent_task_id. Kind and Task type are independent, so a Milestone can have a task_type, e.g. "Release" or "Show & Tell" (see docs/domain.md). After setting or moving a due date, productive_review_milestone_dates checks it against public holidays.\n\nBoth project_id and task_list_id are REQUIRED. Use productive_list_task_lists to find valid task list IDs.\n\nExample:\n{\n  "title": "Show & Tell: Sprint 3",\n  "project_id": "1234",\n  "task_list_id": "5678",\n  "due_date": "2026-12-11",\n  "task_type": "Show & Tell"\n}',
       inputSchema: {
         type: "object",
         properties: {
@@ -251,6 +251,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           ...workflowStatusProperty(
             "Optional workflow status name (e.g. 'To Do', 'In Progress').",
           ),
+          ...taskTypeProperty("Optional Task type for the Milestone, e.g. Release or Show & Tell."),
+          priority: {
+            type: "string",
+            enum: [...PRIORITIES],
+            description: "Optional priority level.",
+          },
+          labels: {
+            type: "array",
+            items: { type: "string" },
+            description: "Optional array of label strings to tag the Milestone",
+          },
           response_format: {
             type: "string",
             enum: ["markdown", "json"],
@@ -1091,7 +1102,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           parent_task_id: {
             type: "string",
             description:
-              "Set or change the parent task ID to make this a sub-task, or null to remove the parent (make it a top-level task)",
+              "Set or change the parent task ID to make this a sub-task, or null to remove the parent (make it a top-level task). Refused for a Milestone, which is always top-level.",
             nullable: true,
           },
           labels: {

@@ -24,7 +24,12 @@ export interface TemplateTask {
   labels?: string[];
   estimate_minutes?: number;
   due_in_days?: number;
-  /** Create as a Productive milestone (type_id 3) instead of a normal task */
+  /**
+   * Create as a Productive Milestone (type_id 3, "Key Task" in the UI) instead
+   * of a normal task. Milestones are top-level only: never nested under
+   * another ticket and never with subtasks. They can still have a task_type
+   * (e.g. "Show & Tell"), description, due date, repeat, labels and priority.
+   */
   milestone?: boolean;
   /**
    * Create this task N times: a whole number, or a "{{variable}}" holding
@@ -141,7 +146,31 @@ export const TaskTemplateSchema = z
       .array(TemplateTaskListSchema)
       .min(1, "A template needs at least one task list"),
   })
-  .strict();
+  .strict()
+  .superRefine((template, ctx) => {
+    // Milestones mark a point in time at the top level of a task list: they
+    // never sit under a Feature and never have children (docs/domain.md).
+    const check = (task: TemplateTask, path: (string | number)[], depth: number): void => {
+      if (task.milestone && depth > 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path,
+          message: `Milestone "${task.title}" is nested under another ticket. Milestones must be top-level tickets in their task list: move it out of its parent.`,
+        });
+      }
+      if (task.milestone && task.subtasks && task.subtasks.length > 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [...path, "subtasks"],
+          message: `Milestone "${task.title}" has subtasks. Milestones can't have children: make it a Feature, or move the subtasks to their own ticket.`,
+        });
+      }
+      (task.subtasks || []).forEach((sub, i) => check(sub, [...path, "subtasks", i], depth + 1));
+    };
+    template.task_lists.forEach((list, l) =>
+      list.tasks.forEach((task, t) => check(task, ["task_lists", l, "tasks", t], 0)),
+    );
+  });
 
 export type TaskTemplate = z.infer<typeof TaskTemplateSchema>;
 export type TemplateVariable = z.infer<typeof TemplateVariableSchema>;

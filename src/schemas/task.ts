@@ -72,6 +72,11 @@ export const CreateMilestoneSchema = z
     due_date: ISO8601DateSchema.optional(),
     start_date: ISO8601DateSchema.optional(),
     workflow_status: z.string().optional(),
+    // A Milestone can carry a Task type (e.g. "Show & Tell", "Release"), but
+    // never a parent: Milestones are always top-level (docs/domain.md).
+    task_type: TaskTypeNameSchema.optional(),
+    priority: z.enum(PRIORITIES).optional(),
+    labels: z.array(z.string()).optional(),
     response_format: ResponseFormatSchema,
   })
   .strict();
