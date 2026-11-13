@@ -29,6 +29,7 @@ import {
   ListMyTasksDueTodaySchema,
 } from "../schemas/task.js";
 import { resolveCurrentPersonId } from "./timers.js";
+import { mergeCustomFieldsForPatch } from "../utils/custom-fields.js";
 import {
   CUSTOM_FIELD_IDS,
   PRIORITY_OPTIONS,
@@ -848,11 +849,13 @@ export async function updateTask(
     const existingCustomFields =
       (existingTask as Task).attributes?.custom_fields || {};
 
-    // Merge: existing values as base, then apply our updates
-    attributes.custom_fields = {
-      ...existingCustomFields,
-      ...customFieldUpdates,
-    };
+    // Merge: existing values as base, then apply our updates. The Commit
+    // reference is sent back unchanged and never as null: clearing it makes
+    // Productive's automation stamp a new reference.
+    attributes.custom_fields = mergeCustomFieldsForPatch(
+      existingCustomFields,
+      customFieldUpdates,
+    );
   }
 
   if (Object.keys(attributes).length > 0) {

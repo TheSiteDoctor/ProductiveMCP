@@ -11,6 +11,7 @@ import {
   LimitSchema,
   OffsetSchema,
   ISO8601DateSchema,
+  clearable,
 } from "./common.js";
 
 const ISODateTimeSchema = z
@@ -57,10 +58,10 @@ export const UpdateTimeEntrySchema = z
     date: ISO8601DateSchema.optional(),
     time_minutes: z.coerce.number().int().min(1).optional(),
     billable_time_minutes: z.coerce.number().int().min(0).optional(),
-    note: z.string().max(5000).optional().nullable(),
-    started_at: ISODateTimeSchema.optional().nullable(),
+    note: clearable(z.string().max(5000)),
+    started_at: clearable(ISODateTimeSchema),
     service_id: z.string().optional(),
-    task_id: z.string().optional().nullable(),
+    task_id: clearable(z.string()),
     response_format: ResponseFormatSchema,
   })
   .strict();

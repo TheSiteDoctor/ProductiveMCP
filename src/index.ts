@@ -1113,17 +1113,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             description: "New task title (1-200 characters)",
           },
           description: {
-            type: "string",
+            type: ["string", "null"],
             description:
               "New description in Markdown or HTML format (or null to clear). Markdown will be automatically converted to HTML.",
           },
           due_date: {
-            type: "string",
+            type: ["string", "null"],
             description:
               "New due date in ISO 8601 format (YYYY-MM-DD), or null to clear",
           },
           start_date: {
-            type: "string",
+            type: ["string", "null"],
             description:
               "New start date in ISO 8601 format (YYYY-MM-DD), or null to clear",
           },
@@ -1146,7 +1146,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
               "Move task to a different task list (use productive_list_task_lists to find IDs)",
           },
           assignee_id: {
-            type: "string",
+            type: ["string", "null"],
             description:
               "Assignee person ID, or null to unassign. Use productive_list_people to find person IDs.",
             nullable: true,
@@ -1156,7 +1156,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             description: "Mark task as closed (true) or open (false)",
           },
           parent_task_id: {
-            type: "string",
+            type: ["string", "null"],
             description:
               "Set or change the parent task ID to make this a sub-task, or null to remove the parent (make it a top-level task). Refused for a Milestone, which is always top-level.",
             nullable: true,

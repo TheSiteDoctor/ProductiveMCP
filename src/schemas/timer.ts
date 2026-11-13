@@ -7,7 +7,7 @@
  */
 
 import { z } from "zod";
-import { ResponseFormatSchema } from "./common.js";
+import { ResponseFormatSchema, clearable } from "./common.js";
 
 const ISODateTimeSchema = z
   .string()
@@ -87,9 +87,9 @@ export const GetRunningTimerSchema = z
 export const UpdateTimerSchema = z
   .object({
     timer_id: z.string().min(1, "Timer ID is required"),
-    note: z.string().max(5000).optional().nullable(),
+    note: clearable(z.string().max(5000)),
     service_id: z.string().optional(),
-    task_id: z.string().optional().nullable(),
+    task_id: clearable(z.string()),
     billable_time_minutes: z.coerce.number().int().min(0).optional(),
     response_format: ResponseFormatSchema,
   })

@@ -9,6 +9,7 @@ import {
   OffsetSchema,
   ISO8601DateSchema,
   OptionalISO8601DateSchema,
+  clearable,
 } from "./common.js";
 import { PRIORITIES } from "../constants.js";
 import { TodoItemSchema } from "./todo.js";
@@ -137,21 +138,19 @@ export const UpdateTaskSchema = z
       .min(1, "Title must not be empty")
       .max(200, "Title must be 200 characters or less")
       .optional(),
-    description: z
-      .string()
-      .max(10000, "Description must be 10000 characters or less")
-      .optional()
-      .nullable(),
+    description: clearable(
+      z.string().max(10000, "Description must be 10000 characters or less"),
+    ),
     due_date: OptionalISO8601DateSchema,
     start_date: OptionalISO8601DateSchema,
     closed: z.boolean().optional(),
-    assignee_id: z.string().optional().nullable(),
+    assignee_id: clearable(z.string()),
     estimate_minutes: z.coerce.number().int().min(0).optional(),
     priority: z.enum(PRIORITIES).optional(),
     task_type: TaskTypeNameSchema.optional(),
     workflow_status: z.string().optional(),
     task_list_id: z.string().optional(),
-    parent_task_id: z.string().optional().nullable(),
+    parent_task_id: clearable(z.string()),
     labels: z.array(z.string()).optional(),
     response_format: ResponseFormatSchema,
   })

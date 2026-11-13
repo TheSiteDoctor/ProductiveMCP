@@ -7,6 +7,7 @@ import {
   ResponseFormatSchema,
   LimitSchema,
   OffsetSchema,
+  clearable,
 } from './common.js';
 
 /**
@@ -60,7 +61,7 @@ export const CreatePageSchema = z.object({
 export const UpdatePageSchema = z.object({
   page_id: z.string().min(1, 'Page ID is required'),
   title: z.string().min(1, 'Title must not be empty').max(500, 'Title must be 500 characters or less').optional(),
-  body: z.string().optional().nullable(),
+  body: clearable(z.string()),
   response_format: ResponseFormatSchema,
 }).strict();
 

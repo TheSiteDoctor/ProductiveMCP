@@ -25,9 +25,21 @@ export const ISO8601DateSchema = z.string().regex(
 );
 
 /**
+ * A "null to clear" parameter: optional, and null clears the value.
+ *
+ * Some MCP clients (and the CLI) can't send a real JSON null, so the string
+ * "null" and an empty string are treated as null too. Without this, "null"
+ * arrived as a string and was sent to Productive as an ID or attribute value
+ * (e.g. update_task's parent_task_id: "null" failed with "attribute is
+ * invalid (at data/attributes/parent_task)").
+ */
+export const clearable = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess(
+    (value) => (value === 'null' || value === '' ? null : value),
+    schema.nullable().optional(),
+  );
+
+/**
  * Optional ISO 8601 date (can be null to clear)
  */
-export const OptionalISO8601DateSchema = z.union([
-  ISO8601DateSchema,
-  z.null(),
-]).optional();
+export const OptionalISO8601DateSchema = clearable(ISO8601DateSchema);
