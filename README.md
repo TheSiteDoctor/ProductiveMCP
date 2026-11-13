@@ -236,6 +236,17 @@ Productive scopes statuses to a **workflow**, and most organisations have an unu
 | `productive_get_task`           | Get full task details                  |
 | `productive_update_task`        | Update task properties                 |
 
+### Milestones
+
+| Tool                                | Description                                                                     |
+| ----------------------------------- | ------------------------------------------------------------------------------- |
+| `productive_create_milestone`       | Create a top-level Milestone ("Key Task"), optionally with a Task type          |
+| `productive_review_milestone_dates` | Check milestone dates against public holidays, weekends and the Christmas period |
+
+Milestones are always top-level tickets, and kind is independent of Task type, so a Show & Tell is a Milestone with Task type "Show & Tell" ([docs/domain.md](docs/domain.md)). The date review reports problems, warnings and Show & Tell sprint capacity notes, suggests the nearest earlier working day, and keeps one internal comment on each flagged milestone. It never moves a date. It also runs at the end of `productive_apply_task_template`. See [docs/milestone-date-review.md](docs/milestone-date-review.md).
+
+New tickets wait for Productive's automation to stamp their Commit reference before the next one is created, so a template run can't hand two tickets the same reference; any duplicate, missing or mismatched reference is reported.
+
 ### Task Templates
 
 | Tool                             | Description                                       |
