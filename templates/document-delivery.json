@@ -12,6 +12,10 @@
       "description": "Client name, e.g. Taster Wine"
     },
     {
+      "name": "client_code",
+      "description": "TSD's short code for the client, used for their support address ({{client_code}}@tsd.support), e.g. tw"
+    },
+    {
       "name": "contributor_count",
       "description": "Number of third parties who need to provide input (agency, host, client teams). One Question ticket is created per contributor.",
       "default": "3"
@@ -34,13 +38,25 @@
         {
           "title": "Project Management",
           "task_type": "Feature",
-          "description": "### Overview\n\nProject management for the {{client_name}} {{document_name}}: kick-off, client updates, invoicing and handover.\n\n### Acceptance Criteria\n\n- Kick-off held and owner, reviewer and dates agreed\n- Contributor contacts received\n- Time tracked within the fixed-fee budget\n- Document signed off by the client\n- Invoice raised and sent\n- Handover complete\n- All subtasks completed",
+          "description": "### Overview\n\nProject management for the {{client_name}} {{document_name}}: kick-off, client updates, invoicing and handover.\n\n### Acceptance Criteria\n\n- Project set up in Productive\n- New-client onboarding done where needed\n- Kick-off held and owner, reviewer and dates agreed\n- Contributor contacts received\n- Time tracked within the fixed-fee budget\n- Document signed off by the client\n- Invoice raised and sent\n- Handover complete\n- All subtasks completed",
           "subtasks": [
+            {
+              "title": "Finish setting up the project in Productive",
+              "task_type": "Task",
+              "estimate_minutes": 15,
+              "description": "### Overview\n\nThe project already exists (this template was applied to it), so finish it off: the fixed-fee budget and service, dates, the TSD team as members, the client's people with client access.\n\n### Acceptance Criteria\n\n- Budget and service match the SoW\n- Start and target sign-off dates set\n- Author and reviewer added as members\n- Client contacts have client access"
+            },
             {
               "title": "Internal kick-off: agree owner, reviewer and dates",
               "task_type": "Meeting",
               "estimate_minutes": 15,
               "description": "### Overview\n\nConfirm the author and an independent technical reviewer, set target dates and split the fixed-fee budget across the tickets.\n\n### Acceptance Criteria\n\n- Author and reviewer named\n- Target dates set, working back from sign-off\n- Budget split confirmed against the ticket estimates"
+            },
+            {
+              "title": "Question: Is {{client_name}} a new client?",
+              "task_type": "Question",
+              "estimate_minutes": 15,
+              "description": "### Overview\n\nNew clients need onboarding; existing clients already have it. If {{client_name}} is new, do the steps below as part of this ticket (or split them into tasks). If not, check their support address still routes and close this.\n\n### Acceptance Criteria\n\n- New or existing client confirmed\n- New clients only: support email address {{client_code}}@tsd.support set up and routing into the TSD helpdesk\n- New clients only: Welcome Pack created (who's who, communication, how to raise support requests, how sign-off works)\n- New clients only: Welcome Pack shared with the client"
             },
             {
               "title": "Ask the client for contributor contacts",

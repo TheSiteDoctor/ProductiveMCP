@@ -21,7 +21,7 @@ Resolve the target Productive project with `productive_list_projects` (search by
 
 ### 2. Check the base templates
 
-Run `productive_list_task_lists` for the project, and `productive_search_tasks` for a "Project Management" Feature. If the standard scaffolding is missing, offer to apply `standard-delivery` (and `umbraco-setup` / `stripe-integration` / `ecommerce-build` / `authentication` where relevant) first - pages sit on top of it, and `website-build` already covers Site-wide, Homepage and Content Page.
+Run `productive_list_task_lists` for the project, and `productive_search_tasks` for a "Project Management" Feature. If the standard scaffolding is missing, offer to apply `standard-delivery` (it needs the client's `client_code`, used for their support address `<client_code>@tsd.support` - ask if you don't know it) (and `umbraco-setup` / `stripe-integration` / `ecommerce-build` / `authentication` where relevant) first - pages sit on top of it, and `website-build` already covers Site-wide, Homepage and Content Page.
 
 Identify the delivery phase list: the templates default it to **"Core Delivery"**. If the project uses a different name for that phase (e.g. "Phase 1 - Core Delivery"), use that name so the pages land in the existing list; if unclear, ask once. New Features are placed above the list's "Build Complete" milestone automatically.
 

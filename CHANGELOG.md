@@ -5,11 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.12.0] - 2026-11-04
+## [1.12.0] - 2026-11-13
 
 ### Added
 
-- `document-delivery` template for fixed-fee document projects (contingency plans, audits, reports, policies): Project Management, then Gather the requirements (a Question ticket per contributor from `contributor_count`), Produce the document (a Write ticket per section from `section_count`, technical review and proofread), a "Draft issued for review" milestone, Finalise and sign off, and a sign-off milestone. Acceptance criteria are in each ticket's description. The Template Planner has a "Document" preset.
+- `standard-delivery` Project Setup adds client onboarding tickets in the order they're needed: "Finish setting up the project in Productive" first, then (after the Product Owners and internal kick-off) "Set up the support email address ({{client_code}}@tsd.support)" and "Create the Welcome Pack" before the client kick-off, and "Share the Welcome Pack" after it. For an existing client they check the address still routes and update the existing pack. The template now needs a `client_code` variable.
+- `document-delivery` template for fixed-fee document projects (contingency plans, audits, reports, policies): Project Management, then Gather the requirements (a Question ticket per contributor from `contributor_count`), Produce the document (a Write ticket per section from `section_count`, technical review and proofread), a "Draft issued for review" milestone, Finalise and sign off, and a sign-off milestone. Project Management starts with finishing the Productive setup and a "Question: Is <client> a new client?" ticket that lists the onboarding steps (support address, Welcome Pack) for new clients only. Acceptance criteria are in each ticket's description; the template needs `client_name` and `client_code`. The Template Planner has a "Document" preset.
 - `umbraco-setup` adds a **CMS handover readiness** Feature to the core delivery phase, for work to finish before the client's CMS training: "Review document type permissions" (Allow at root and Allowed child node types, so editors can't, for example, create a second Search or Sitemap page under the Homepage) and "Create CMS logins for the client's administrators" (one Umbraco user per person, no shared logins). The Client CMS training & handover meeting now says both should be done first.
 - `npm run release:tag` (`scripts/tag-releases.mjs`) tags every changelog release that has no git tag, on the commit where `package.json` reached that version (a PR's merge commit). It is a dry run by default; `--apply` creates the tags and `--push` also pushes them. Existing tags are never moved, and a local tag that differs from the remote's is reported rather than overwritten.
 

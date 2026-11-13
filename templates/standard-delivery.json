@@ -8,6 +8,10 @@
       "description": "The project's primary domain name, e.g. example.com"
     },
     {
+      "name": "client_code",
+      "description": "TSD's short code for the client, used for their support address ({{client_code}}@tsd.support), e.g. tw"
+    },
+    {
       "name": "sprint_count",
       "description": "Number of two-week sprints planned, e.g. 8 for a four-month project. One Show & Tell ticket is created per sprint."
     },
@@ -37,6 +41,12 @@
           "task_type": "Feature",
           "subtasks": [
             {
+              "title": "Finish setting up the project in Productive",
+              "task_type": "Task",
+              "estimate_minutes": 30,
+              "description": "The project already exists (this template was applied to it), so finish it off: budget and services in line with the SoW, start and end dates, the TSD team as members, the client's people with client access, and the right workflow. Do this first - time tracking, budgets and the client's view of the tickets all depend on it."
+            },
+            {
               "title": "Agree the Product Owners and Project Team",
               "description": "Name the client-side Product Owner(s) - who prioritises the backlog and signs off work - and the TSD project team (delivery lead, developers, designer, QA). Record them on the project so everyone knows who decides what.",
               "task_type": "Task",
@@ -48,9 +58,27 @@
               "task_type": "Meeting"
             },
             {
+              "title": "Set up the support email address ({{client_code}}@tsd.support)",
+              "task_type": "Task",
+              "estimate_minutes": 15,
+              "description": "Make sure {{client_code}}@tsd.support exists and routes into the TSD helpdesk, so the client has one address for support from day one. For a client we've worked with before it should already exist: send a test email to confirm it still routes correctly. It goes in the Welcome Pack."
+            },
+            {
+              "title": "Create the Welcome Pack",
+              "task_type": "Task",
+              "estimate_minutes": 60,
+              "description": "Write the client's Welcome Pack: who's who on both sides (from the agreed Product Owners and Project Team), how and when we'll communicate, how to raise support requests ({{client_code}}@tsd.support), how tickets and sign-off work in Productive, and the key dates. Have it ready to walk through at the client kick-off. For an existing client, update their current pack with this project's team and dates instead of starting again."
+            },
+            {
               "title": "Project Kick-off (client)",
               "description": "Align with the customer on goals, timeline, comms cadence, who signs off what, and how feedback/tickets flow.",
               "task_type": "Meeting"
+            },
+            {
+              "title": "Share the Welcome Pack",
+              "task_type": "Task",
+              "estimate_minutes": 15,
+              "description": "Send the Welcome Pack to the client after the kick-off, with anything agreed in the meeting (comms cadence, sign-off, contacts) added. Store a copy on the project."
             },
             {
               "title": "Create GitHub repo ({{domain_name}})",
