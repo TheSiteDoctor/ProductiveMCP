@@ -208,6 +208,10 @@ productive --help                    # List all commands
 productive search-tasks --help       # Show options for a specific command
 ```
 
+## Domain model
+
+Tickets are either tasks or **Milestones** (Productive's "Key Task"), and kind is independent of the **Task type** custom field, so a Show & Tell is a Milestone with Task type "Show & Tell". Milestones are always top-level, Task types come from your organisation's own options, and the Commit reference is stamped by Productive and never cleared by this server. See [docs/domain.md](docs/domain.md).
+
 ## Custom Field Configuration
 
 Productive.io uses custom fields for task type, priority, estimates, and (optionally) a free-text **Commit reference** such as `IT-204` that teams use in branch names and commit messages. Tasks expose it as `commit_reference`, and `search-tasks --commit_reference IT-204` finds a task by it. These field IDs are unique to each organisation.
