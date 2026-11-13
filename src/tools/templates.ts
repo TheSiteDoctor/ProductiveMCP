@@ -39,6 +39,18 @@ import {
 } from "../utils/templates.js";
 import { resolveLabelOptionIds } from "./tasks.js";
 import { mergeCustomFieldsForPatch } from "../utils/custom-fields.js";
+import { runMilestoneDateReview, milestoneFromTask } from "./milestone-review.js";
+import type { MilestoneToReview } from "../utils/date-review.js";
+
+/** Due date N days from the apply date, as YYYY-MM-DD. */
+function dueDateFromToday(today: Date, days: number): string {
+  const due = new Date(today);
+  due.setDate(due.getDate() + days);
+  return due.toISOString().slice(0, 10);
+}
+
+/** The milestone date review can be turned off (the tests do, for speed). */
+const dateReviewEnabled = (): boolean => process.env.PRODUCTIVE_DATE_REVIEW !== "off";
 import {
   CUSTOM_FIELD_IDS,
   PRIORITY_OPTIONS,
@@ -237,7 +249,26 @@ export async function applyTaskTemplate(
   const taskTypeWarnings = checkTemplateTaskTypes(template);
 
   if (args.dry_run) {
-    return dryRunReport(template, values, args, taskTypeWarnings);
+    // Review the dates the milestones would get, without annotating anything.
+    const today = new Date();
+    const planned: MilestoneToReview[] = template.task_lists.flatMap((list) =>
+      list.tasks
+        .filter((t) => t.milestone && t.due_in_days !== undefined)
+        .map((t) => ({
+          title: t.title,
+          due_date: dueDateFromToday(today, t.due_in_days!),
+          task_type: t.task_type ?? null,
+        })),
+    );
+    const review =
+      planned.length > 0 && dateReviewEnabled()
+        ? await runMilestoneDateReview(null, planned, {
+            regions: args.review_regions,
+            include_trading_peaks: args.include_trading_peaks,
+            annotate: false,
+          })
+        : undefined;
+    return dryRunReport(template, values, args, taskTypeWarnings, review);
   }
 
   // Fetch active task lists once so same-named lists can be reused
@@ -280,6 +311,7 @@ export async function applyTaskTemplate(
 
   const listResults: AppliedListResult[] = [];
   const taskResults: AppliedTaskResult[] = [];
+  const reviewMilestones: MilestoneToReview[] = [];
   const today = new Date();
 
   const createOneTask = async (
@@ -303,6 +335,20 @@ export async function applyTaskTemplate(
         task_id: existingId,
         url: `https://app.productive.io/${client.getOrgId()}/tasks/${existingId}`,
       });
+      // A reused Milestone is reviewed on its current date, which may have
+      // been moved since it was created.
+      if (task.milestone && dateReviewEnabled()) {
+        try {
+          const current = await client.get<JSONAPIResponse>(`/tasks/${existingId}`);
+          const data = (Array.isArray(current.data) ? current.data[0] : current.data) as Task;
+          const m = data ? milestoneFromTask(data, client.getOrgId()) : null;
+          if (m) reviewMilestones.push(m);
+        } catch (error) {
+          warnings.push(
+            `Couldn't read the date of existing milestone "${task.title}" for the date review: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      }
       if (task.subtasks && task.subtasks.length > 0) {
         const existingChildren = (
           await fetchExistingTasks({ "filter[parent_task_id]": existingId })
@@ -341,9 +387,7 @@ export async function applyTaskTemplate(
         payload.data.attributes.initial_estimate = task.estimate_minutes;
       }
       if (task.due_in_days !== undefined) {
-        const due = new Date(today);
-        due.setDate(due.getDate() + task.due_in_days);
-        payload.data.attributes.due_date = due.toISOString().slice(0, 10);
+        payload.data.attributes.due_date = dueDateFromToday(today, task.due_in_days);
       }
       if (task.milestone) {
         payload.data.attributes.type_id = 3;
@@ -415,6 +459,16 @@ export async function applyTaskTemplate(
 
       if (moveBeforeId && !task.milestone) {
         await keepMilestoneLast(createdId, moveBeforeId, taskListName);
+      }
+
+      if (task.milestone && payload.data.attributes.due_date) {
+        reviewMilestones.push({
+          id: createdId,
+          title: task.title,
+          due_date: payload.data.attributes.due_date,
+          task_type: task.task_type ?? null,
+          url: `https://app.productive.io/${client.getOrgId()}/tasks/${createdId}`,
+        });
       }
 
       taskResults.push({
@@ -640,6 +694,15 @@ export async function applyTaskTemplate(
     }
   }
 
+  const review =
+    reviewMilestones.length > 0 && dateReviewEnabled()
+      ? await runMilestoneDateReview(client, reviewMilestones, {
+          regions: args.review_regions,
+          include_trading_peaks: args.include_trading_peaks,
+          annotate: true,
+        })
+      : undefined;
+
   const created = taskResults.filter((t) => t.status === "created");
   const failed = taskResults.filter((t) => t.status === "failed");
   const skipped = taskResults.filter((t) => t.status === "skipped");
@@ -656,6 +719,9 @@ export async function applyTaskTemplate(
     failed: failed.length,
     skipped: skipped.length,
     warnings,
+    date_review: review
+      ? { ...(review.result ?? {}), annotations: review.annotations, error: review.error }
+      : undefined,
     tasks: taskResults,
   };
 
@@ -728,6 +794,8 @@ export async function applyTaskTemplate(
       lines.push("");
     }
 
+    if (review) lines.push(review.markdown, "");
+
     return lines.join("\n");
   });
 
@@ -740,6 +808,7 @@ function dryRunReport(
   values: Record<string, string>,
   args: z.infer<typeof ApplyTaskTemplateSchema>,
   warnings: string[],
+  review?: Awaited<ReturnType<typeof runMilestoneDateReview>>,
 ): string {
   const summary = {
     dry_run: true,
@@ -750,6 +819,7 @@ function dryRunReport(
     tasks: countTasks(template),
     total_estimate_minutes: totalEstimateMinutes(template),
     warnings,
+    date_review: review ? { ...(review.result ?? {}), error: review.error } : undefined,
     structure: template.task_lists,
   };
 
@@ -787,6 +857,7 @@ function dryRunReport(
         for (const task of list.tasks) renderTask(task, 0);
         lines.push("");
       }
+      if (review) lines.push(review.markdown, "");
       lines.push(
         "No changes were made. Re-run with dry_run: false to create these tasks.",
       );

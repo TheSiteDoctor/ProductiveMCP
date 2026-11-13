@@ -9,6 +9,7 @@
 
 import { z } from "zod";
 import { ResponseFormatSchema } from "./common.js";
+import { ReviewRegionsSchema } from "./milestone-review.js";
 import { PRIORITIES } from "../constants.js";
 
 /**
@@ -204,6 +205,10 @@ export const ApplyTaskTemplateSchema = z
     reuse_existing_task_lists: z.boolean().default(true),
     skip_existing_tasks: z.boolean().default(true),
     dry_run: z.boolean().default(false),
+    // Milestone date review run at the end of the apply. Regions default to
+    // productive.config.json's date_review.regions.
+    review_regions: ReviewRegionsSchema.optional(),
+    include_trading_peaks: z.boolean().default(false),
     response_format: ResponseFormatSchema,
   })
   .strict()

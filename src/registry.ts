@@ -249,6 +249,8 @@ import {
   getTaskTemplate,
   applyTaskTemplate,
 } from "./tools/templates.js";
+import { reviewProjectMilestoneDates } from "./tools/milestone-review.js";
+import { ReviewMilestoneDatesSchema } from "./schemas/milestone-review.js";
 
 export interface ToolRegistryEntry {
   schema: z.ZodTypeAny;
@@ -568,5 +570,9 @@ export const toolRegistry: Record<string, ToolRegistryEntry> = {
   productive_apply_task_template: {
     schema: ApplyTaskTemplateSchema,
     handler: applyTaskTemplate,
+  },
+  productive_review_milestone_dates: {
+    schema: ReviewMilestoneDatesSchema,
+    handler: reviewProjectMilestoneDates,
   },
 };

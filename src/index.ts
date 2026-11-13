@@ -969,7 +969,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "productive_apply_task_template",
       description:
-        'Apply a task template to a project: creates every task list, task and subtask the template defines, substituting {{variable}} placeholders with the supplied values. Task lists whose name already exists in the project are reused rather than duplicated, and within a reused list an existing ticket with the same title is reused, with the template\'s missing children added beneath it. Set dry_run: true first to preview exactly what will be created.\n\nPass either a stored template by name, or an inline template_definition composed for the occasion (e.g. scaffolding Design/Front-end/Back-end/QA/QC tasks for a project-specific list of pages).\n\nExample:\n{\n  "template": "standard-delivery",\n  "project_id": "1234",\n  "variables": {"domain_name": "example.com"},\n  "dry_run": true\n}',
+        'Apply a task template to a project: creates every task list, task and subtask the template defines, substituting {{variable}} placeholders with the supplied values. Task lists whose name already exists in the project are reused rather than duplicated, and within a reused list an existing ticket with the same title is reused, with the template\'s missing children added beneath it. Set dry_run: true first to preview exactly what will be created.\n\nWhen the run creates or reuses Milestones with due dates (e.g. Show & Tells), their dates are reviewed against public holidays, weekends, bridge days and the Christmas period, flagged milestones get an internal review comment, and the result is part of the response. The review never moves a date.\n\nPass either a stored template by name, or an inline template_definition composed for the occasion (e.g. scaffolding Design/Front-end/Back-end/QA/QC tasks for a project-specific list of pages).\n\nExample:\n{\n  "template": "standard-delivery",\n  "project_id": "1234",\n  "variables": {"domain_name": "example.com"},\n  "dry_run": true\n}',
       inputSchema: {
         type: "object",
         properties: {
@@ -981,7 +981,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           template_definition: {
             type: "object",
             description:
-              'Inline template object, same shape as a template file: {"name": "kebab-case-id", "title": "...", "variables": [{"name", "description", "default"}]?, "task_lists": [{"name": "...", "tasks": [{"title", "description"?, "task_type"? (Bug|Task|Feature|Question|Meeting|Test Case), "priority"?, "labels"?, "estimate_minutes"?, "due_in_days"?, "milestone"?, "repeat"? (count or "{{variable}}"; {{repeat_index}} becomes 1..N), "repeat_every_days"?, "subtasks"?}]}]}. Provide either this or template',
+              'Inline template object, same shape as a template file: {"name": "kebab-case-id", "title": "...", "variables": [{"name", "description", "default"}]?, "task_lists": [{"name": "...", "tasks": [{"title", "description"?, "task_type"? (one of the organisation\'s Task types), "priority"?, "labels"?, "estimate_minutes"?, "due_in_days"?, "milestone"? (true = top-level Milestone; never nested, never with subtasks; can still have task_type, e.g. Show & Tell), "repeat"? (count or "{{variable}}"; {{repeat_index}} becomes 1..N), "repeat_every_days"?, "subtasks"?}]}]}. Provide either this or template',
             properties: {
               name: { type: "string" },
               title: { type: "string" },
@@ -1027,7 +1027,63 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             type: "boolean",
             default: false,
             description:
-              "Preview what would be created without calling the Productive API (default: false)",
+              "Preview what would be created without calling the Productive API (default: false). The preview still includes the milestone date review of the planned dates.",
+          },
+          review_regions: {
+            type: "array",
+            items: { type: "string" },
+            description:
+              "Holiday regions for the milestone date review that runs at the end: england-and-wales, scotland, northern-ireland, us-federal. Defaults to productive.config.json (england-and-wales and us-federal). Public holidays vary by country, so ask the user which countries the client's stakeholders and the team are in if you don't know.",
+          },
+          include_trading_peaks: {
+            type: "boolean",
+            default: false,
+            description:
+              "Also warn about milestones on Black Friday, Cyber Monday or in the week before Christmas. Use it for e-commerce clients.",
+          },
+          response_format: {
+            type: "string",
+            enum: ["markdown", "json"],
+            description: "Response format (default: markdown)",
+            default: "markdown",
+          },
+        },
+        required: ["project_id"],
+      },
+    },
+    {
+      name: "productive_review_milestone_dates",
+      description:
+        'Review the due dates of every open Milestone in a project and report problems for a human to raise with the customer. It never changes a date.\n\nProblems (the date should not stand): a public holiday in any selected region (including substitute days such as Boxing Day observed on Mon 28 Dec 2026), or a weekend. Warnings: a bridge day (a single working day between a holiday and a weekend, e.g. the Friday after US Thanksgiving), 24 December to 1 January, and with include_trading_peaks Black Friday, Cyber Monday and the week before Christmas. Notes (Show & Tells only): sprints that lose working days to holidays or span Christmas. Each flagged milestone gets a suggested alternative, the nearest earlier working day that passes every check (never later, so the demo stays inside its sprint).\n\nWith annotate (default true) each flagged milestone gets one internal comment for the project manager; re-runs update it rather than adding another, and remove it once the date passes. UK holidays come from GOV.UK, US federal holidays are computed; a region that cannot be loaded is reported as skipped, never as clear. Holidays vary by country, so ask the user which countries the stakeholders are in if you do not know. Re-run this after moving dates or agreeing a different Show & Tell day.\n\nExample:\n{\n  "project_id": "1110685",\n  "regions": ["england-and-wales", "us-federal"]\n}',
+      inputSchema: {
+        type: "object",
+        properties: {
+          project_id: {
+            type: "string",
+            description: "Project ID whose open Milestones to review",
+          },
+          regions: {
+            type: "array",
+            items: { type: "string" },
+            description:
+              "Holiday regions: england-and-wales, scotland, northern-ireland, us-federal. Defaults to productive.config.json (england-and-wales and us-federal).",
+          },
+          include_trading_peaks: {
+            type: "boolean",
+            default: false,
+            description:
+              "Also warn about Black Friday, Cyber Monday and the week before Christmas (use for e-commerce clients)",
+          },
+          annotate: {
+            type: "boolean",
+            default: true,
+            description:
+              "Add (or update) one internal review comment on each flagged milestone, and remove it once the date passes (default: true)",
+          },
+          project_start_date: {
+            type: "string",
+            description:
+              "Optional start of Sprint 1 (YYYY-MM-DD) for the Show & Tell capacity check. Otherwise Sprint 1 is assumed to be as long as the gap between the first two Show & Tells.",
           },
           response_format: {
             type: "string",
