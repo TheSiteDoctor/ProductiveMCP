@@ -47,8 +47,8 @@
               "description": "The project already exists (this template was applied to it), so finish it off: budget and services in line with the SoW, start and end dates, the TSD team as members, the client's people with client access, and the right workflow. Do this first - time tracking, budgets and the client's view of the tickets all depend on it."
             },
             {
-              "title": "Agree the Product Owners and Project Team",
-              "description": "Name the client-side Product Owner(s) - who prioritises the backlog and signs off work - and the TSD project team (delivery lead, developers, designer, QA). Record them on the project so everyone knows who decides what.",
+              "title": "Confirm the stakeholders",
+              "description": "Confirm who's involved on both sides and record them on the project: the client's Product Owner(s), who prioritise the backlog and sign off work, anyone else who needs to attend the Show & Tells or approve releases, and the TSD project team (delivery lead, developers, designer, QA). Note which country each of them works in, so the Show & Tell dates can be checked against the right public holidays.",
               "task_type": "Task",
               "estimate_minutes": 30
             },
@@ -67,7 +67,7 @@
               "title": "Create the Welcome Pack",
               "task_type": "Task",
               "estimate_minutes": 60,
-              "description": "Write the client's Welcome Pack: who's who on both sides (from the agreed Product Owners and Project Team), how and when we'll communicate, how to raise support requests ({{client_code}}@tsd.support), how tickets and sign-off work in Productive, and the key dates. Have it ready to walk through at the client kick-off. For an existing client, update their current pack with this project's team and dates instead of starting again."
+              "description": "Write the client's Welcome Pack: who's who on both sides (from the confirmed stakeholders), how and when we'll communicate, how to raise support requests ({{client_code}}@tsd.support), how tickets and sign-off work in Productive, and the key dates. Have it ready to walk through at the client kick-off. For an existing client, update their current pack with this project's team and dates instead of starting again."
             },
             {
               "title": "Project Kick-off (client)",
@@ -75,10 +75,16 @@
               "task_type": "Meeting"
             },
             {
+              "title": "Confirm the Show & Tell day of the week",
+              "task_type": "Task",
+              "estimate_minutes": 15,
+              "description": "Agree with the client which day of the week suits the Show & Tells, and which countries the people attending are in (public holidays vary, e.g. England and Wales, Scotland, the US). Then move the Show & Tell Milestones onto that day and re-run `productive_review_milestone_dates` with those regions, so holidays, bridge days and the Christmas period are spotted before the customer does. Add the day to the Welcome Pack."
+            },
+            {
               "title": "Share the Welcome Pack",
               "task_type": "Task",
               "estimate_minutes": 15,
-              "description": "Send the Welcome Pack to the client after the kick-off, with anything agreed in the meeting (comms cadence, sign-off, contacts) added. Store a copy on the project."
+              "description": "Send the Welcome Pack to the client after the kick-off, with anything agreed in the meeting (comms cadence, the Show & Tell day, sign-off, contacts) added. Store a copy on the project."
             },
             {
               "title": "Create GitHub repo ({{domain_name}})",
@@ -132,14 +138,6 @@
               "title": "Risks, assumptions & dependencies log",
               "description": "Maintain a RAID log: risks, assumptions, issues and dependencies (customer content, third-party access, DNS control etc). Review it at planning sessions.",
               "task_type": "Task"
-            },
-            {
-              "title": "Show & Tell: Sprint {{repeat_index}}",
-              "description": "End-of-sprint demo of progress to the customer. One ticket is created per planned two-week sprint; add more if the project runs longer.",
-              "task_type": "Meeting",
-              "repeat": "{{sprint_count}}",
-              "due_in_days": 14,
-              "repeat_every_days": 14
             },
             {
               "title": "UAT coordination",
@@ -281,6 +279,15 @@
               "estimate_minutes": 30
             }
           ]
+        },
+        {
+          "title": "Show & Tell: Sprint {{repeat_index}}",
+          "description": "End-of-sprint demo of progress to the customer, on the day of the week agreed with them. One Milestone is created per planned two-week sprint; add more if the project runs longer. Dates are checked against public holidays when the template is applied - re-run `productive_review_milestone_dates` after moving any of them.",
+          "milestone": true,
+          "task_type": "Show & Tell",
+          "repeat": "{{sprint_count}}",
+          "due_in_days": 14,
+          "repeat_every_days": 14
         },
         {
           "title": "Build Complete",

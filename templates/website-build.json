@@ -137,7 +137,8 @@
         {
           "title": "Site go-live ({{domain_name}})",
           "description": "Release milestone: the site is live on {{domain_name}} with the Go-live Launch checks passed.",
-          "milestone": true
+          "milestone": true,
+          "task_type": "Release"
         }
       ]
     }
